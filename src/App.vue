@@ -54,7 +54,7 @@
         <div v-show="mobileMenuOpen" class="sm:hidden">
           <div class="pt-2 pb-3 space-y-1">
             <router-link
-              to="/dashboard"
+              to="/"
               @click="mobileMenuOpen = false"
               class="block pl-3 pr-4 py-2 border-l-4 text-base font-medium"
               :class="$route.name === 'Dashboard'
