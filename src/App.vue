@@ -30,7 +30,7 @@
           <!-- Desktop Navigation -->
           <div class="hidden sm:flex sm:space-x-8">
             <router-link
-              to="/dashboard"
+              to="/"
               class="inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
               :class="$route.name === 'Dashboard'
                 ? 'border-blue-500 text-gray-900'
