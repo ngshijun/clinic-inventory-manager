@@ -1,8 +1,8 @@
 // stores/inventory.ts
-import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
 import { supabase } from '@/lib/supabase'
 import type { InventoryItem, NewInventoryItem } from '@/types/inventory'
+import { defineStore } from 'pinia'
+import { computed, ref } from 'vue'
 
 export const useInventoryStore = defineStore('inventory', () => {
   // State
@@ -20,11 +20,11 @@ export const useInventoryStore = defineStore('inventory', () => {
   })
 
   const lowStockItems = computed((): InventoryItem[] => {
-    return items.value.filter(item => item.quantity <= item.low_stock_notice_quantity)
+    return items.value.filter((item) => item.quantity <= item.low_stock_notice_quantity)
   })
 
   const outOfStockItems = computed((): InventoryItem[] => {
-    return items.value.filter(item => item.quantity === 0)
+    return items.value.filter((item) => item.quantity === 0)
   })
 
   // Actions
@@ -53,11 +53,13 @@ export const useInventoryStore = defineStore('inventory', () => {
     try {
       const { data, error: supabaseError } = await supabase
         .from('inventory')
-        .insert([{
-          item_name: newItem.item_name,
-          quantity: Math.max(0, newItem.quantity),
-          low_stock_notice_quantity: Math.max(0, newItem.low_stock_notice_quantity)
-        }])
+        .insert([
+          {
+            item_name: newItem.item_name,
+            quantity: Math.max(0, newItem.quantity),
+            low_stock_notice_quantity: Math.max(0, newItem.low_stock_notice_quantity),
+          },
+        ])
         .select()
         .single()
 
@@ -78,7 +80,7 @@ export const useInventoryStore = defineStore('inventory', () => {
     loading.value = true
     error.value = null
     try {
-      const item = items.value.find(item => item.id === itemId)
+      const item = items.value.find((item) => item.id === itemId)
       if (!item) throw new Error('Item not found')
 
       const newQuantity = item.quantity + Math.max(0, quantity)
@@ -87,7 +89,7 @@ export const useInventoryStore = defineStore('inventory', () => {
         .from('inventory')
         .update({
           quantity: newQuantity,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
         .eq('id', itemId)
         .select()
@@ -112,7 +114,7 @@ export const useInventoryStore = defineStore('inventory', () => {
     loading.value = true
     error.value = null
     try {
-      const item = items.value.find(item => item.id === itemId)
+      const item = items.value.find((item) => item.id === itemId)
       if (!item) throw new Error('Item not found')
 
       const quantityToRemove = Math.max(0, quantity)
@@ -122,7 +124,7 @@ export const useInventoryStore = defineStore('inventory', () => {
         .from('inventory')
         .update({
           quantity: newQuantity,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
         .eq('id', itemId)
         .select()
@@ -146,15 +148,12 @@ export const useInventoryStore = defineStore('inventory', () => {
     loading.value = true
     error.value = null
     try {
-      const { error: supabaseError } = await supabase
-        .from('inventory')
-        .delete()
-        .eq('id', itemId)
+      const { error: supabaseError } = await supabase.from('inventory').delete().eq('id', itemId)
 
       if (supabaseError) throw supabaseError
 
       // Remove from local state
-      const index = items.value.findIndex(item => item.id === itemId)
+      const index = items.value.findIndex((item) => item.id === itemId)
       if (index > -1) {
         items.value.splice(index, 1)
       }
@@ -167,20 +166,26 @@ export const useInventoryStore = defineStore('inventory', () => {
   }
 
   const getItemById = (itemId: string): InventoryItem | undefined => {
-    return items.value.find(item => item.id === itemId)
+    return items.value.find((item) => item.id === itemId)
   }
 
   const searchItems = (query: string): InventoryItem[] => {
     if (!query) return items.value
-    return items.value.filter(item =>
-      item.item_name.toLowerCase().includes(query.toLowerCase())
-    )
+    return items.value.filter((item) => item.item_name.toLowerCase().includes(query.toLowerCase()))
   }
 
   // Initialize store by fetching items
   const initializeStore = async (): Promise<void> => {
     await fetchItems()
   }
+
+  supabase
+    .channel('update')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory' }, () => {
+      fetchItems()
+      console.log('Change received!')
+    })
+    .subscribe()
 
   return {
     // State
@@ -202,6 +207,6 @@ export const useInventoryStore = defineStore('inventory', () => {
     deleteItem,
     getItemById,
     searchItems,
-    initializeStore
+    initializeStore,
   }
 })
