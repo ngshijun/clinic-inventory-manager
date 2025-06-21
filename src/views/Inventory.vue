@@ -1,4 +1,4 @@
-<!-- views/Inventory.vue - Mobile Responsive with Stock In/Out -->
+<!-- views/Inventory.vue - Mobile Responsive with Stock In/Out and Sortable Columns -->
 <template>
   <div class="px-2 py-3 sm:px-0 sm:py-6">
     <div class="border-4 border-dashed border-gray-200 rounded-lg p-3 sm:p-6">
@@ -180,11 +180,11 @@
         <div class="bg-white shadow overflow-hidden sm:rounded-md">
           <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
             <h3 class="text-lg leading-6 font-medium text-gray-900">
-              Items ({{ filteredItems.length }})
+              Items ({{ sortedAndFilteredItems.length }})
             </h3>
           </div>
 
-          <div v-if="filteredItems.length === 0" class="text-center py-12">
+          <div v-if="sortedAndFilteredItems.length === 0" class="text-center py-12">
             <svg
               class="mx-auto h-12 w-12 text-gray-400"
               fill="none"
@@ -209,7 +209,7 @@
           </div>
 
           <div v-else class="divide-y divide-gray-200">
-            <div v-for="item in filteredItems" :key="item.id" class="px-4 py-4">
+            <div v-for="item in sortedAndFilteredItems" :key="item.id" class="px-4 py-4">
               <div class="space-y-3">
                 <!-- Item Header -->
                 <div class="flex items-center justify-between">
@@ -301,7 +301,7 @@
         <div class="bg-white shadow overflow-hidden sm:rounded-md">
           <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
             <h3 class="text-lg leading-6 font-medium text-gray-900">
-              Items ({{ filteredItems.length }})
+              Items ({{ sortedAndFilteredItems.length }})
             </h3>
           </div>
 
@@ -310,24 +310,140 @@
               <thead class="bg-gray-50">
                 <tr>
                   <th
-                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    @click="toggleSort('item_name')"
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
                   >
-                    Item Name
+                    <div class="flex items-center justify-between">
+                      <span>Item Name</span>
+                      <div class="flex flex-col ml-2">
+                        <svg
+                          :class="[
+                            'w-3 h-3 transition-colors',
+                            sortConfig.key === 'item_name' && sortConfig.direction === 'asc'
+                              ? 'text-blue-600'
+                              : 'text-gray-400'
+                          ]"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path fill-rule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clip-rule="evenodd" />
+                        </svg>
+                        <svg
+                          :class="[
+                            'w-3 h-3 transition-colors -mt-1',
+                            sortConfig.key === 'item_name' && sortConfig.direction === 'desc'
+                              ? 'text-blue-600'
+                              : 'text-gray-400'
+                          ]"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                        </svg>
+                      </div>
+                    </div>
                   </th>
                   <th
-                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    @click="toggleSort('quantity')"
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
                   >
-                    Current Stock
+                    <div class="flex items-center justify-between">
+                      <span>Current Stock</span>
+                      <div class="flex flex-col ml-2">
+                        <svg
+                          :class="[
+                            'w-3 h-3 transition-colors',
+                            sortConfig.key === 'quantity' && sortConfig.direction === 'asc'
+                              ? 'text-blue-600'
+                              : 'text-gray-400'
+                          ]"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path fill-rule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clip-rule="evenodd" />
+                        </svg>
+                        <svg
+                          :class="[
+                            'w-3 h-3 transition-colors -mt-1',
+                            sortConfig.key === 'quantity' && sortConfig.direction === 'desc'
+                              ? 'text-blue-600'
+                              : 'text-gray-400'
+                          ]"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                        </svg>
+                      </div>
+                    </div>
                   </th>
                   <th
-                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    @click="toggleSort('low_stock_notice_quantity')"
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
                   >
-                    Low Stock Threshold
+                    <div class="flex items-center justify-between">
+                      <span>Low Stock Threshold</span>
+                      <div class="flex flex-col ml-2">
+                        <svg
+                          :class="[
+                            'w-3 h-3 transition-colors',
+                            sortConfig.key === 'low_stock_notice_quantity' && sortConfig.direction === 'asc'
+                              ? 'text-blue-600'
+                              : 'text-gray-400'
+                          ]"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path fill-rule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clip-rule="evenodd" />
+                        </svg>
+                        <svg
+                          :class="[
+                            'w-3 h-3 transition-colors -mt-1',
+                            sortConfig.key === 'low_stock_notice_quantity' && sortConfig.direction === 'desc'
+                              ? 'text-blue-600'
+                              : 'text-gray-400'
+                          ]"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                        </svg>
+                      </div>
+                    </div>
                   </th>
                   <th
-                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    @click="toggleSort('status')"
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
                   >
-                    Status
+                    <div class="flex items-center justify-between">
+                      <span>Status</span>
+                      <div class="flex flex-col ml-2">
+                        <svg
+                          :class="[
+                            'w-3 h-3 transition-colors',
+                            sortConfig.key === 'status' && sortConfig.direction === 'asc'
+                              ? 'text-blue-600'
+                              : 'text-gray-400'
+                          ]"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path fill-rule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clip-rule="evenodd" />
+                        </svg>
+                        <svg
+                          :class="[
+                            'w-3 h-3 transition-colors -mt-1',
+                            sortConfig.key === 'status' && sortConfig.direction === 'desc'
+                              ? 'text-blue-600'
+                              : 'text-gray-400'
+                          ]"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                        </svg>
+                      </div>
+                    </div>
                   </th>
                   <th
                     class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
@@ -337,7 +453,7 @@
                 </tr>
               </thead>
               <tbody class="bg-white divide-y divide-gray-200">
-                <tr v-for="item in filteredItems" :key="item.id" class="hover:bg-gray-50">
+                <tr v-for="item in sortedAndFilteredItems" :key="item.id" class="hover:bg-gray-50">
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                     {{ item.item_name }}
                   </td>
@@ -407,7 +523,7 @@
             </table>
           </div>
 
-          <div v-if="filteredItems.length === 0" class="text-center py-12">
+          <div v-if="sortedAndFilteredItems.length === 0" class="text-center py-12">
             <svg
               class="mx-auto h-12 w-12 text-gray-400"
               fill="none"
@@ -450,6 +566,15 @@ const editingItem = ref<string | null>(null)
 const stockQuantity = ref<number>(1)
 const fileInput = ref<HTMLInputElement | null>(null)
 
+// Sorting configuration
+const sortConfig = ref<{
+  key: keyof InventoryItem | 'status' | null
+  direction: 'asc' | 'desc'
+}>({
+  key: null,
+  direction: 'asc'
+})
+
 // Import status tracking
 const importStatus = ref({
   show: false,
@@ -467,9 +592,64 @@ const newItem = ref<NewInventoryItem>({
   low_stock_notice_quantity: 0,
 })
 
-const filteredItems = computed((): InventoryItem[] => {
-  return inventoryStore.searchItems(searchQuery.value)
+// Helper function to get stock status for sorting
+const getStockStatusValue = (item: InventoryItem): number => {
+  if (item.quantity === 0) return 0 // Out of Stock
+  if (item.quantity <= item.low_stock_notice_quantity) return 1 // Low Stock
+  return 2 // In Stock
+}
+
+// Sorting and filtering logic
+const sortedAndFilteredItems = computed((): InventoryItem[] => {
+  let items = inventoryStore.searchItems(searchQuery.value)
+
+  if (sortConfig.value.key) {
+    items = [...items].sort((a, b) => {
+      let aValue: any
+      let bValue: any
+
+      if (sortConfig.value.key === 'status') {
+        aValue = getStockStatusValue(a)
+        bValue = getStockStatusValue(b)
+      } else {
+        aValue = a[sortConfig.value.key as keyof InventoryItem]
+        bValue = b[sortConfig.value.key as keyof InventoryItem]
+      }
+
+      // Handle string comparison for item_name
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        const comparison = aValue.toLowerCase().localeCompare(bValue.toLowerCase())
+        return sortConfig.value.direction === 'asc' ? comparison : -comparison
+      }
+
+      // Handle number comparison
+      if (typeof aValue === 'number' && typeof bValue === 'number') {
+        return sortConfig.value.direction === 'asc' ? aValue - bValue : bValue - aValue
+      }
+
+      return 0
+    })
+  }
+
+  return items
 })
+
+// Legacy computed for backward compatibility (if needed elsewhere)
+const filteredItems = computed((): InventoryItem[] => {
+  return sortedAndFilteredItems.value
+})
+
+// Sorting functions
+const toggleSort = (key: keyof InventoryItem | 'status'): void => {
+  if (sortConfig.value.key === key) {
+    // Same column clicked - toggle direction
+    sortConfig.value.direction = sortConfig.value.direction === 'asc' ? 'desc' : 'asc'
+  } else {
+    // New column clicked - set ascending
+    sortConfig.value.key = key
+    sortConfig.value.direction = 'asc'
+  }
+}
 
 const startEdit = (item: InventoryItem): void => {
   editingItem.value = item.id
