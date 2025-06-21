@@ -1,4 +1,4 @@
-<!-- views/Inventory.vue - Mobile Responsive with Stock In/Out and Sortable Columns -->
+<!-- views/Inventory.vue - Mobile Responsive with Stock In/Out, Sortable Columns, and Pagination -->
 <template>
   <div class="px-2 py-3 sm:px-0 sm:py-6">
     <div class="border-4 border-dashed border-gray-200 rounded-lg p-3 sm:p-6">
@@ -184,7 +184,17 @@
             </h3>
           </div>
 
-          <div v-if="sortedAndFilteredItems.length === 0" class="text-center py-12">
+          <div
+            v-if="inventoryStore.loading && sortedAndFilteredItems.length === 0"
+            class="text-center py-8"
+          >
+            <div
+              class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"
+            ></div>
+            <p class="mt-2 text-gray-600 text-sm">Loading items...</p>
+          </div>
+
+          <div v-else-if="sortedAndFilteredItems.length === 0" class="text-center py-12">
             <svg
               class="mx-auto h-12 w-12 text-gray-400"
               fill="none"
@@ -209,7 +219,7 @@
           </div>
 
           <div v-else class="divide-y divide-gray-200">
-            <div v-for="item in sortedAndFilteredItems" :key="item.id" class="px-4 py-4">
+            <div v-for="item in paginatedItems" :key="item.id" class="px-4 py-4">
               <div class="space-y-3">
                 <!-- Item Header -->
                 <div class="flex items-center justify-between">
@@ -293,6 +303,31 @@
               </div>
             </div>
           </div>
+
+          <!-- Mobile Pagination -->
+          <div v-if="totalPages > 1" class="px-4 py-3 bg-gray-50 border-t border-gray-200">
+            <div class="flex justify-between items-center">
+              <div class="text-sm text-gray-700">
+                Showing {{ startIndex + 1 }} to {{ Math.min(endIndex, sortedAndFilteredItems.length) }} of {{ sortedAndFilteredItems.length }} results
+              </div>
+              <div class="flex gap-2">
+                <button
+                  @click="goToPage(currentPage - 1)"
+                  :disabled="currentPage <= 1"
+                  class="px-3 py-1 text-sm border border-gray-300 rounded bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Previous
+                </button>
+                <button
+                  @click="goToPage(currentPage + 1)"
+                  :disabled="currentPage >= totalPages"
+                  class="px-3 py-1 text-sm border border-gray-300 rounded bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -305,7 +340,41 @@
             </h3>
           </div>
 
-          <div class="overflow-x-auto">
+          <div
+            v-if="inventoryStore.loading && sortedAndFilteredItems.length === 0"
+            class="text-center py-8"
+          >
+            <div
+              class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"
+            ></div>
+            <p class="mt-2 text-gray-600 text-sm">Loading items...</p>
+          </div>
+
+          <div v-else-if="sortedAndFilteredItems.length === 0" class="text-center py-12">
+            <svg
+              class="mx-auto h-12 w-12 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
+              ></path>
+            </svg>
+            <h3 class="mt-2 text-sm font-medium text-gray-900">No items found</h3>
+            <p class="mt-1 text-sm text-gray-500">
+              {{
+                searchQuery
+                  ? 'Try adjusting your search terms.'
+                  : 'Get started by adding your first item.'
+              }}
+            </p>
+          </div>
+
+          <div v-else class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
               <thead class="bg-gray-50">
                 <tr>
@@ -453,7 +522,7 @@
                 </tr>
               </thead>
               <tbody class="bg-white divide-y divide-gray-200">
-                <tr v-for="item in sortedAndFilteredItems" :key="item.id" class="hover:bg-gray-50">
+                <tr v-for="item in paginatedItems" :key="item.id" class="hover:bg-gray-50">
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                     {{ item.item_name }}
                   </td>
@@ -523,28 +592,81 @@
             </table>
           </div>
 
-          <div v-if="sortedAndFilteredItems.length === 0" class="text-center py-12">
-            <svg
-              class="mx-auto h-12 w-12 text-gray-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
-              ></path>
-            </svg>
-            <h3 class="mt-2 text-sm font-medium text-gray-900">No items found</h3>
-            <p class="mt-1 text-sm text-gray-500">
-              {{
-                searchQuery
-                  ? 'Try adjusting your search terms.'
-                  : 'Get started by adding your first item.'
-              }}
-            </p>
+          <!-- Desktop Pagination -->
+          <div class="px-6 py-3 bg-gray-50 border-t border-gray-200">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center text-sm text-gray-700">
+                <span>Showing {{ startIndex + 1 }} to {{ Math.min(endIndex, sortedAndFilteredItems.length) }} of {{ sortedAndFilteredItems.length }} results</span>
+              </div>
+
+              <div class="flex items-center space-x-2">
+                <!-- Items per page selector -->
+                <div class="flex items-center space-x-2">
+                  <label class="text-sm text-gray-700">Items per page:</label>
+                  <select
+                    v-model="itemsPerPage"
+                    @change="goToPage(1)"
+                    class="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="25">25</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                  </select>
+                </div>
+
+                <!-- Page navigation -->
+                <div class="flex items-center space-x-1">
+                  <button
+                    @click="goToPage(1)"
+                    :disabled="currentPage <= 1"
+                    class="px-3 py-1 text-sm border border-gray-300 rounded bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    First
+                  </button>
+                  <button
+                    @click="goToPage(currentPage - 1)"
+                    :disabled="currentPage <= 1"
+                    class="px-3 py-1 text-sm border border-gray-300 rounded bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Previous
+                  </button>
+
+                  <!-- Page numbers -->
+                  <div class="flex items-center space-x-1">
+                    <template v-for="page in visiblePages" :key="page">
+                      <button
+                        v-if="page !== '...'"
+                        @click="goToPage(Number(page))"
+                        :class="[
+                          'px-3 py-1 text-sm border rounded',
+                          page === currentPage
+                            ? 'bg-blue-600 text-white border-blue-600'
+                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                        ]"
+                      >
+                        {{ page }}
+                      </button>
+                      <span v-else class="px-2 text-gray-500">...</span>
+                    </template>
+                  </div>
+
+                  <button
+                    @click="goToPage(currentPage + 1)"
+                    :disabled="currentPage >= totalPages"
+                    class="px-3 py-1 text-sm border border-gray-300 rounded bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Next
+                  </button>
+                  <button
+                    @click="goToPage(totalPages)"
+                    :disabled="currentPage >= totalPages"
+                    class="px-3 py-1 text-sm border border-gray-300 rounded bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Last
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -555,7 +677,7 @@
 <script setup lang="ts">
 import { useInventoryStore } from '@/stores/inventory'
 import type { InventoryItem, NewInventoryItem, StockStatus } from '@/types/inventory'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import * as XLSX from 'xlsx'
 
 const inventoryStore = useInventoryStore()
@@ -565,6 +687,10 @@ const showAddForm = ref<boolean>(false)
 const editingItem = ref<string | null>(null)
 const stockQuantity = ref<number>(1)
 const fileInput = ref<HTMLInputElement | null>(null)
+
+// Pagination
+const currentPage = ref<number>(1)
+const itemsPerPage = ref<number>(25)
 
 // Sorting configuration
 const sortConfig = ref<{
@@ -634,9 +760,75 @@ const sortedAndFilteredItems = computed((): InventoryItem[] => {
   return items
 })
 
-// Legacy computed for backward compatibility (if needed elsewhere)
-const filteredItems = computed((): InventoryItem[] => {
-  return sortedAndFilteredItems.value
+// Pagination computed properties
+const totalPages = computed((): number => {
+  return Math.ceil(sortedAndFilteredItems.value.length / itemsPerPage.value)
+})
+
+const startIndex = computed((): number => {
+  return (currentPage.value - 1) * itemsPerPage.value
+})
+
+const endIndex = computed((): number => {
+  return startIndex.value + itemsPerPage.value
+})
+
+const paginatedItems = computed((): InventoryItem[] => {
+  return sortedAndFilteredItems.value.slice(startIndex.value, endIndex.value)
+})
+
+// Visible page numbers for pagination
+const visiblePages = computed((): (number | string)[] => {
+  const pages: (number | string)[] = []
+  const total = totalPages.value
+  const current = currentPage.value
+
+  if (total <= 7) {
+    // Show all pages if 7 or fewer
+    for (let i = 1; i <= total; i++) {
+      pages.push(i)
+    }
+  } else {
+    // Always show first page
+    pages.push(1)
+
+    if (current <= 4) {
+      // Near the beginning
+      for (let i = 2; i <= 5; i++) {
+        pages.push(i)
+      }
+      pages.push('...')
+      pages.push(total)
+    } else if (current >= total - 3) {
+      // Near the end
+      pages.push('...')
+      for (let i = total - 4; i <= total; i++) {
+        pages.push(i)
+      }
+    } else {
+      // In the middle
+      pages.push('...')
+      for (let i = current - 1; i <= current + 1; i++) {
+        pages.push(i)
+      }
+      pages.push('...')
+      pages.push(total)
+    }
+  }
+
+  return pages
+})
+
+// Pagination functions
+const goToPage = (page: number): void => {
+  if (page >= 1 && page <= totalPages.value) {
+    currentPage.value = page
+  }
+}
+
+// Reset to first page when filters change
+watch([searchQuery, itemsPerPage], () => {
+  currentPage.value = 1
 })
 
 // Sorting functions
@@ -649,6 +841,7 @@ const toggleSort = (key: keyof InventoryItem | 'status'): void => {
     sortConfig.value.key = key
     sortConfig.value.direction = 'asc'
   }
+  currentPage.value = 1 // Reset to first page when sorting changes
 }
 
 const startEdit = (item: InventoryItem): void => {

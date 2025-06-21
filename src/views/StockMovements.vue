@@ -213,7 +213,7 @@
           </div>
 
           <div v-else class="divide-y divide-gray-200">
-            <div v-for="movement in sortedAndFilteredMovements" :key="movement.id" class="px-4 py-4">
+            <div v-for="movement in paginatedMovements" :key="movement.id" class="px-4 py-4">
               <div class="space-y-3">
                 <!-- Movement Header -->
                 <div class="flex items-center justify-between">
@@ -282,6 +282,31 @@
                     </button>
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Mobile Pagination -->
+          <div v-if="totalPages > 1" class="px-4 py-3 bg-gray-50 border-t border-gray-200">
+            <div class="flex justify-between items-center">
+              <div class="text-sm text-gray-700">
+                Showing {{ startIndex + 1 }} to {{ Math.min(endIndex, sortedAndFilteredMovements.length) }} of {{ sortedAndFilteredMovements.length }} results
+              </div>
+              <div class="flex gap-2">
+                <button
+                  @click="goToPage(currentPage - 1)"
+                  :disabled="currentPage <= 1"
+                  class="px-3 py-1 text-sm border border-gray-300 rounded bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Previous
+                </button>
+                <button
+                  @click="goToPage(currentPage + 1)"
+                  :disabled="currentPage >= totalPages"
+                  class="px-3 py-1 text-sm border border-gray-300 rounded bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
               </div>
             </div>
           </div>
@@ -485,7 +510,7 @@
               </thead>
               <tbody class="bg-white divide-y divide-gray-200">
                 <tr
-                  v-for="movement in sortedAndFilteredMovements"
+                  v-for="movement in paginatedMovements"
                   :key="movement.id"
                   class="hover:bg-gray-50"
                 >
@@ -551,6 +576,83 @@
               </tbody>
             </table>
           </div>
+
+          <!-- Desktop Pagination -->
+          <div class="px-6 py-3 bg-gray-50 border-t border-gray-200">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center text-sm text-gray-700">
+                <span>Showing {{ startIndex + 1 }} to {{ Math.min(endIndex, sortedAndFilteredMovements.length) }} of {{ sortedAndFilteredMovements.length }} results</span>
+              </div>
+
+              <div class="flex items-center space-x-2">
+                <!-- Items per page selector -->
+                <div class="flex items-center space-x-2">
+                  <label class="text-sm text-gray-700">Items per page:</label>
+                  <select
+                    v-model="itemsPerPage"
+                    @change="goToPage(1)"
+                    class="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="25">25</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                  </select>
+                </div>
+
+                <!-- Page navigation -->
+                <div class="flex items-center space-x-1">
+                  <button
+                    @click="goToPage(1)"
+                    :disabled="currentPage <= 1"
+                    class="px-3 py-1 text-sm border border-gray-300 rounded bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    First
+                  </button>
+                  <button
+                    @click="goToPage(currentPage - 1)"
+                    :disabled="currentPage <= 1"
+                    class="px-3 py-1 text-sm border border-gray-300 rounded bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Previous
+                  </button>
+
+                  <!-- Page numbers -->
+                  <div class="flex items-center space-x-1">
+                    <template v-for="page in visiblePages" :key="page">
+                      <button
+                        v-if="page !== '...'"
+                        @click="goToPage(Number(page))"
+                        :class="[
+                          'px-3 py-1 text-sm border rounded',
+                          page === currentPage
+                            ? 'bg-blue-600 text-white border-blue-600'
+                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                        ]"
+                      >
+                        {{ page }}
+                      </button>
+                      <span v-else class="px-2 text-gray-500">...</span>
+                    </template>
+                  </div>
+
+                  <button
+                    @click="goToPage(currentPage + 1)"
+                    :disabled="currentPage >= totalPages"
+                    class="px-3 py-1 text-sm border border-gray-300 rounded bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Next
+                  </button>
+                  <button
+                    @click="goToPage(totalPages)"
+                    :disabled="currentPage >= totalPages"
+                    class="px-3 py-1 text-sm border border-gray-300 rounded bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Last
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -560,7 +662,7 @@
 <script setup lang="ts">
 import { useStockMovementsStore } from '@/stores/stockMovements'
 import type { StockMovement } from '@/types/stockMovement'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 
 const stockMovementsStore = useStockMovementsStore()
 
@@ -568,6 +670,10 @@ const searchQuery = ref<string>('')
 const editingRemark = ref<string | null>(null)
 const newRemark = ref<string>('')
 const showAdvancedSearch = ref<boolean>(false)
+
+// Pagination
+const currentPage = ref<number>(1)
+const itemsPerPage = ref<number>(25)
 
 // Advanced search filters
 const advancedFilters = ref({
@@ -705,6 +811,77 @@ const sortedAndFilteredMovements = computed((): StockMovement[] => {
   return movements
 })
 
+// Pagination computed properties
+const totalPages = computed((): number => {
+  return Math.ceil(sortedAndFilteredMovements.value.length / itemsPerPage.value)
+})
+
+const startIndex = computed((): number => {
+  return (currentPage.value - 1) * itemsPerPage.value
+})
+
+const endIndex = computed((): number => {
+  return startIndex.value + itemsPerPage.value
+})
+
+const paginatedMovements = computed((): StockMovement[] => {
+  return sortedAndFilteredMovements.value.slice(startIndex.value, endIndex.value)
+})
+
+// Visible page numbers for pagination
+const visiblePages = computed((): (number | string)[] => {
+  const pages: (number | string)[] = []
+  const total = totalPages.value
+  const current = currentPage.value
+
+  if (total <= 7) {
+    // Show all pages if 7 or fewer
+    for (let i = 1; i <= total; i++) {
+      pages.push(i)
+    }
+  } else {
+    // Always show first page
+    pages.push(1)
+
+    if (current <= 4) {
+      // Near the beginning
+      for (let i = 2; i <= 5; i++) {
+        pages.push(i)
+      }
+      pages.push('...')
+      pages.push(total)
+    } else if (current >= total - 3) {
+      // Near the end
+      pages.push('...')
+      for (let i = total - 4; i <= total; i++) {
+        pages.push(i)
+      }
+    } else {
+      // In the middle
+      pages.push('...')
+      for (let i = current - 1; i <= current + 1; i++) {
+        pages.push(i)
+      }
+      pages.push('...')
+      pages.push(total)
+    }
+  }
+
+  return pages
+})
+
+// Pagination functions
+const goToPage = (page: number): void => {
+  if (page >= 1 && page <= totalPages.value) {
+    currentPage.value = page
+  }
+}
+
+// Reset to first page when filters change
+watch([searchQuery, advancedFilters, itemsPerPage], () => {
+  currentPage.value = 1
+}, { deep: true })
+
 // Clear functions
 const clearAdvancedFilters = (): void => {
   advancedFilters.value = {
@@ -721,6 +898,7 @@ const clearAdvancedFilters = (): void => {
 const clearAllFilters = (): void => {
   searchQuery.value = ''
   clearAdvancedFilters()
+  currentPage.value = 1
 }
 
 // Sorting function
@@ -733,6 +911,7 @@ const toggleSort = (key: keyof StockMovement): void => {
     sortConfig.value.key = key
     sortConfig.value.direction = 'asc'
   }
+  currentPage.value = 1 // Reset to first page when sorting changes
 }
 
 const startEditRemark = (movement: StockMovement): void => {
@@ -755,7 +934,6 @@ const saveRemark = async (movementId: string): Promise<void> => {
 
 const formatDateTime = (datetime: string): string => {
   const date = new Date(datetime)
-  date.setTime(date.getTime() + 8 * 60 * 60 * 1000)
   return date.toLocaleString()
 }
 
