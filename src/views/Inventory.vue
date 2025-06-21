@@ -581,13 +581,11 @@ const parseExcelFile = async (file: File): Promise<any[]> => {
     reader.onload = (e) => {
       try {
         const data = new Uint8Array(e.target?.result as ArrayBuffer)
-        console.log("Data", data)
 
         const workbook = XLSX.read(data, { type: 'array' })
         const sheetName = workbook.SheetNames[0]
         const worksheet = workbook.Sheets[sheetName]
         const jsonData = XLSX.utils.sheet_to_json(worksheet)
-        console.log(jsonData)
 
         resolve(jsonData)
       } catch (error) {

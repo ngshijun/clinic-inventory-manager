@@ -89,12 +89,14 @@ export const useStockMovementsStore = defineStore('stockMovements', () => {
   supabase
     .channel('update-stock-movements')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'stock_movements' }, (payload) => {
-      console.log('Payload from stock movements:', payload)
       if (payload.eventType === 'INSERT') {
         movements.value.unshift(payload.new as StockMovement)
       } else if (payload.eventType === 'UPDATE') {
         const index = movements.value.findIndex(m => m.id === payload.new.id)
         if (index !== -1) movements.value[index] = payload.new as StockMovement
+      } else if (payload.eventType === 'DELETE') {
+        const index = movements.value.findIndex(m => m.id === payload.old.id)
+        if (index !== -1) movements.value.splice(index, 1)
       }
 
       // Sort by created_at descending

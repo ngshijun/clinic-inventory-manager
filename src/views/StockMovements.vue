@@ -4,13 +4,6 @@
       <!-- Header -->
       <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4 sm:mb-6">
         <h2 class="text-xl sm:text-2xl font-bold text-gray-900">Stock Movements</h2>
-        <button
-          @click="stockMovementsStore.fetchMovements()"
-          :disabled="stockMovementsStore.loading"
-          class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
-        >
-          {{ stockMovementsStore.loading ? 'Refreshing...' : 'Refresh' }}
-        </button>
       </div>
 
       <!-- Search Bar -->
@@ -327,7 +320,7 @@ const searchQuery = ref<string>('')
 const editingRemark = ref<string | null>(null)
 const newRemark = ref<string>('')
 
-const filteredMovements = computed(() => {
+const filteredMovements = computed((): StockMovement[] => {
   return stockMovementsStore.searchMovements(searchQuery.value)
 })
 

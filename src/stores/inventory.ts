@@ -39,7 +39,6 @@ export const useInventoryStore = defineStore('inventory', () => {
         .order('item_name', { ascending: true })
 
       if (supabaseError) throw supabaseError
-      console.log('Data:', data)
       items.value = data || []
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'An error occurred while fetching items'
@@ -206,7 +205,6 @@ export const useInventoryStore = defineStore('inventory', () => {
   supabase
     .channel('update-inventory')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory' }, (payload) => {
-      console.log('Payload from inventory:', payload)
       if (payload.eventType === 'INSERT') {
         items.value.unshift(payload.new as InventoryItem)
       } else if (payload.eventType === 'UPDATE') {
