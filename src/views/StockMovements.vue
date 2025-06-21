@@ -39,37 +39,39 @@
           </div>
 
           <!-- Advanced Search Toggle -->
-          <button
-            @click="showAdvancedSearch = !showAdvancedSearch"
-            class="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
-          >
-            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4"
-              ></path>
-            </svg>
-            {{ showAdvancedSearch ? 'Hide Filters' : 'Advanced Search' }}
-          </button>
+          <div class="flex flex-row gap-2">
+            <button
+              @click="showAdvancedSearch = !showAdvancedSearch"
+              class="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+            >
+              <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4"
+                ></path>
+              </svg>
+              {{ showAdvancedSearch ? 'Hide Filters' : 'Advanced Search' }}
+            </button>
 
-          <!-- Clear Filters (visible when filters are active) -->
-          <button
-            v-if="hasActiveFilters"
-            @click="clearAllFilters"
-            class="flex items-center gap-2 px-4 py-2 border border-red-300 rounded-md text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 transition-colors"
-          >
-            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M6 18L18 6M6 6l12 12"
-              ></path>
-            </svg>
-            Clear Filters
-          </button>
+            <!-- Clear Filters (visible when filters are active) -->
+            <button
+              v-if="hasActiveFilters"
+              @click="clearAllFilters"
+              class="flex items-center gap-2 px-4 py-2 border border-red-300 rounded-md text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 transition-colors"
+            >
+              <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M6 18L18 6M6 6l12 12"
+                ></path>
+              </svg>
+              Clear Filters
+            </button>
+          </div>
         </div>
 
         <!-- Advanced Search Panel -->
@@ -233,7 +235,7 @@
                 </div>
 
                 <!-- Movement Details -->
-                <div class="grid grid-cols-2 gap-4 text-sm">
+                <div class="flex flex-row text-sm items-center justify-between">
                   <div>
                     <span class="text-gray-500">Quantity:</span>
                     <div class="font-medium text-gray-900 mt-1">{{ movement.quantity }} units</div>
@@ -273,10 +275,12 @@
                     </div>
                   </div>
                   <div v-else class="mt-1 flex items-center justify-between">
-                    <span class="text-gray-900 text-sm">{{ movement.remark || 'No remark' }}</span>
+                    <span class="text-gray-900 text-sm flex-1">{{
+                      movement.remark || 'No remark'
+                    }}</span>
                     <button
                       @click="startEditRemark(movement)"
-                      class="text-blue-600 hover:text-blue-800 text-xs font-medium"
+                      class="flex-1 text-blue-600 hover:text-blue-900 text-sm font-medium bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded"
                     >
                       Edit
                     </button>
@@ -287,29 +291,18 @@
           </div>
 
           <!-- Mobile Pagination -->
-          <div v-if="totalPages > 1" class="px-4 py-3 bg-gray-50 border-t border-gray-200">
-            <div class="flex justify-between items-center">
-              <div class="text-sm text-gray-700">
-                Showing {{ startIndex + 1 }} to {{ Math.min(endIndex, sortedAndFilteredMovements.length) }} of {{ sortedAndFilteredMovements.length }} results
-              </div>
-              <div class="flex gap-2">
-                <button
-                  @click="goToPage(currentPage - 1)"
-                  :disabled="currentPage <= 1"
-                  class="px-3 py-1 text-sm border border-gray-300 rounded bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Previous
-                </button>
-                <button
-                  @click="goToPage(currentPage + 1)"
-                  :disabled="currentPage >= totalPages"
-                  class="px-3 py-1 text-sm border border-gray-300 rounded bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          </div>
+          <TablePagination
+            v-if="totalPages > 1"
+            :current-page="currentPage"
+            :total-pages="totalPages"
+            :items-per-page="itemsPerPage"
+            :total-items="sortedAndFilteredMovements.length"
+            :start-index="startIndex"
+            :end-index="endIndex"
+            :show-items-per-page-selector="false"
+            @page-change="goToPage"
+            @items-per-page-change="updateItemsPerPage"
+          />
         </div>
       </div>
 
@@ -372,24 +365,32 @@
                             'w-3 h-3 transition-colors',
                             sortConfig.key === 'item_name' && sortConfig.direction === 'asc'
                               ? 'text-blue-600'
-                              : 'text-gray-400'
+                              : 'text-gray-400',
                           ]"
                           fill="currentColor"
                           viewBox="0 0 20 20"
                         >
-                          <path fill-rule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clip-rule="evenodd" />
+                          <path
+                            fill-rule="evenodd"
+                            d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z"
+                            clip-rule="evenodd"
+                          />
                         </svg>
                         <svg
                           :class="[
                             'w-3 h-3 transition-colors -mt-1',
                             sortConfig.key === 'item_name' && sortConfig.direction === 'desc'
                               ? 'text-blue-600'
-                              : 'text-gray-400'
+                              : 'text-gray-400',
                           ]"
                           fill="currentColor"
                           viewBox="0 0 20 20"
                         >
-                          <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                          <path
+                            fill-rule="evenodd"
+                            d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                            clip-rule="evenodd"
+                          />
                         </svg>
                       </div>
                     </div>
@@ -406,24 +407,32 @@
                             'w-3 h-3 transition-colors',
                             sortConfig.key === 'quantity' && sortConfig.direction === 'asc'
                               ? 'text-blue-600'
-                              : 'text-gray-400'
+                              : 'text-gray-400',
                           ]"
                           fill="currentColor"
                           viewBox="0 0 20 20"
                         >
-                          <path fill-rule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clip-rule="evenodd" />
+                          <path
+                            fill-rule="evenodd"
+                            d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z"
+                            clip-rule="evenodd"
+                          />
                         </svg>
                         <svg
                           :class="[
                             'w-3 h-3 transition-colors -mt-1',
                             sortConfig.key === 'quantity' && sortConfig.direction === 'desc'
                               ? 'text-blue-600'
-                              : 'text-gray-400'
+                              : 'text-gray-400',
                           ]"
                           fill="currentColor"
                           viewBox="0 0 20 20"
                         >
-                          <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                          <path
+                            fill-rule="evenodd"
+                            d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                            clip-rule="evenodd"
+                          />
                         </svg>
                       </div>
                     </div>
@@ -440,24 +449,32 @@
                             'w-3 h-3 transition-colors',
                             sortConfig.key === 'movement_type' && sortConfig.direction === 'asc'
                               ? 'text-blue-600'
-                              : 'text-gray-400'
+                              : 'text-gray-400',
                           ]"
                           fill="currentColor"
                           viewBox="0 0 20 20"
                         >
-                          <path fill-rule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clip-rule="evenodd" />
+                          <path
+                            fill-rule="evenodd"
+                            d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z"
+                            clip-rule="evenodd"
+                          />
                         </svg>
                         <svg
                           :class="[
                             'w-3 h-3 transition-colors -mt-1',
                             sortConfig.key === 'movement_type' && sortConfig.direction === 'desc'
                               ? 'text-blue-600'
-                              : 'text-gray-400'
+                              : 'text-gray-400',
                           ]"
                           fill="currentColor"
                           viewBox="0 0 20 20"
                         >
-                          <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                          <path
+                            fill-rule="evenodd"
+                            d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                            clip-rule="evenodd"
+                          />
                         </svg>
                       </div>
                     </div>
@@ -474,24 +491,32 @@
                             'w-3 h-3 transition-colors',
                             sortConfig.key === 'created_at' && sortConfig.direction === 'asc'
                               ? 'text-blue-600'
-                              : 'text-gray-400'
+                              : 'text-gray-400',
                           ]"
                           fill="currentColor"
                           viewBox="0 0 20 20"
                         >
-                          <path fill-rule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clip-rule="evenodd" />
+                          <path
+                            fill-rule="evenodd"
+                            d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z"
+                            clip-rule="evenodd"
+                          />
                         </svg>
                         <svg
                           :class="[
                             'w-3 h-3 transition-colors -mt-1',
                             sortConfig.key === 'created_at' && sortConfig.direction === 'desc'
                               ? 'text-blue-600'
-                              : 'text-gray-400'
+                              : 'text-gray-400',
                           ]"
                           fill="currentColor"
                           viewBox="0 0 20 20"
                         >
-                          <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                          <path
+                            fill-rule="evenodd"
+                            d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                            clip-rule="evenodd"
+                          />
                         </svg>
                       </div>
                     </div>
@@ -578,82 +603,18 @@
           </div>
 
           <!-- Desktop Pagination -->
-          <div class="px-6 py-3 bg-gray-50 border-t border-gray-200">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center text-sm text-gray-700">
-                <span>Showing {{ startIndex + 1 }} to {{ Math.min(endIndex, sortedAndFilteredMovements.length) }} of {{ sortedAndFilteredMovements.length }} results</span>
-              </div>
-
-              <div class="flex items-center space-x-2">
-                <!-- Items per page selector -->
-                <div class="flex items-center space-x-2">
-                  <label class="text-sm text-gray-700">Items per page:</label>
-                  <select
-                    v-model="itemsPerPage"
-                    @change="goToPage(1)"
-                    class="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="10">10</option>
-                    <option value="25">25</option>
-                    <option value="50">50</option>
-                    <option value="100">100</option>
-                  </select>
-                </div>
-
-                <!-- Page navigation -->
-                <div class="flex items-center space-x-1">
-                  <button
-                    @click="goToPage(1)"
-                    :disabled="currentPage <= 1"
-                    class="px-3 py-1 text-sm border border-gray-300 rounded bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    First
-                  </button>
-                  <button
-                    @click="goToPage(currentPage - 1)"
-                    :disabled="currentPage <= 1"
-                    class="px-3 py-1 text-sm border border-gray-300 rounded bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Previous
-                  </button>
-
-                  <!-- Page numbers -->
-                  <div class="flex items-center space-x-1">
-                    <template v-for="page in visiblePages" :key="page">
-                      <button
-                        v-if="page !== '...'"
-                        @click="goToPage(Number(page))"
-                        :class="[
-                          'px-3 py-1 text-sm border rounded',
-                          page === currentPage
-                            ? 'bg-blue-600 text-white border-blue-600'
-                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                        ]"
-                      >
-                        {{ page }}
-                      </button>
-                      <span v-else class="px-2 text-gray-500">...</span>
-                    </template>
-                  </div>
-
-                  <button
-                    @click="goToPage(currentPage + 1)"
-                    :disabled="currentPage >= totalPages"
-                    class="px-3 py-1 text-sm border border-gray-300 rounded bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Next
-                  </button>
-                  <button
-                    @click="goToPage(totalPages)"
-                    :disabled="currentPage >= totalPages"
-                    class="px-3 py-1 text-sm border border-gray-300 rounded bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Last
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
+          <TablePagination
+            :current-page="currentPage"
+            :total-pages="totalPages"
+            :items-per-page="itemsPerPage"
+            :total-items="sortedAndFilteredMovements.length"
+            :start-index="startIndex"
+            :end-index="endIndex"
+            :show-items-per-page-selector="true"
+            :items-per-page-options="[10, 25, 50, 100]"
+            @page-change="goToPage"
+            @items-per-page-change="updateItemsPerPage"
+          />
         </div>
       </div>
     </div>
@@ -661,6 +622,7 @@
 </template>
 
 <script setup lang="ts">
+import TablePagination from '@/components/TablePagination.vue'
 import { useStockMovementsStore } from '@/stores/stockMovements'
 import type { StockMovement } from '@/types/stockMovement'
 import { computed, onMounted, ref, watch } from 'vue'
@@ -684,7 +646,7 @@ const advancedFilters = ref({
   movementType: '',
   startDate: '',
   endDate: '',
-  remark: ''
+  remark: '',
 })
 
 // Computed values for quantity defaults
@@ -694,10 +656,10 @@ const quantityDefaults = computed(() => {
     return { min: 0, max: 1000 }
   }
 
-  const quantities = movements.map(m => m.quantity)
+  const quantities = movements.map((m) => m.quantity)
   return {
     min: Math.min(...quantities),
-    max: Math.max(...quantities)
+    max: Math.max(...quantities),
   }
 })
 
@@ -707,7 +669,7 @@ const sortConfig = ref<{
   direction: 'asc' | 'desc'
 }>({
   key: null,
-  direction: 'asc'
+  direction: 'asc',
 })
 
 // Check if any advanced filters are active
@@ -725,27 +687,42 @@ const hasActiveFilters = computed((): boolean => {
 
 // Advanced filtering function
 const applyAdvancedFilters = (movements: StockMovement[]): StockMovement[] => {
-  return movements.filter(movement => {
+  return movements.filter((movement) => {
     // Quick search by item name (legacy compatibility)
-    if (searchQuery.value && !movement.item_name.toLowerCase().includes(searchQuery.value.toLowerCase())) {
+    if (
+      searchQuery.value &&
+      !movement.item_name.toLowerCase().includes(searchQuery.value.toLowerCase())
+    ) {
       return false
     }
 
     // Advanced item name filter
-    if (advancedFilters.value.itemName && !movement.item_name.toLowerCase().includes(advancedFilters.value.itemName.toLowerCase())) {
+    if (
+      advancedFilters.value.itemName &&
+      !movement.item_name.toLowerCase().includes(advancedFilters.value.itemName.toLowerCase())
+    ) {
       return false
     }
 
     // Quantity range filter
-    if (advancedFilters.value.quantityMin !== null && movement.quantity < advancedFilters.value.quantityMin) {
+    if (
+      advancedFilters.value.quantityMin !== null &&
+      movement.quantity < advancedFilters.value.quantityMin
+    ) {
       return false
     }
-    if (advancedFilters.value.quantityMax !== null && movement.quantity > advancedFilters.value.quantityMax) {
+    if (
+      advancedFilters.value.quantityMax !== null &&
+      movement.quantity > advancedFilters.value.quantityMax
+    ) {
       return false
     }
 
     // Movement type filter
-    if (advancedFilters.value.movementType && movement.movement_type !== advancedFilters.value.movementType) {
+    if (
+      advancedFilters.value.movementType &&
+      movement.movement_type !== advancedFilters.value.movementType
+    ) {
       return false
     }
 
@@ -764,7 +741,10 @@ const applyAdvancedFilters = (movements: StockMovement[]): StockMovement[] => {
     }
 
     // Remark filter
-    if (advancedFilters.value.remark && !movement.remark.toLowerCase().includes(advancedFilters.value.remark.toLowerCase())) {
+    if (
+      advancedFilters.value.remark &&
+      !movement.remark.toLowerCase().includes(advancedFilters.value.remark.toLowerCase())
+    ) {
       return false
     }
 
@@ -828,59 +808,24 @@ const paginatedMovements = computed((): StockMovement[] => {
   return sortedAndFilteredMovements.value.slice(startIndex.value, endIndex.value)
 })
 
-// Visible page numbers for pagination
-const visiblePages = computed((): (number | string)[] => {
-  const pages: (number | string)[] = []
-  const total = totalPages.value
-  const current = currentPage.value
-
-  if (total <= 7) {
-    // Show all pages if 7 or fewer
-    for (let i = 1; i <= total; i++) {
-      pages.push(i)
-    }
-  } else {
-    // Always show first page
-    pages.push(1)
-
-    if (current <= 4) {
-      // Near the beginning
-      for (let i = 2; i <= 5; i++) {
-        pages.push(i)
-      }
-      pages.push('...')
-      pages.push(total)
-    } else if (current >= total - 3) {
-      // Near the end
-      pages.push('...')
-      for (let i = total - 4; i <= total; i++) {
-        pages.push(i)
-      }
-    } else {
-      // In the middle
-      pages.push('...')
-      for (let i = current - 1; i <= current + 1; i++) {
-        pages.push(i)
-      }
-      pages.push('...')
-      pages.push(total)
-    }
-  }
-
-  return pages
-})
-
 // Pagination functions
 const goToPage = (page: number): void => {
-  if (page >= 1 && page <= totalPages.value) {
-    currentPage.value = page
-  }
+  currentPage.value = page
+}
+
+const updateItemsPerPage = (newItemsPerPage: number): void => {
+  itemsPerPage.value = newItemsPerPage
+  currentPage.value = 1 // Reset to first page
 }
 
 // Reset to first page when filters change
-watch([searchQuery, advancedFilters, itemsPerPage], () => {
-  currentPage.value = 1
-}, { deep: true })
+watch(
+  [searchQuery, advancedFilters, itemsPerPage],
+  () => {
+    currentPage.value = 1
+  },
+  { deep: true },
+)
 
 // Clear functions
 const clearAdvancedFilters = (): void => {
@@ -891,7 +836,7 @@ const clearAdvancedFilters = (): void => {
     movementType: '',
     startDate: '',
     endDate: '',
-    remark: ''
+    remark: '',
   }
 }
 

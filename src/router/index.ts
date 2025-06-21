@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
 import DashBoard from '@/views/DashBoard.vue'
-import Inventory from '@/views/Inventory.vue'
+import InventoryPage from '@/views/InventoryPage.vue'
 import StockMovements from '@/views/StockMovements.vue'
 
 const routes: RouteRecordRaw[] = [
@@ -13,7 +13,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/inventory',
     name: 'Inventory',
-    component: Inventory
+    component: InventoryPage
   },
   {
     path: '/stock-movements',

@@ -1,4 +1,3 @@
-<!-- views/DashBoard.vue - Mobile Responsive -->
 <template>
   <div class="px-2 py-3 sm:px-0 sm:py-6">
     <div class="border-4 border-dashed border-gray-200 rounded-lg p-3 sm:p-6">

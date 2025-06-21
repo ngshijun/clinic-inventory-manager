@@ -31,7 +31,7 @@ export const useStockMovementsStore = defineStore('stockMovements', () => {
 
   const addMovement = async (movement: NewStockMovement): Promise<void> => {
     try {
-      const { data, error: supabaseError } = await supabase
+      const { error: supabaseError } = await supabase
         .from('stock_movements')
         .insert([{
           item_id: movement.item_id,
@@ -40,8 +40,6 @@ export const useStockMovementsStore = defineStore('stockMovements', () => {
           movement_type: movement.movement_type,
           remark: movement.remark || ''
         }])
-        .select()
-        .single()
 
       if (supabaseError) throw supabaseError
     } catch (err) {
@@ -54,15 +52,13 @@ export const useStockMovementsStore = defineStore('stockMovements', () => {
     loading.value = true
     error.value = null
     try {
-      const { data, error: supabaseError } = await supabase
+      const { error: supabaseError } = await supabase
         .from('stock_movements')
         .update({
           remark: newRemark,
           updated_at: new Date().toISOString()
         })
         .eq('id', movementId)
-        .select()
-        .single()
 
       if (supabaseError) throw supabaseError
     } catch (err) {

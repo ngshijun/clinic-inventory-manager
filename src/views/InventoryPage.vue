@@ -1,4 +1,3 @@
-<!-- views/Inventory.vue - Mobile Responsive with Stock In/Out, Sortable Columns, and Pagination -->
 <template>
   <div class="px-2 py-3 sm:px-0 sm:py-6">
     <div class="border-4 border-dashed border-gray-200 rounded-lg p-3 sm:p-6">
@@ -7,28 +6,24 @@
         <h2 class="text-xl sm:text-2xl font-bold text-gray-900">Inventory Management</h2>
         <div class="flex flex-col sm:flex-row gap-3">
           <button
+            v-if="!showAddForm"
             @click="triggerFileUpload"
             class="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
           >
             Import from Excel (xlsx)
           </button>
           <button
+            v-if="!showAddForm"
             @click="showAddForm = !showAddForm"
             class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
           >
-            {{ showAddForm ? 'Cancel' : 'Add New Item' }}
+            Add New Item
           </button>
         </div>
       </div>
 
       <!-- Hidden File Input -->
-      <input
-        ref="fileInput"
-        type="file"
-        accept=".xlsx,.xls,.csv"
-        @change="handleFileUpload"
-        class="hidden"
-      />
+      <input ref="fileInput" type="file" accept=".xlsx" @change="handleFileUpload" class="hidden" />
 
       <!-- Import Progress/Error Display -->
       <div v-if="importStatus.show" class="mb-4 sm:mb-6">
@@ -305,29 +300,18 @@
           </div>
 
           <!-- Mobile Pagination -->
-          <div v-if="totalPages > 1" class="px-4 py-3 bg-gray-50 border-t border-gray-200">
-            <div class="flex justify-between items-center">
-              <div class="text-sm text-gray-700">
-                Showing {{ startIndex + 1 }} to {{ Math.min(endIndex, sortedAndFilteredItems.length) }} of {{ sortedAndFilteredItems.length }} results
-              </div>
-              <div class="flex gap-2">
-                <button
-                  @click="goToPage(currentPage - 1)"
-                  :disabled="currentPage <= 1"
-                  class="px-3 py-1 text-sm border border-gray-300 rounded bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Previous
-                </button>
-                <button
-                  @click="goToPage(currentPage + 1)"
-                  :disabled="currentPage >= totalPages"
-                  class="px-3 py-1 text-sm border border-gray-300 rounded bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          </div>
+          <TablePagination
+            v-if="totalPages > 1"
+            :current-page="currentPage"
+            :total-pages="totalPages"
+            :items-per-page="itemsPerPage"
+            :total-items="sortedAndFilteredItems.length"
+            :start-index="startIndex"
+            :end-index="endIndex"
+            :show-items-per-page-selector="false"
+            @page-change="goToPage"
+            @items-per-page-change="updateItemsPerPage"
+          />
         </div>
       </div>
 
@@ -390,24 +374,32 @@
                             'w-3 h-3 transition-colors',
                             sortConfig.key === 'item_name' && sortConfig.direction === 'asc'
                               ? 'text-blue-600'
-                              : 'text-gray-400'
+                              : 'text-gray-400',
                           ]"
                           fill="currentColor"
                           viewBox="0 0 20 20"
                         >
-                          <path fill-rule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clip-rule="evenodd" />
+                          <path
+                            fill-rule="evenodd"
+                            d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z"
+                            clip-rule="evenodd"
+                          />
                         </svg>
                         <svg
                           :class="[
                             'w-3 h-3 transition-colors -mt-1',
                             sortConfig.key === 'item_name' && sortConfig.direction === 'desc'
                               ? 'text-blue-600'
-                              : 'text-gray-400'
+                              : 'text-gray-400',
                           ]"
                           fill="currentColor"
                           viewBox="0 0 20 20"
                         >
-                          <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                          <path
+                            fill-rule="evenodd"
+                            d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                            clip-rule="evenodd"
+                          />
                         </svg>
                       </div>
                     </div>
@@ -424,24 +416,32 @@
                             'w-3 h-3 transition-colors',
                             sortConfig.key === 'quantity' && sortConfig.direction === 'asc'
                               ? 'text-blue-600'
-                              : 'text-gray-400'
+                              : 'text-gray-400',
                           ]"
                           fill="currentColor"
                           viewBox="0 0 20 20"
                         >
-                          <path fill-rule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clip-rule="evenodd" />
+                          <path
+                            fill-rule="evenodd"
+                            d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z"
+                            clip-rule="evenodd"
+                          />
                         </svg>
                         <svg
                           :class="[
                             'w-3 h-3 transition-colors -mt-1',
                             sortConfig.key === 'quantity' && sortConfig.direction === 'desc'
                               ? 'text-blue-600'
-                              : 'text-gray-400'
+                              : 'text-gray-400',
                           ]"
                           fill="currentColor"
                           viewBox="0 0 20 20"
                         >
-                          <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                          <path
+                            fill-rule="evenodd"
+                            d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                            clip-rule="evenodd"
+                          />
                         </svg>
                       </div>
                     </div>
@@ -456,26 +456,36 @@
                         <svg
                           :class="[
                             'w-3 h-3 transition-colors',
-                            sortConfig.key === 'low_stock_notice_quantity' && sortConfig.direction === 'asc'
+                            sortConfig.key === 'low_stock_notice_quantity' &&
+                            sortConfig.direction === 'asc'
                               ? 'text-blue-600'
-                              : 'text-gray-400'
+                              : 'text-gray-400',
                           ]"
                           fill="currentColor"
                           viewBox="0 0 20 20"
                         >
-                          <path fill-rule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clip-rule="evenodd" />
+                          <path
+                            fill-rule="evenodd"
+                            d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z"
+                            clip-rule="evenodd"
+                          />
                         </svg>
                         <svg
                           :class="[
                             'w-3 h-3 transition-colors -mt-1',
-                            sortConfig.key === 'low_stock_notice_quantity' && sortConfig.direction === 'desc'
+                            sortConfig.key === 'low_stock_notice_quantity' &&
+                            sortConfig.direction === 'desc'
                               ? 'text-blue-600'
-                              : 'text-gray-400'
+                              : 'text-gray-400',
                           ]"
                           fill="currentColor"
                           viewBox="0 0 20 20"
                         >
-                          <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                          <path
+                            fill-rule="evenodd"
+                            d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                            clip-rule="evenodd"
+                          />
                         </svg>
                       </div>
                     </div>
@@ -492,24 +502,32 @@
                             'w-3 h-3 transition-colors',
                             sortConfig.key === 'status' && sortConfig.direction === 'asc'
                               ? 'text-blue-600'
-                              : 'text-gray-400'
+                              : 'text-gray-400',
                           ]"
                           fill="currentColor"
                           viewBox="0 0 20 20"
                         >
-                          <path fill-rule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clip-rule="evenodd" />
+                          <path
+                            fill-rule="evenodd"
+                            d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z"
+                            clip-rule="evenodd"
+                          />
                         </svg>
                         <svg
                           :class="[
                             'w-3 h-3 transition-colors -mt-1',
                             sortConfig.key === 'status' && sortConfig.direction === 'desc'
                               ? 'text-blue-600'
-                              : 'text-gray-400'
+                              : 'text-gray-400',
                           ]"
                           fill="currentColor"
                           viewBox="0 0 20 20"
                         >
-                          <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                          <path
+                            fill-rule="evenodd"
+                            d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                            clip-rule="evenodd"
+                          />
                         </svg>
                       </div>
                     </div>
@@ -575,14 +593,16 @@
                       {{ getStockStatus(item).text }}
                     </span>
                   </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                  <td class="ps-6 py-4 whitespace-nowrap text-sm font-medium">
                     <button
                       v-if="editingItem !== item.id"
                       @click="startEdit(item)"
-                      class="text-blue-600 hover:text-blue-900 mr-4"
+                      class="text-blue-600 hover:text-blue-900"
                     >
                       Manage Stock
                     </button>
+                  </td>
+                  <td class="pe-6 py-4 whitespace-nowrap text-sm font-medium">
                     <button @click="deleteItem(item.id)" class="text-red-600 hover:text-red-900">
                       Delete
                     </button>
@@ -593,82 +613,18 @@
           </div>
 
           <!-- Desktop Pagination -->
-          <div class="px-6 py-3 bg-gray-50 border-t border-gray-200">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center text-sm text-gray-700">
-                <span>Showing {{ startIndex + 1 }} to {{ Math.min(endIndex, sortedAndFilteredItems.length) }} of {{ sortedAndFilteredItems.length }} results</span>
-              </div>
-
-              <div class="flex items-center space-x-2">
-                <!-- Items per page selector -->
-                <div class="flex items-center space-x-2">
-                  <label class="text-sm text-gray-700">Items per page:</label>
-                  <select
-                    v-model="itemsPerPage"
-                    @change="goToPage(1)"
-                    class="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="10">10</option>
-                    <option value="25">25</option>
-                    <option value="50">50</option>
-                    <option value="100">100</option>
-                  </select>
-                </div>
-
-                <!-- Page navigation -->
-                <div class="flex items-center space-x-1">
-                  <button
-                    @click="goToPage(1)"
-                    :disabled="currentPage <= 1"
-                    class="px-3 py-1 text-sm border border-gray-300 rounded bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    First
-                  </button>
-                  <button
-                    @click="goToPage(currentPage - 1)"
-                    :disabled="currentPage <= 1"
-                    class="px-3 py-1 text-sm border border-gray-300 rounded bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Previous
-                  </button>
-
-                  <!-- Page numbers -->
-                  <div class="flex items-center space-x-1">
-                    <template v-for="page in visiblePages" :key="page">
-                      <button
-                        v-if="page !== '...'"
-                        @click="goToPage(Number(page))"
-                        :class="[
-                          'px-3 py-1 text-sm border rounded',
-                          page === currentPage
-                            ? 'bg-blue-600 text-white border-blue-600'
-                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                        ]"
-                      >
-                        {{ page }}
-                      </button>
-                      <span v-else class="px-2 text-gray-500">...</span>
-                    </template>
-                  </div>
-
-                  <button
-                    @click="goToPage(currentPage + 1)"
-                    :disabled="currentPage >= totalPages"
-                    class="px-3 py-1 text-sm border border-gray-300 rounded bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Next
-                  </button>
-                  <button
-                    @click="goToPage(totalPages)"
-                    :disabled="currentPage >= totalPages"
-                    class="px-3 py-1 text-sm border border-gray-300 rounded bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Last
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
+          <TablePagination
+            :current-page="currentPage"
+            :total-pages="totalPages"
+            :items-per-page="itemsPerPage"
+            :total-items="sortedAndFilteredItems.length"
+            :start-index="startIndex"
+            :end-index="endIndex"
+            :show-items-per-page-selector="true"
+            :items-per-page-options="[10, 25, 50, 100]"
+            @page-change="goToPage"
+            @items-per-page-change="updateItemsPerPage"
+          />
         </div>
       </div>
     </div>
@@ -676,6 +632,7 @@
 </template>
 
 <script setup lang="ts">
+import TablePagination from '@/components/TablePagination.vue'
 import { useInventoryStore } from '@/stores/inventory'
 import type { InventoryItem, NewInventoryItem, StockStatus } from '@/types/inventory'
 import { computed, onMounted, ref, watch } from 'vue'
@@ -699,7 +656,7 @@ const sortConfig = ref<{
   direction: 'asc' | 'desc'
 }>({
   key: null,
-  direction: 'asc'
+  direction: 'asc',
 })
 
 // Import status tracking
@@ -732,8 +689,8 @@ const sortedAndFilteredItems = computed((): InventoryItem[] => {
 
   if (sortConfig.value.key) {
     items = [...items].sort((a, b) => {
-      let aValue: any
-      let bValue: any
+      let aValue: string | number
+      let bValue: string | number
 
       if (sortConfig.value.key === 'status') {
         aValue = getStockStatusValue(a)
@@ -778,53 +735,14 @@ const paginatedItems = computed((): InventoryItem[] => {
   return sortedAndFilteredItems.value.slice(startIndex.value, endIndex.value)
 })
 
-// Visible page numbers for pagination
-const visiblePages = computed((): (number | string)[] => {
-  const pages: (number | string)[] = []
-  const total = totalPages.value
-  const current = currentPage.value
-
-  if (total <= 7) {
-    // Show all pages if 7 or fewer
-    for (let i = 1; i <= total; i++) {
-      pages.push(i)
-    }
-  } else {
-    // Always show first page
-    pages.push(1)
-
-    if (current <= 4) {
-      // Near the beginning
-      for (let i = 2; i <= 5; i++) {
-        pages.push(i)
-      }
-      pages.push('...')
-      pages.push(total)
-    } else if (current >= total - 3) {
-      // Near the end
-      pages.push('...')
-      for (let i = total - 4; i <= total; i++) {
-        pages.push(i)
-      }
-    } else {
-      // In the middle
-      pages.push('...')
-      for (let i = current - 1; i <= current + 1; i++) {
-        pages.push(i)
-      }
-      pages.push('...')
-      pages.push(total)
-    }
-  }
-
-  return pages
-})
-
 // Pagination functions
 const goToPage = (page: number): void => {
-  if (page >= 1 && page <= totalPages.value) {
-    currentPage.value = page
-  }
+  currentPage.value = page
+}
+
+const updateItemsPerPage = (newItemsPerPage: number): void => {
+  itemsPerPage.value = newItemsPerPage
+  currentPage.value = 1 // Reset to first page
 }
 
 // Reset to first page when filters change
@@ -948,7 +866,13 @@ const handleFileUpload = async (event: Event): Promise<void> => {
   target.value = ''
 }
 
-const parseExcelFile = async (file: File): Promise<any[]> => {
+interface ExcelData {
+  item_name: string
+  quantity: number
+  low_stock_notice_quantity: number
+}
+
+const parseExcelFile = async (file: File): Promise<ExcelData[]> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
 
@@ -961,8 +885,8 @@ const parseExcelFile = async (file: File): Promise<any[]> => {
         const worksheet = workbook.Sheets[sheetName]
         const jsonData = XLSX.utils.sheet_to_json(worksheet)
 
-        resolve(jsonData)
-      } catch (error) {
+        resolve(jsonData as ExcelData[])
+      } catch {
         reject(new Error('Failed to parse Excel file. Please ensure it has the correct format.'))
       }
     }
@@ -979,7 +903,7 @@ const parseExcelFile = async (file: File): Promise<any[]> => {
   })
 }
 
-const importInventoryData = async (data: any[]): Promise<void> => {
+const importInventoryData = async (data: ExcelData[]): Promise<void> => {
   let importedCount = 0
 
   for (const row of data) {

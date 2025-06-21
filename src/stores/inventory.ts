@@ -65,9 +65,8 @@ export const useInventoryStore = defineStore('inventory', () => {
         .single()
 
       if (supabaseError) throw supabaseError
-      if (data) {
-        items.value.unshift(data)
 
+      if (data) {
         // Log initial stock if quantity is greater than 0
         if (data.quantity > 0) {
           const stockMovementStore = useStockMovementsStore()
