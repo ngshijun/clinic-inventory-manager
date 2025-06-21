@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase'
 import type { InventoryItem, NewInventoryItem } from '@/types/inventory'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
+import { useStockMovementsStore } from './stockMovements'
 
 export const useInventoryStore = defineStore('inventory', () => {
   // State
@@ -67,6 +68,18 @@ export const useInventoryStore = defineStore('inventory', () => {
       if (supabaseError) throw supabaseError
       if (data) {
         items.value.unshift(data)
+
+        // Log initial stock if quantity is greater than 0
+        if (data.quantity > 0) {
+          const stockMovementStore = useStockMovementsStore()
+          stockMovementStore.addMovement({
+            item_id: data.id,
+            item_name: data.item_name,
+            quantity: data.quantity,
+            movement_type: 'stock_in',
+            remark: 'Initial stock',
+          })
+        }
       }
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'An error occurred while adding item'
@@ -101,6 +114,15 @@ export const useInventoryStore = defineStore('inventory', () => {
       // Update local state
       if (data) {
         Object.assign(item, data)
+
+        // Log stock movement
+        const stockMovementStore = useStockMovementsStore()
+        stockMovementStore.addMovement({
+          item_id: itemId,
+          item_name: item.item_name,
+          quantity: quantity,
+          movement_type: 'stock_in',
+        })
       }
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'An error occurred while adding stock'
@@ -136,6 +158,15 @@ export const useInventoryStore = defineStore('inventory', () => {
       // Update local state
       if (data) {
         Object.assign(item, data)
+
+        // Log stock movement
+        const stockMovementStore = useStockMovementsStore()
+        stockMovementStore.addMovement({
+          item_id: itemId,
+          item_name: item.item_name,
+          quantity: quantity,
+          movement_type: 'stock_out',
+        })
       }
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'An error occurred while removing stock'
@@ -182,7 +213,7 @@ export const useInventoryStore = defineStore('inventory', () => {
 
   // Event listener for real-time updates
   supabase
-    .channel('update')
+    .channel('update-inventory')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory' }, (payload) => {
       if (payload.eventType === 'UPDATE') {
         const index = items.value.findIndex(item => item.id === payload.new.id)

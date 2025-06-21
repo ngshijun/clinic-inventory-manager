@@ -244,7 +244,11 @@ const recentItems = computed(() => {
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
 
   return inventoryStore.items
-    .filter(item => new Date(item.updated_at) >= sevenDaysAgo)
+    .filter(item => {
+      const updatedAt = new Date(item.updated_at)
+      updatedAt.setTime(updatedAt.getTime() + (8 * 60 * 60 * 1000))
+      return updatedAt >= sevenDaysAgo
+    })
     .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
     .slice(0, 10) // Show only the 10 most recent
 })
@@ -268,7 +272,6 @@ const formatDuration = (days: number): string => {
 // Format last updated timestamp
 const formatLastUpdated = (timestamp: string): string => {
   const date = new Date(timestamp)
-  date.setTime(date.getTime() + (8 * 60 * 60 * 1000))
   const now = new Date()
   const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60))
 
