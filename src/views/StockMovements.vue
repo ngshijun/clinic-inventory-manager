@@ -713,7 +713,6 @@ const sortConfig = ref<{
 // Check if any advanced filters are active
 const hasActiveFilters = computed((): boolean => {
   return !!(
-    searchQuery.value ||
     advancedFilters.value.itemName ||
     advancedFilters.value.quantityMin !== null ||
     advancedFilters.value.quantityMax !== null ||
@@ -897,7 +896,6 @@ const clearAdvancedFilters = (): void => {
 }
 
 const clearAllFilters = (): void => {
-  searchQuery.value = ''
   clearAdvancedFilters()
   currentPage.value = 1
 }
