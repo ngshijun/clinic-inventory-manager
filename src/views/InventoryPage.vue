@@ -895,11 +895,7 @@ const parseExcelFile = async (file: File): Promise<ExcelData[]> => {
       reject(new Error('Failed to read file'))
     }
 
-    if (file.name.endsWith('.csv')) {
-      reader.readAsText(file)
-    } else {
-      reader.readAsArrayBuffer(file)
-    }
+    reader.readAsArrayBuffer(file)
   })
 }
 
