@@ -593,6 +593,7 @@
                     @change="goToPage(1)"
                     class="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
+                    <option value="10">10</option>
                     <option value="25">25</option>
                     <option value="50">50</option>
                     <option value="100">100</option>
@@ -673,7 +674,7 @@ const showAdvancedSearch = ref<boolean>(false)
 
 // Pagination
 const currentPage = ref<number>(1)
-const itemsPerPage = ref<number>(25)
+const itemsPerPage = ref<number>(10)
 
 // Advanced search filters
 const advancedFilters = ref({
