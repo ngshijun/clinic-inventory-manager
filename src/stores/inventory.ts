@@ -38,6 +38,7 @@ export const useInventoryStore = defineStore('inventory', () => {
         .order('item_name', { ascending: true })
 
       if (supabaseError) throw supabaseError
+      console.log('Data:', data)
       items.value = data || []
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'An error occurred while fetching items'
@@ -179,11 +180,17 @@ export const useInventoryStore = defineStore('inventory', () => {
     await fetchItems()
   }
 
+  // Event listener for real-time updates
   supabase
     .channel('update')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory' }, () => {
-      fetchItems()
-      console.log('Change received!')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory' }, (payload) => {
+      if (payload.eventType === 'UPDATE') {
+        const index = items.value.findIndex(item => item.id === payload.new.id)
+        if (index !== -1) items.value[index] = payload.new as InventoryItem
+      }
+
+      // Sort by item_name ascending
+      items.value.sort((a, b) => a.item_name.localeCompare(b.item_name))
     })
     .subscribe()
 
