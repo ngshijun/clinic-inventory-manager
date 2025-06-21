@@ -156,13 +156,12 @@
                 <p>The following items have not been updated for more than a month:</p>
                 <ul class="list-disc list-inside mt-1 space-y-1">
                   <li v-for="item in staleItems" :key="item.id" class="break-words">
-                    <span class="font-medium">{{ item.item_name }}</span>
-                    <span class="text-xs text-purple-600">({{ formatDuration(item.daysSinceUpdate) }} ago)</span>
+                    <span class="font-medium">{{ item.item_name }}</span> ({{ formatDuration(item.daysSinceUpdate) }} ago)
                   </li>
                 </ul>
               </div>
               <div class="mt-3">
-                <p class="text-xs text-purple-600">
+                <p class="text-xs text-purple-700">
                   💡 Consider reviewing these items for potential clearance, promotion, or removal from inventory.
                 </p>
               </div>
@@ -226,6 +225,7 @@ const staleItems = computed(() => {
   return inventoryStore.items
     .map(item => {
       const updatedAt = new Date(item.updated_at)
+      updatedAt.setTime(updatedAt.getTime() + (8 * 60 * 60 * 1000))
       const daysSinceUpdate = Math.floor((Date.now() - updatedAt.getTime()) / (1000 * 60 * 60 * 24))
 
       return {
