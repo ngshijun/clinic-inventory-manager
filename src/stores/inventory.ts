@@ -113,8 +113,6 @@ export const useInventoryStore = defineStore('inventory', () => {
 
       // Update local state
       if (data) {
-        Object.assign(item, data)
-
         // Log stock movement
         const stockMovementStore = useStockMovementsStore()
         stockMovementStore.addMovement({
@@ -157,8 +155,6 @@ export const useInventoryStore = defineStore('inventory', () => {
 
       // Update local state
       if (data) {
-        Object.assign(item, data)
-
         // Log stock movement
         const stockMovementStore = useStockMovementsStore()
         stockMovementStore.addMovement({
@@ -184,11 +180,6 @@ export const useInventoryStore = defineStore('inventory', () => {
 
       if (supabaseError) throw supabaseError
 
-      // Remove from local state
-      const index = items.value.findIndex((item) => item.id === itemId)
-      if (index > -1) {
-        items.value.splice(index, 1)
-      }
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'An error occurred while deleting item'
       console.error('Error deleting item:', err)
@@ -215,9 +206,15 @@ export const useInventoryStore = defineStore('inventory', () => {
   supabase
     .channel('update-inventory')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory' }, (payload) => {
-      if (payload.eventType === 'UPDATE') {
+      console.log('Payload from inventory:', payload)
+      if (payload.eventType === 'INSERT') {
+        items.value.unshift(payload.new as InventoryItem)
+      } else if (payload.eventType === 'UPDATE') {
         const index = items.value.findIndex(item => item.id === payload.new.id)
         if (index !== -1) items.value[index] = payload.new as InventoryItem
+      } else if (payload.eventType === 'DELETE') {
+        const index = items.value.findIndex(item => item.id === payload.old.id)
+        if (index !== -1) items.value.splice(index, 1)
       }
 
       // Sort by item_name ascending

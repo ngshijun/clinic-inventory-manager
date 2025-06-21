@@ -44,9 +44,6 @@ export const useStockMovementsStore = defineStore('stockMovements', () => {
         .single()
 
       if (supabaseError) throw supabaseError
-      if (data) {
-        movements.value.unshift(data)
-      }
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'An error occurred while adding movement'
       console.error('Error adding movement:', err)
@@ -68,12 +65,6 @@ export const useStockMovementsStore = defineStore('stockMovements', () => {
         .single()
 
       if (supabaseError) throw supabaseError
-
-      // Update local state
-      const movement = movements.value.find(m => m.id === movementId)
-      if (movement && data) {
-        Object.assign(movement, data)
-      }
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'An error occurred while updating remark'
       console.error('Error updating remark:', err)
@@ -98,7 +89,10 @@ export const useStockMovementsStore = defineStore('stockMovements', () => {
   supabase
     .channel('update-stock-movements')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'stock_movements' }, (payload) => {
-      if (payload.eventType === 'UPDATE') {
+      console.log('Payload from stock movements:', payload)
+      if (payload.eventType === 'INSERT') {
+        movements.value.unshift(payload.new as StockMovement)
+      } else if (payload.eventType === 'UPDATE') {
         const index = movements.value.findIndex(m => m.id === payload.new.id)
         if (index !== -1) movements.value[index] = payload.new as StockMovement
       }
