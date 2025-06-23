@@ -133,7 +133,7 @@
                 <p>The following items are running low on stock:</p>
                 <ul class="list-disc list-inside mt-1 space-y-1">
                   <li v-for="item in inventoryStore.lowStockItems" :key="item.id" class="break-words">
-                    <span class="font-medium">{{ item.item_name }}</span> ({{ item.quantity }} remaining)
+                    <span class="font-medium">{{ item.item_name }}</span> ({{ item.quantity }} {{ item.unit }} remaining)
                   </li>
                 </ul>
               </div>

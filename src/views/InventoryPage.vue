@@ -1032,6 +1032,7 @@ const exportToExcel = (): void => {
       item_name: item.item_name,
       quantity: item.quantity,
       low_stock_notice_quantity: item.low_stock_notice_quantity,
+      unit: item.unit,
     }))
 
     // Create workbook and worksheet
@@ -1043,6 +1044,7 @@ const exportToExcel = (): void => {
       { wch: 25 }, // item_name
       { wch: 12 }, // quantity
       { wch: 20 }, // low_stock_notice_quantity
+      { wch: 12 }, // unit
     ]
     worksheet['!cols'] = columnWidths
 
