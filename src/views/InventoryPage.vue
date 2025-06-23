@@ -80,10 +80,23 @@
             </div>
             <div class="ml-3">
               <h3 class="text-sm font-medium text-green-800">Import successful!</h3>
-              <p class="mt-1 text-sm text-green-700">
-                Successfully imported {{ importStatus.importedCount }} items from
-                {{ importStatus.fileName }}
-              </p>
+              <div class="mt-1 text-sm text-green-700">
+                <p>Successfully synced inventory with {{ importStatus.fileName }}:</p>
+                <ul class="mt-1 space-y-1">
+                  <li v-if="importStatus.importedCount > 0">
+                    • Added {{ importStatus.importedCount }} new items
+                  </li>
+                  <li v-if="importStatus.updatedCount > 0">
+                    • Updated {{ importStatus.updatedCount }} existing items
+                  </li>
+                  <li v-if="importStatus.deletedCount > 0">
+                    • Removed {{ importStatus.deletedCount }} items not in Excel
+                  </li>
+                </ul>
+                <p class="mt-2 font-medium">
+                  Total processed: {{ importStatus.totalProcessed }} items
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -674,6 +687,9 @@ const importStatus = ref({
   success: false,
   fileName: '',
   importedCount: 0,
+  updatedCount: 0,
+  deletedCount: 0,
+  totalProcessed: 0,
 })
 
 // New item form
@@ -839,6 +855,7 @@ const handleFileUpload = async (event: Event): Promise<void> => {
   if (!file) return
 
   // Reset import status
+  // Reset import status
   importStatus.value = {
     show: true,
     loading: true,
@@ -846,6 +863,9 @@ const handleFileUpload = async (event: Event): Promise<void> => {
     success: false,
     fileName: file.name,
     importedCount: 0,
+    updatedCount: 0,
+    deletedCount: 0,
+    totalProcessed: 0,
   }
 
   try {
@@ -855,10 +875,10 @@ const handleFileUpload = async (event: Event): Promise<void> => {
     importStatus.value.loading = false
     importStatus.value.success = true
 
-    // Hide success message after 5 seconds
+    // Hide success message after 10 seconds
     setTimeout(() => {
       importStatus.value.show = false
-    }, 5000)
+    }, 10000)
   } catch (error) {
     importStatus.value.loading = false
     importStatus.value.error = error instanceof Error ? error.message : 'Unknown error occurred'
@@ -908,52 +928,100 @@ const parseExcelFile = async (file: File): Promise<ExcelData[]> => {
 
 const importInventoryData = async (data: ExcelData[]): Promise<void> => {
   let importedCount = 0
+  let updatedCount = 0
+  let deletedCount = 0
 
-  for (const row of data) {
-    // Validate required fields
-    if (
-      !row.item_name ||
-      typeof row.quantity !== 'number' ||
-      typeof row.low_stock_notice_quantity !== 'number'
-    ) {
-      throw new Error(
-        'Invalid data format. Please ensure all rows have: item_name, quantity, low_stock_notice_quantity',
+  try {
+    // Validate all rows first
+    for (const row of data) {
+      if (
+        !row.item_name ||
+        typeof row.quantity !== 'number' ||
+        typeof row.low_stock_notice_quantity !== 'number'
+      ) {
+        throw new Error(
+          'Invalid data format. Please ensure all rows have: item_name, quantity, low_stock_notice_quantity',
+        )
+      }
+    }
+
+    // Get current items from the store
+    const currentItems = [...inventoryStore.items]
+
+    // Create a map of Excel items (lowercase for case-insensitive comparison)
+    const excelItemsMap = new Map()
+    data.forEach((row) => {
+      excelItemsMap.set(row.item_name.toLowerCase(), row)
+    })
+
+    // Step 1: Update existing items and add new items from Excel
+    for (const row of data) {
+      const itemNameLower = row.item_name.toLowerCase()
+
+      // Check if item already exists
+      const existingItem = currentItems.find(
+        (item) => item.item_name.toLowerCase() === itemNameLower,
       )
+
+      if (existingItem) {
+        // Update existing item
+        if (
+          existingItem.item_name !== row.item_name ||
+          existingItem.quantity !== row.quantity ||
+          existingItem.low_stock_notice_quantity !== row.low_stock_notice_quantity
+        ) {
+          await inventoryStore.updateItem(existingItem.id, {
+            ...existingItem,
+            quantity: Math.max(0, row.quantity),
+            low_stock_notice_quantity: Math.max(0, row.low_stock_notice_quantity),
+          })
+
+          if (!inventoryStore.error) {
+            updatedCount++
+          }
+        }
+      } else {
+        // Add new item
+        await inventoryStore.addItem({
+          item_name: row.item_name,
+          quantity: Math.max(0, row.quantity),
+          low_stock_notice_quantity: Math.max(0, row.low_stock_notice_quantity),
+        })
+
+        if (!inventoryStore.error) {
+          importedCount++
+        }
+      }
     }
 
-    // Check if item already exists
-    const existingItem = inventoryStore.items.find(
-      (item) => item.item_name.toLowerCase() === row.item_name.toLowerCase(),
-    )
+    // Step 2: Delete items that are not in the Excel file
+    for (const currentItem of currentItems) {
+      const itemNameLower = currentItem.item_name.toLowerCase()
 
-    if (existingItem) {
-      // Update existing item
-      await inventoryStore.updateItem(existingItem.id, {
-        ...existingItem,
-        quantity: row.quantity,
-        low_stock_notice_quantity: row.low_stock_notice_quantity,
-      })
-    } else {
-      // Add new item
-      await inventoryStore.addItem({
-        item_name: row.item_name,
-        quantity: Math.max(0, row.quantity),
-        low_stock_notice_quantity: Math.max(0, row.low_stock_notice_quantity),
-      })
+      // If item is not in Excel file, delete it
+      if (!excelItemsMap.has(itemNameLower)) {
+        await inventoryStore.deleteItem(currentItem.id)
+
+        if (!inventoryStore.error) {
+          deletedCount++
+        }
+      }
     }
 
-    if (!inventoryStore.error) {
-      importedCount++
-    }
+    // Update import status with detailed counts
+    importStatus.value.importedCount = importedCount
+    importStatus.value.updatedCount = updatedCount
+    importStatus.value.deletedCount = deletedCount
+    importStatus.value.totalProcessed = data.length
+  } catch (error) {
+    throw error
   }
-
-  importStatus.value.importedCount = importedCount
 }
 
 const exportToExcel = (): void => {
   try {
     // Prepare data for export
-    const exportData = sortedAndFilteredItems.value.map(item => ({
+    const exportData = sortedAndFilteredItems.value.map((item) => ({
       item_name: item.item_name,
       quantity: item.quantity,
       low_stock_notice_quantity: item.low_stock_notice_quantity,
