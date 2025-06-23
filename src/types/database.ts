@@ -8,6 +8,7 @@ export interface Database {
           item_name: string // text
           quantity: number // int8
           low_stock_notice_quantity: number // int8
+          unit: string // unit
           created_at: string // timestamp
           updated_at: string // timestamp
         }
