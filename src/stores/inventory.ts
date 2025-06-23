@@ -170,6 +170,25 @@ export const useInventoryStore = defineStore('inventory', () => {
     }
   }
 
+  const updateItem = async (itemId: string, item: InventoryItem): Promise<void> => {
+    loading.value = true
+    error.value = null
+    try {
+      const { error: supabaseError } = await supabase
+        .from('inventory')
+        .update(item)
+        .eq('id', itemId)
+
+      if (supabaseError) throw supabaseError
+
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'An error occurred while updating item'
+      console.error('Error updating item:', err)
+    } finally {
+      loading.value = false
+    }
+  }
+
   const deleteItem = async (itemId: string): Promise<void> => {
     loading.value = true
     error.value = null
@@ -177,7 +196,6 @@ export const useInventoryStore = defineStore('inventory', () => {
       const { error: supabaseError } = await supabase.from('inventory').delete().eq('id', itemId)
 
       if (supabaseError) throw supabaseError
-
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'An error occurred while deleting item'
       console.error('Error deleting item:', err)
@@ -207,10 +225,10 @@ export const useInventoryStore = defineStore('inventory', () => {
       if (payload.eventType === 'INSERT') {
         items.value.unshift(payload.new as InventoryItem)
       } else if (payload.eventType === 'UPDATE') {
-        const index = items.value.findIndex(item => item.id === payload.new.id)
+        const index = items.value.findIndex((item) => item.id === payload.new.id)
         if (index !== -1) items.value[index] = payload.new as InventoryItem
       } else if (payload.eventType === 'DELETE') {
-        const index = items.value.findIndex(item => item.id === payload.old.id)
+        const index = items.value.findIndex((item) => item.id === payload.old.id)
         if (index !== -1) items.value.splice(index, 1)
       }
 
@@ -236,6 +254,7 @@ export const useInventoryStore = defineStore('inventory', () => {
     addItem,
     stockIn,
     stockOut,
+    updateItem,
     deleteItem,
     getItemById,
     searchItems,

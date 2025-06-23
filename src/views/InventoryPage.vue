@@ -13,6 +13,13 @@
             Import from Excel (xlsx)
           </button>
           <button
+            v-if="!showAddForm && sortedAndFilteredItems.length > 0"
+            @click="exportToExcel"
+            class="w-full sm:w-auto bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
+          >
+            Export to Excel (xlsx)
+          </button>
+          <button
             v-if="!showAddForm"
             @click="showAddForm = !showAddForm"
             class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
@@ -921,7 +928,11 @@ const importInventoryData = async (data: ExcelData[]): Promise<void> => {
 
     if (existingItem) {
       // Update existing item
-      await inventoryStore.stockIn(existingItem.id, row.quantity)
+      await inventoryStore.updateItem(existingItem.id, {
+        ...existingItem,
+        quantity: row.quantity,
+        low_stock_notice_quantity: row.low_stock_notice_quantity,
+      })
     } else {
       // Add new item
       await inventoryStore.addItem({
@@ -937,6 +948,42 @@ const importInventoryData = async (data: ExcelData[]): Promise<void> => {
   }
 
   importStatus.value.importedCount = importedCount
+}
+
+const exportToExcel = (): void => {
+  try {
+    // Prepare data for export
+    const exportData = sortedAndFilteredItems.value.map(item => ({
+      item_name: item.item_name,
+      quantity: item.quantity,
+      low_stock_notice_quantity: item.low_stock_notice_quantity,
+    }))
+
+    // Create workbook and worksheet
+    const workbook = XLSX.utils.book_new()
+    const worksheet = XLSX.utils.json_to_sheet(exportData)
+
+    // Set column widths for better formatting
+    const columnWidths = [
+      { wch: 25 }, // item_name
+      { wch: 12 }, // quantity
+      { wch: 20 }, // low_stock_notice_quantity
+    ]
+    worksheet['!cols'] = columnWidths
+
+    // Add the worksheet to workbook
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Inventory')
+
+    // Generate filename with current date
+    const currentDate = new Date().toISOString().split('T')[0]
+    const filename = `inventory_export_${currentDate}.xlsx`
+
+    // Write and download the file
+    XLSX.writeFile(workbook, filename)
+  } catch (error) {
+    console.error('Export failed:', error)
+    alert('Failed to export data. Please try again.')
+  }
 }
 
 onMounted(() => {
