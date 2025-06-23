@@ -16,11 +16,16 @@ export const useStockMovementsStore = defineStore('stockMovements', () => {
     try {
       const { data, error: supabaseError } = await supabase
         .from('stock_movements')
-        .select('*')
+        .select('*, inventory!stock_movements_item_id_fkey(unit)')
         .order('created_at', { ascending: false })
 
       if (supabaseError) throw supabaseError
-      movements.value = data || []
+      
+      const transformedData: StockMovement[] = data?.map(item => ({
+        ...item,
+        unit: item.inventory?.unit || null,
+      }));
+      movements.value = transformedData || []
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'An error occurred while fetching movements'
       console.error('Error fetching movements:', err)
@@ -89,7 +94,18 @@ export const useStockMovementsStore = defineStore('stockMovements', () => {
         movements.value.unshift(payload.new as StockMovement)
       } else if (payload.eventType === 'UPDATE') {
         const index = movements.value.findIndex(m => m.id === payload.new.id)
-        if (index !== -1) movements.value[index] = payload.new as StockMovement
+        const data: StockMovement = {
+          id: payload.new.id,
+          item_id: payload.new.item_id,
+          item_name: payload.new.item_name,
+          quantity: payload.new.quantity,
+          movement_type: payload.new.movement_type,
+          remark: payload.new.remark,
+          unit: movements.value[index].unit,
+          created_at: payload.new.created_at,
+          updated_at: payload.new.updated_at
+        }
+        if (index !== -1) movements.value[index] = data as StockMovement
       } else if (payload.eventType === 'DELETE') {
         const index = movements.value.findIndex(m => m.id === payload.old.id)
         if (index !== -1) movements.value.splice(index, 1)

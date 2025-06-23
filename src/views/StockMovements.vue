@@ -238,7 +238,9 @@
                 <div class="flex flex-row text-sm items-center justify-between">
                   <div>
                     <span class="text-gray-500">Quantity:</span>
-                    <div class="font-medium text-gray-900 mt-1">{{ movement.quantity }} units</div>
+                    <div class="font-medium text-gray-900 mt-1">
+                      {{ movement.quantity }} {{ movement.unit }}
+                    </div>
                   </div>
                   <div>
                     <span class="text-gray-500">Date/Time:</span>
@@ -543,7 +545,7 @@
                     {{ movement.item_name }}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {{ movement.quantity }} units
+                    {{ movement.quantity }} {{ movement.unit }}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap">
                     <span

@@ -255,12 +255,14 @@
                 <div class="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <span class="text-gray-500">Current Stock:</span>
-                    <div class="font-medium text-gray-900 mt-1">{{ item.quantity }} units</div>
+                    <div class="font-medium text-gray-900 mt-1">
+                      {{ item.quantity }} {{ item.unit }}
+                    </div>
                   </div>
                   <div>
                     <span class="text-gray-500">Low Stock Alert:</span>
                     <div class="font-medium text-gray-900 mt-1">
-                      {{ item.low_stock_notice_quantity }} units
+                      {{ item.low_stock_notice_quantity }} {{ item.unit }}
                     </div>
                   </div>
                 </div>
@@ -598,10 +600,10 @@
                         </button>
                       </div>
                     </div>
-                    <div v-else>{{ item.quantity }} units</div>
+                    <div v-else>{{ item.quantity }} {{ item.unit }}</div>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {{ item.low_stock_notice_quantity }} units
+                    {{ item.low_stock_notice_quantity }} {{ item.unit }}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap">
                     <span
@@ -697,6 +699,7 @@ const newItem = ref<NewInventoryItem>({
   item_name: '',
   quantity: 0,
   low_stock_notice_quantity: 0,
+  unit: '',
 })
 
 // Helper function to get stock status for sorting
@@ -824,6 +827,7 @@ const addNewItem = async (): Promise<void> => {
         item_name: '',
         quantity: 0,
         low_stock_notice_quantity: 0,
+        unit: '',
       }
       showAddForm.value = false
     }
@@ -897,6 +901,7 @@ interface ExcelData {
   item_name: string
   quantity: number
   low_stock_notice_quantity: number
+  unit: string
 }
 
 const parseExcelFile = async (file: File): Promise<ExcelData[]> => {
@@ -937,10 +942,11 @@ const importInventoryData = async (data: ExcelData[]): Promise<void> => {
       if (
         !row.item_name ||
         typeof row.quantity !== 'number' ||
-        typeof row.low_stock_notice_quantity !== 'number'
+        typeof row.low_stock_notice_quantity !== 'number' ||
+        !row.unit
       ) {
         throw new Error(
-          'Invalid data format. Please ensure all rows have: item_name, quantity, low_stock_notice_quantity',
+          'Invalid data format. Please ensure all rows have: item_name, quantity, low_stock_notice_quantity, unit',
         )
       }
     }
@@ -986,6 +992,7 @@ const importInventoryData = async (data: ExcelData[]): Promise<void> => {
           item_name: row.item_name,
           quantity: Math.max(0, row.quantity),
           low_stock_notice_quantity: Math.max(0, row.low_stock_notice_quantity),
+          unit: row.unit,
         })
 
         if (!inventoryStore.error) {

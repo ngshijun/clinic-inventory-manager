@@ -195,7 +195,7 @@
                   </div>
                 </div>
                 <div class="text-sm text-gray-900">
-                  <span class="font-medium">{{ item.quantity }}</span> units
+                  <span class="font-medium">{{ item.quantity }} {{ item.unit }}</span>
                 </div>
               </div>
             </li>

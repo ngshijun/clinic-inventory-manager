@@ -5,8 +5,10 @@ export interface StockMovement {
   quantity: number
   movement_type: 'stock_in' | 'stock_out'
   remark: string
+  unit: string
   created_at: string
   updated_at: string
+
 }
 
 export interface NewStockMovement {
