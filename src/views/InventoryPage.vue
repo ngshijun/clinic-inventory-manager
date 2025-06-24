@@ -140,9 +140,7 @@
               />
             </div>
             <div class="col-span-1">
-              <label class="block text-sm font-medium text-gray-700 mb-1"
-                >Unit</label
-              >
+              <label class="block text-sm font-medium text-gray-700 mb-1">Unit</label>
               <input
                 v-model.number="newItem.unit"
                 type="text"
@@ -571,6 +569,9 @@
                   >
                     Actions
                   </th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  ></th>
                 </tr>
               </thead>
               <tbody class="bg-white divide-y divide-gray-200">
@@ -627,7 +628,7 @@
                       {{ getStockStatus(item).text }}
                     </span>
                   </td>
-                  <td class="ps-6 py-4 whitespace-nowrap text-sm font-medium">
+                  <td class="ps-6 py-4 pe-2 whitespace-nowrap text-sm font-medium">
                     <button
                       v-if="editingItem !== item.id"
                       @click="startEdit(item)"
