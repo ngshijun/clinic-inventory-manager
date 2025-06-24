@@ -106,8 +106,8 @@
       <div v-if="showAddForm" class="bg-white p-4 sm:p-6 rounded-lg shadow mb-4 sm:mb-6">
         <h3 class="text-base sm:text-lg font-medium text-gray-900 mb-4">Add New Item</h3>
         <form @submit.prevent="addNewItem">
-          <div class="space-y-4 sm:grid sm:grid-cols-3 sm:gap-6 sm:space-y-0">
-            <div>
+          <div class="space-y-4 sm:grid sm:grid-cols-6 sm:gap-6 sm:space-y-0">
+            <div class="col-span-3">
               <label class="block text-sm font-medium text-gray-700 mb-1">Item Name</label>
               <input
                 v-model="newItem.item_name"
@@ -117,7 +117,7 @@
                 placeholder="Enter item name"
               />
             </div>
-            <div>
+            <div class="col-span-1">
               <label class="block text-sm font-medium text-gray-700 mb-1">Initial Quantity</label>
               <input
                 v-model.number="newItem.quantity"
@@ -127,7 +127,7 @@
                 class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
-            <div>
+            <div class="col-span-1">
               <label class="block text-sm font-medium text-gray-700 mb-1"
                 >Low Stock Threshold</label
               >
@@ -137,6 +137,18 @@
                 min="0"
                 required
                 class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <div class="col-span-1">
+              <label class="block text-sm font-medium text-gray-700 mb-1"
+                >Unit</label
+              >
+              <input
+                v-model.number="newItem.unit"
+                type="text"
+                required
+                class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Enter unit"
               />
             </div>
           </div>

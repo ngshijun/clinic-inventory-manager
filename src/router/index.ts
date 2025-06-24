@@ -39,7 +39,7 @@ const router = createRouter({
 
 // Authentication guard
 router.beforeEach((to, from, next) => {
-  const isAuthenticated = localStorage.getItem('password') === '1234'
+  const isAuthenticated = localStorage.getItem('password') === import.meta.env.VITE_PASSWORD
 
   // Check if route requires authentication
   if (to.meta.requiresAuth && !isAuthenticated) {
