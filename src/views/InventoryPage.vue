@@ -987,12 +987,14 @@ const importInventoryData = async (data: ExcelData[]): Promise<void> => {
         if (
           existingItem.item_name !== row.item_name ||
           existingItem.quantity !== row.quantity ||
-          existingItem.low_stock_notice_quantity !== row.low_stock_notice_quantity
+          existingItem.low_stock_notice_quantity !== row.low_stock_notice_quantity ||
+          existingItem.unit !== row.unit
         ) {
           await inventoryStore.updateItem(existingItem.id, {
             ...existingItem,
             quantity: Math.max(0, row.quantity),
             low_stock_notice_quantity: Math.max(0, row.low_stock_notice_quantity),
+            unit: row.unit,
           })
 
           if (!inventoryStore.error) {
