@@ -2,7 +2,7 @@
 import { supabase } from '@/lib/supabase'
 import type { InventoryItem, NewInventoryItem } from '@/types/inventory'
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, onUnmounted, ref } from 'vue'
 import { useStockMovementsStore } from './stockMovements'
 
 export const useInventoryStore = defineStore('inventory', () => {
@@ -220,7 +220,7 @@ export const useInventoryStore = defineStore('inventory', () => {
   }
 
   // Event listener for real-time updates
-  supabase
+  const channel =supabase
     .channel('update-inventory')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory' }, (payload) => {
       if (payload.eventType === 'INSERT') {
@@ -237,6 +237,10 @@ export const useInventoryStore = defineStore('inventory', () => {
       items.value.sort((a, b) => a.item_name.localeCompare(b.item_name))
     })
     .subscribe()
+
+  onUnmounted(() => {
+    channel.unsubscribe()
+  })
 
   return {
     // State
