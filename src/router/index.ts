@@ -40,7 +40,7 @@ const { isAuthenticated } = useAuthStore()
 // Authentication guard
 router.beforeEach((to, from, next) => {
   // Check if route requires authentication
-  if (to.meta.requiresAuth && !isAuthenticated) {
+  if (to.meta.requiresAuth && !isAuthenticated.value) {
     // Redirect to login with return url
     next({
       name: 'Login',
@@ -48,7 +48,7 @@ router.beforeEach((to, from, next) => {
     })
   }
   // Check if route is for guests only (like login page)
-  else if (to.meta.requiresGuest && isAuthenticated) {
+  else if (to.meta.requiresGuest && isAuthenticated.value) {
     // Redirect authenticated users away from login
     next({ name: 'DashBoard' })
   } else {
