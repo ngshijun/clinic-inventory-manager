@@ -213,20 +213,23 @@
               <h3 class="text-sm font-medium text-yellow-800">Low Stock Alert</h3>
               <div class="mt-2 text-sm text-yellow-700">
                 <p>The following items are running low on stock:</p>
-                <ul class="list-disc list-inside mt-1 space-y-1 flex flex-col">
-                  <li
+                <div class="mt-1 space-y-1">
+                  <div
                     v-for="item in inventoryStore.lowStockItems"
                     :key="item.id"
-                    class="break-words items-center"
+                    class="flex items-center py-2 border-b border-yellow-200 last:border-b-0"
                   >
-                    <div class="grid grid-cols-3 sm:grid-cols-7 items-center border-b p-2">
-                      <span class="font-medium col-span-2 sm:col-span-5">{{ item.item_name }}</span>
-                      <span class="ml-2 col-span-1 sm:col-span-2"
-                        >({{ item.quantity }} {{ item.unit }} remaining)</span
-                      >
+                    <div class="flex-shrink-0 w-1.5 h-1.5 bg-yellow-400 rounded-full mr-3"></div>
+                    <div class="flex-1 grid grid-cols-3 sm:grid-cols-7 items-center">
+                      <span class="font-medium col-span-2 sm:col-span-5 break-words">{{
+                        item.item_name
+                      }}</span>
+                      <span class="col-span-1 sm:col-span-2 text-right sm:text-left">
+                        ({{ item.quantity }} {{ item.unit }} remaining)
+                      </span>
                     </div>
-                  </li>
-                </ul>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -255,16 +258,23 @@
               <h3 class="text-sm font-medium text-purple-800">Stale Inventory Alert</h3>
               <div class="mt-2 text-sm text-purple-700">
                 <p>The following items have not been updated for more than a month:</p>
-                <ul class="list-disc list-inside mt-1 space-y-1 flex flex-col">
-                  <li v-for="item in staleItems" :key="item.id" class="break-words items-center">
-                    <div class="grid grid-cols-3 sm:grid-cols-7 items-center border-b p-2">
-                      <span class="font-medium col-span-2 sm:col-span-5">{{ item.item_name }}</span>
-                      <span class="ml-2 col-span-1 sm:col-span-2"
-                        >({{ formatDuration(item.daysSinceUpdate) }} ago)</span
-                      >
+                <div class="mt-1 space-y-1">
+                  <div
+                    v-for="item in staleItems"
+                    :key="item.id"
+                    class="flex items-center py-2 border-b border-purple-200 last:border-b-0"
+                  >
+                    <div class="flex-shrink-0 w-1.5 h-1.5 bg-purple-400 rounded-full mr-3"></div>
+                    <div class="flex-1 grid grid-cols-3 sm:grid-cols-7 items-center">
+                      <span class="font-medium col-span-2 sm:col-span-5 break-words">{{
+                        item.item_name
+                      }}</span>
+                      <span class="col-span-1 sm:col-span-2 text-right sm:text-left">
+                        ({{ formatDuration(item.daysSinceUpdate) }} ago)
+                      </span>
                     </div>
-                  </li>
-                </ul>
+                  </div>
+                </div>
               </div>
               <div class="mt-3">
                 <p class="text-xs text-purple-700">
