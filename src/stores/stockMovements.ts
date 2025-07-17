@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase'
-import type { NewStockMovement, StockMovement } from '@/types/stockMovement'
+import type { NewStockMovement, StockMovement } from '@/types/stockMovements'
 import { defineStore } from 'pinia'
 import { onUnmounted, ref } from 'vue'
 
@@ -8,6 +8,26 @@ export const useStockMovementsStore = defineStore('stockMovements', () => {
   const movements = ref<StockMovement[]>([])
   const loading = ref<boolean>(false)
   const error = ref<string | null>(null)
+  const unitCache = ref<Record<string, string | null>>({})
+
+  // Helper function to get unit for an item (with caching)
+  const getUnitForItem = async (itemId: string): Promise<string | null> => {
+    // Check cache first
+    if (unitCache.value[itemId] !== undefined) {
+      return unitCache.value[itemId]
+    }
+
+    const { data, error } = await supabase
+      .from('inventory')
+      .select('unit')
+      .eq('id', itemId)
+      .single()
+
+    const unit = error ? null : data?.unit || null
+    // Cache the result
+    unitCache.value[itemId] = unit
+    return unit
+  }
 
   // Actions
   const fetchMovements = async (): Promise<void> => {
@@ -26,6 +46,13 @@ export const useStockMovementsStore = defineStore('stockMovements', () => {
         unit: item.inventory?.unit || null,
       }))
       movements.value = transformedData || []
+
+      // Populate unit cache from fetched data
+      transformedData?.forEach((movement) => {
+        if (movement.item_id) {
+          unitCache.value[movement.item_id] = movement.unit
+        }
+      })
     } catch (err) {
       error.value =
         err instanceof Error ? err.message : 'An error occurred while fetching movements'
@@ -91,9 +118,14 @@ export const useStockMovementsStore = defineStore('stockMovements', () => {
     .on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'stock_movements' },
-      (payload) => {
+      async (payload) => {
         if (payload.eventType === 'INSERT') {
-          movements.value.unshift(payload.new as StockMovement)
+          const unit = await getUnitForItem(payload.new.item_id)
+          const newMovement: StockMovement = {
+            ...payload.new,
+            unit,
+          } as StockMovement
+          movements.value.unshift(newMovement as StockMovement)
         } else if (payload.eventType === 'UPDATE') {
           const index = movements.value.findIndex((m) => m.id === payload.new.id)
           const data: StockMovement = {

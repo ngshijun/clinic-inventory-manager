@@ -1079,6 +1079,5 @@ const exportToExcel = (): void => {
 }
 
 onMounted(() => {
-  inventoryStore.initializeStore()
 })
 </script>

@@ -28,6 +28,18 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/StockMovements.vue'),
     meta: { requiresAuth: true },
   },
+  {
+    path: '/stock-approvals',
+    name: 'StockApprovals',
+    component: () => import('@/views/StockApprovals.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/stock-requests',
+    name: 'StockRequests',
+    component: () => import('@/views/StockRequests.vue'),
+    meta: { requiresAuth: true },
+  }
 ]
 
 const router = createRouter({

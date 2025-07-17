@@ -626,7 +626,7 @@
 <script setup lang="ts">
 import TablePagination from '@/components/TablePagination.vue'
 import { useStockMovementsStore } from '@/stores/stockMovements'
-import type { StockMovement } from '@/types/stockMovement'
+import type { StockMovement } from '@/types/stockMovements'
 import { computed, onMounted, ref, watch } from 'vue'
 
 const stockMovementsStore = useStockMovementsStore()
@@ -884,6 +884,5 @@ const formatDateTime = (datetime: string): string => {
 }
 
 onMounted(() => {
-  stockMovementsStore.initializeStore()
 })
 </script>

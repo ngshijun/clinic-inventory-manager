@@ -62,6 +62,38 @@ export interface Database {
         updated_at?: string
       }
     }
+    stock_requests: {
+      Row: {
+        id: string
+        item_id: string
+        item_name: string
+        quantity: number
+        remark: string
+        status: 'Approved' | 'Pending' | 'Cancelled'
+        created_at: string
+        updated_at: string
+      }
+      Insert: {
+        id?: string
+        item_id: string
+        item_name: string
+        quantity: number
+        remark?: string
+        status?: 'Approved' | 'Pending' | 'Cancelled'
+        created_at?: string
+        updated_at?: string
+      }
+      Update: {
+        id?: string
+        item_id?: string
+        item_name?: string
+        quantity?: number
+        remark?: string
+        status?: 'Approved' | 'Pending' | 'Cancelled'
+        created_at?: string
+        updated_at?: string
+      }
+    }
     Views: {
       [_ in never]: never
     }
