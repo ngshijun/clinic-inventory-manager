@@ -14,32 +14,32 @@ const routes: RouteRecordRaw[] = [
     path: '/dashboard',
     name: 'DashBoard',
     component: () => import('@/views/DashBoard.vue'),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, roles: ['manager'] },
   },
   {
     path: '/inventory',
     name: 'Inventory',
     component: () => import('@/views/InventoryPage.vue'),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, roles: ['manager'] },
   },
   {
     path: '/stock-movements',
     name: 'StockMovements',
     component: () => import('@/views/StockMovements.vue'),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, roles: ['manager'] },
   },
   {
     path: '/stock-approvals',
     name: 'StockApprovals',
     component: () => import('@/views/StockApprovals.vue'),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, roles: ['manager'] },
   },
   {
     path: '/stock-requests',
     name: 'StockRequests',
     component: () => import('@/views/StockRequests.vue'),
-    meta: { requiresAuth: true },
-  }
+    meta: { requiresAuth: true, roles: ['requester'] },
+  },
 ]
 
 const router = createRouter({
@@ -47,7 +47,7 @@ const router = createRouter({
   routes,
 })
 
-const { isAuthenticated } = useAuthStore()
+const { isAuthenticated, user } = useAuthStore()
 
 // Authentication guard
 router.beforeEach((to, from, next) => {
@@ -62,7 +62,34 @@ router.beforeEach((to, from, next) => {
   // Check if route is for guests only (like login page)
   else if (to.meta.requiresGuest && isAuthenticated.value) {
     // Redirect authenticated users away from login
-    next({ name: 'DashBoard' })
+    if (user.value && user.value.role === 'manager') {
+      next({ name: 'DashBoard' })
+    } else if (user.value && user.value.role === 'requester') {
+      next({ name: 'StockRequests' })
+    } else {
+      next()
+    }
+  }
+  // Check role-based access for authenticated users
+  else if (to.meta.requiresAuth && isAuthenticated.value) {
+    console.log('XX', user.value, to.meta.roles)
+    if (
+      user.value &&
+      user.value.role === 'manager' &&
+      Array.isArray(to.meta.roles) &&
+      !to.meta.roles.includes('manager')
+    ) {
+      next({ name: 'DashBoard' })
+    } else if (
+      user.value &&
+      user.value.role === 'requester' &&
+      Array.isArray(to.meta.roles) &&
+      !to.meta.roles.includes('requester')
+    ) {
+      next({ name: 'StockRequests' })
+    } else {
+      next()
+    }
   } else {
     next()
   }

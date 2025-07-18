@@ -14,7 +14,7 @@
                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                 :class="{ 'border-red-500': error }"
               />
-              
+
               <!-- Error State -->
               <p v-if="error" class="text-sm text-red-600">
                 {{ error }}
@@ -40,7 +40,7 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
-const { login } = useAuthStore()
+const { login, user } = useAuthStore()
 
 const password = ref('')
 const error = ref('')
@@ -50,12 +50,15 @@ const handleLogin = async () => {
   error.value = ''
   loading.value = true
 
-  if (password.value === import.meta.env.VITE_PASSWORD) {
-    login(password.value) // Use the store's login function
-
+  if (login(password.value)) {
     // Redirect to intended route or dashboard
-    const redirect = '/dashboard'
-    router.push(redirect)
+    if (user.value && user.value.role === 'manager') {
+      const redirect = '/dashboard'
+      router.push(redirect)
+    } else if (user.value && user.value.role === 'requester') {
+      const redirect = '/stock-requests'
+      router.push(redirect)
+    }
   } else {
     error.value = 'Invalid password. Please try again.'
   }
