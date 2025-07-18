@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabase'
 import type { NewStockRequest, StockRequest } from '@/types/stockRequests'
 import { defineStore } from 'pinia'
 import { onUnmounted, ref } from 'vue'
+import { useInventoryStore } from './inventory'
 
 export const useStockRequestsStore = defineStore('stockRequests', () => {
   // State
@@ -48,7 +49,7 @@ export const useStockRequestsStore = defineStore('stockRequests', () => {
       requests.value = transformedData || []
 
       // Populate unit cache from fetched data
-      transformedData?.forEach(request => {
+      transformedData?.forEach((request) => {
         if (request.item_id) {
           unitCache.value[request.item_id] = request.unit
         }
@@ -105,16 +106,27 @@ export const useStockRequestsStore = defineStore('stockRequests', () => {
   const approveRequest = async (requestId: string): Promise<void> => {
     loading.value = true
     error.value = null
+
+    const item = requests.value.find((request) => request.id === requestId)
+    if (!item) throw new Error('Item not found')
+
     try {
-      const { error: supabaseError } = await supabase
+      const { data, error: supabaseError } = await supabase
         .from('stock_requests')
         .update({
           status: 'Approved',
           updated_at: new Date().toISOString(),
         })
         .eq('id', requestId)
+        .select()
+        .single()
 
       if (supabaseError) throw supabaseError
+
+      if (data) {
+        const inventoryStore = useInventoryStore()
+        inventoryStore.stockOut(item.item_id, item.quantity)
+      }
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'An error occurred while approving request'
       console.error('Error approving request', err)

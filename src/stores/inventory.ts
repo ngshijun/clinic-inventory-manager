@@ -21,7 +21,7 @@ export const useInventoryStore = defineStore('inventory', () => {
   })
 
   const lowStockItems = computed((): InventoryItem[] => {
-    return items.value.filter((item) => item.quantity <= item.low_stock_notice_quantity)
+    return items.value.filter((item) => item.quantity <= item.low_stock_notice_quantity && item.quantity !== 0)
   })
 
   const outOfStockItems = computed((): InventoryItem[] => {

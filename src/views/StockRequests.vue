@@ -433,7 +433,7 @@ const selectedItemUnit = computed(() => {
 })
 
 const filteredItems = computed((): InventoryItem[] => {
-  if (!itemSearchQuery.value) return inventoryStore.items.slice(0, 10) // Show first 10 items when no search
+  if (!itemSearchQuery.value) return inventoryStore.items
 
   return inventoryStore.items
     .filter(item =>

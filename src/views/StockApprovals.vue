@@ -3,7 +3,7 @@
     <div class="border-4 border-dashed border-gray-200 rounded-lg p-3 sm:p-6">
       <!-- Header -->
       <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4 sm:mb-6">
-        <h2 class="text-xl sm:text-2xl font-bold text-gray-900">Stock Request Approval</h2>
+        <h2 class="text-xl sm:text-2xl font-bold text-gray-900">Stock Approvals</h2>
         <div class="flex items-center gap-4 text-sm text-gray-600">
           <span class="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs font-medium">
             {{ pendingRequests.length }} Pending
