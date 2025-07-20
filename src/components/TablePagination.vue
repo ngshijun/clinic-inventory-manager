@@ -4,7 +4,8 @@
     <div class="block lg:hidden px-4 py-3 bg-gray-50 border-t border-gray-200">
       <div class="flex justify-between items-center">
         <div class="text-sm text-gray-700">
-          Showing {{ startIndex + 1 }} to {{ Math.min(endIndex, totalItems) }} of {{ totalItems }} results
+          Showing {{ startIndex + 1 }} to {{ Math.min(endIndex, totalItems) }} of
+          {{ totalItems }} results
         </div>
         <div class="flex gap-2">
           <button
@@ -29,7 +30,10 @@
     <div class="hidden lg:block px-6 py-3 bg-gray-50 border-t border-gray-200">
       <div class="flex items-center justify-between">
         <div class="flex items-center text-sm text-gray-700">
-          <span>Showing {{ startIndex + 1 }} to {{ Math.min(endIndex, totalItems) }} of {{ totalItems }} results</span>
+          <span
+            >Showing {{ startIndex + 1 }} to {{ Math.min(endIndex, totalItems) }} of
+            {{ totalItems }} results</span
+          >
         </div>
 
         <div class="flex items-center space-x-2">
@@ -41,11 +45,7 @@
               @change="handleItemsPerPageChange"
               class="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option
-                v-for="option in itemsPerPageOptions"
-                :key="option"
-                :value="option"
-              >
+              <option v-for="option in itemsPerPageOptions" :key="option" :value="option">
                 {{ option }}
               </option>
             </select>
@@ -78,7 +78,7 @@
                     'px-3 py-1 text-sm border rounded transition-colors',
                     page === currentPage
                       ? 'bg-blue-600 text-white border-blue-600'
-                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50',
                   ]"
                 >
                   {{ page }}
@@ -126,7 +126,7 @@ interface TablePaginationProps {
 // Define props with defaults
 const props = withDefaults(defineProps<TablePaginationProps>(), {
   showItemsPerPageSelector: true,
-  itemsPerPageOptions: () => [10, 25, 50, 100]
+  itemsPerPageOptions: () => [10, 25, 50, 100],
 })
 
 // Define emits

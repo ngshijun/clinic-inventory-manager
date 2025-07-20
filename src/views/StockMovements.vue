@@ -883,6 +883,5 @@ const formatDateTime = (datetime: string): string => {
   return date.toLocaleString()
 }
 
-onMounted(() => {
-})
+onMounted(() => {})
 </script>

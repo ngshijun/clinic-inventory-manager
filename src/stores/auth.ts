@@ -1,5 +1,5 @@
-import { ref, computed } from 'vue'
 import type { User } from '@/types/auth'
+import { computed, ref } from 'vue'
 
 const isLoggedIn = ref(false)
 const user = ref<User | null>(null)
@@ -8,15 +8,15 @@ const user = ref<User | null>(null)
 const initAuth = () => {
   const password = localStorage.getItem('password')
   if (password === import.meta.env.VITE_MANAGER_PASSWORD) {
-      isLoggedIn.value = true
-      user.value = {
-        role: 'manager'
-      }
+    isLoggedIn.value = true
+    user.value = {
+      role: 'manager',
+    }
   } else if (password === import.meta.env.VITE_REQUESTER_PASSWORD) {
     isLoggedIn.value = true
-      user.value = {
-        role: 'requester'
-      }
+    user.value = {
+      role: 'requester',
+    }
   }
 }
 
@@ -26,13 +26,13 @@ const login = (value: string): boolean => {
     localStorage.setItem('password', value)
     isLoggedIn.value = true
     user.value = {
-      role: 'manager'
+      role: 'manager',
     }
   } else if (value === import.meta.env.VITE_REQUESTER_PASSWORD) {
     localStorage.setItem('password', value)
     isLoggedIn.value = true
     user.value = {
-      role: 'requester'
+      role: 'requester',
     }
   } else {
     return false
@@ -55,6 +55,6 @@ export const useAuthStore = () => {
     user,
     login,
     logout,
-    initAuth
+    initAuth,
   }
 }

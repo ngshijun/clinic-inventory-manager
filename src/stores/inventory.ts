@@ -21,7 +21,9 @@ export const useInventoryStore = defineStore('inventory', () => {
   })
 
   const lowStockItems = computed((): InventoryItem[] => {
-    return items.value.filter((item) => item.quantity <= item.low_stock_notice_quantity && item.quantity !== 0)
+    return items.value.filter(
+      (item) => item.quantity <= item.low_stock_notice_quantity && item.quantity !== 0,
+    )
   })
 
   const outOfStockItems = computed((): InventoryItem[] => {
@@ -181,7 +183,6 @@ export const useInventoryStore = defineStore('inventory', () => {
         .eq('id', itemId)
 
       if (supabaseError) throw supabaseError
-
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'An error occurred while updating item'
       console.error('Error updating item:', err)
@@ -220,7 +221,7 @@ export const useInventoryStore = defineStore('inventory', () => {
   }
 
   // Event listener for real-time updates
-  const channel =supabase
+  const channel = supabase
     .channel('update-inventory')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory' }, (payload) => {
       if (payload.eventType === 'INSERT') {

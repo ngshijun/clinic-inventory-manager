@@ -1086,6 +1086,5 @@ const exportToExcel = (): void => {
   }
 }
 
-onMounted(() => {
-})
+onMounted(() => {})
 </script>

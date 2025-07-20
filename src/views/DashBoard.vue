@@ -43,7 +43,6 @@
       <div v-else>
         <!-- Stats Cards - Responsive Grid -->
         <div class="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4 sm:gap-5 mb-6 sm:mb-8">
-
           <!-- Total Products -->
           <div class="bg-white overflow-hidden shadow rounded-lg">
             <div class="p-3 sm:p-5">
@@ -82,41 +81,41 @@
           </div>
 
           <!-- Out of Stock Items -->
-  <div class="bg-white overflow-hidden shadow rounded-lg">
-    <div class="p-3 sm:p-5">
-      <div class="flex items-center">
-        <div class="flex-shrink-0">
-          <div
-            class="w-6 h-6 sm:w-8 sm:h-8 bg-red-500 rounded-md flex items-center justify-center"
-          >
-            <svg
-              class="w-3 h-3 sm:w-5 sm:h-5 text-white"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M6 18L18 6M6 6l12 12"
-              ></path>
-            </svg>
+          <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="p-3 sm:p-5">
+              <div class="flex items-center">
+                <div class="flex-shrink-0">
+                  <div
+                    class="w-6 h-6 sm:w-8 sm:h-8 bg-red-500 rounded-md flex items-center justify-center"
+                  >
+                    <svg
+                      class="w-3 h-3 sm:w-5 sm:h-5 text-white"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M6 18L18 6M6 6l12 12"
+                      ></path>
+                    </svg>
+                  </div>
+                </div>
+                <div class="ml-3 sm:ml-5 w-0 flex-1">
+                  <dl>
+                    <dt class="text-xs sm:text-sm font-medium text-gray-500 truncate">
+                      Out of Stock
+                    </dt>
+                    <dd class="text-base sm:text-lg font-medium text-gray-900">
+                      {{ inventoryStore.outOfStockItems.length }}
+                    </dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
-        <div class="ml-3 sm:ml-5 w-0 flex-1">
-          <dl>
-            <dt class="text-xs sm:text-sm font-medium text-gray-500 truncate">
-              Out of Stock
-            </dt>
-            <dd class="text-base sm:text-lg font-medium text-gray-900">
-              {{ inventoryStore.outOfStockItems.length }}
-            </dd>
-          </dl>
-        </div>
-      </div>
-    </div>
-  </div>
 
           <!-- Low Stock Items -->
           <div class="bg-white overflow-hidden shadow rounded-lg">
@@ -192,45 +191,49 @@
         </div>
 
         <!-- Out of Stock Alert (NEW) -->
-<div
-  v-if="inventoryStore.outOfStockItems.length > 0"
-  class="bg-red-50 border border-red-200 rounded-md p-3 sm:p-4 mb-4 sm:mb-6"
->
-  <div class="flex">
-    <div class="flex-shrink-0">
-      <svg
-        class="h-4 w-4 sm:h-5 sm:w-5 text-red-400"
-        fill="currentColor"
-        viewBox="0 0 20 20"
-      >
-        <path
-          fill-rule="evenodd"
-          d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-          clip-rule="evenodd"
-        ></path>
-      </svg>
-    </div>
-    <div class="ml-3 w-full">
-      <h3 class="text-sm font-medium text-red-800">Out of Stock Alert</h3>
-      <div class="mt-2 text-sm text-red-700">
-        <p>The following items are completely out of stock:</p>
-        <div class="mt-1 space-y-1">
-          <div
-            v-for="item in inventoryStore.outOfStockItems"
-            :key="item.id"
-            class="flex items-center py-2 border-b border-red-200 last:border-b-0"
-          >
-            <div class="flex-shrink-0 w-1.5 h-1.5 bg-red-400 rounded-full mr-3"></div>
-            <div class="flex-1 grid grid-cols-3 sm:grid-cols-7 items-center">
-              <span class="font-medium col-span-2 sm:col-span-5 break-words">{{ item.item_name }}</span>
-              <span class="col-span-1 sm:col-span-2 text-right sm:text-left">(0 {{ item.unit }} remaining)</span>
+        <div
+          v-if="inventoryStore.outOfStockItems.length > 0"
+          class="bg-red-50 border border-red-200 rounded-md p-3 sm:p-4 mb-4 sm:mb-6"
+        >
+          <div class="flex">
+            <div class="flex-shrink-0">
+              <svg
+                class="h-4 w-4 sm:h-5 sm:w-5 text-red-400"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path
+                  fill-rule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                  clip-rule="evenodd"
+                ></path>
+              </svg>
+            </div>
+            <div class="ml-3 w-full">
+              <h3 class="text-sm font-medium text-red-800">Out of Stock Alert</h3>
+              <div class="mt-2 text-sm text-red-700">
+                <p>The following items are completely out of stock:</p>
+                <div class="mt-1 space-y-1">
+                  <div
+                    v-for="item in inventoryStore.outOfStockItems"
+                    :key="item.id"
+                    class="flex items-center py-2 border-b border-red-200 last:border-b-0"
+                  >
+                    <div class="flex-shrink-0 w-1.5 h-1.5 bg-red-400 rounded-full mr-3"></div>
+                    <div class="flex-1 grid grid-cols-3 sm:grid-cols-7 items-center">
+                      <span class="font-medium col-span-2 sm:col-span-5 break-words">{{
+                        item.item_name
+                      }}</span>
+                      <span class="col-span-1 sm:col-span-2 text-right sm:text-left"
+                        >(0 {{ item.unit }} remaining)</span
+                      >
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    </div>
-  </div>
-</div>
 
         <!-- Low Stock Alert -->
         <div
@@ -459,6 +462,5 @@ const formatLastUpdated = (timestamp: string): string => {
   }
 }
 
-onMounted(() => {
-})
+onMounted(() => {})
 </script>
