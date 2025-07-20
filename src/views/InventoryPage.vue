@@ -21,7 +21,7 @@
           </button>
           <button
             v-if="!showAddForm"
-            @click="showAddForm = !showAddForm"
+            @click="openAddForm"
             class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
           >
             Add New Item
@@ -110,6 +110,7 @@
             <div class="col-span-3">
               <label class="block text-sm font-medium text-gray-700 mb-1">Item Name</label>
               <input
+                ref="itemNameInputRef"
                 v-model="newItem.item_name"
                 type="text"
                 required
@@ -670,7 +671,7 @@
 import TablePagination from '@/components/TablePagination.vue'
 import { useInventoryStore } from '@/stores/inventory'
 import type { InventoryItem, NewInventoryItem, StockStatus } from '@/types/inventory'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import * as XLSX from 'xlsx'
 
 const inventoryStore = useInventoryStore()
@@ -680,6 +681,7 @@ const showAddForm = ref<boolean>(false)
 const editingItem = ref<string | null>(null)
 const stockQuantity = ref<number>(1)
 const fileInput = ref<HTMLInputElement | null>(null)
+const itemNameInputRef = ref<HTMLInputElement | null>(null)
 
 // Pagination
 const currentPage = ref<number>(1)
@@ -830,6 +832,12 @@ const handleStockOut = async (itemId: string): Promise<void> => {
       stockQuantity.value = 1
     }
   }
+}
+
+const openAddForm = async (): Promise<void> => {
+  showAddForm.value = true
+  await nextTick() // Wait for DOM to update
+  itemNameInputRef.value?.focus() // Focus the item name input
 }
 
 const addNewItem = async (): Promise<void> => {
