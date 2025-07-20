@@ -7,7 +7,7 @@
         <div class="flex flex-col sm:flex-row gap-3">
           <button
             v-if="!showCreateForm"
-            @click="showCreateForm = !showCreateForm"
+            @click="openCreateForm"
             class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
           >
             Create New Request
@@ -24,9 +24,11 @@
               <label class="block text-sm font-medium text-gray-700 mb-1">Item</label>
               <div class="relative">
                 <input
+                  ref="itemInputRef"
                   v-model="itemSearchQuery"
                   @focus="showItemDropdown = true"
                   @input="onItemSearch"
+                  @keydown="handleKeyDown"
                   type="text"
                   required
                   class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -36,16 +38,23 @@
                 <!-- Dropdown -->
                 <div
                   v-if="showItemDropdown && filteredItems.length > 0"
+                  ref="dropdownRef"
                   class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto"
                 >
                   <div
-                    v-for="item in filteredItems"
+                    v-for="(item, index) in filteredItems"
                     :key="item.id"
+                    :data-index="index"
                     @click="selectItem(item)"
-                    class="px-3 py-2 hover:bg-blue-50 cursor-pointer text-sm border-b border-gray-100 last:border-b-0"
+                    :class="[
+                      'px-3 py-2 cursor-pointer text-sm border-b border-gray-100 last:border-b-0',
+                      index === selectedItemIndex ? 'bg-blue-100' : 'hover:bg-blue-50',
+                    ]"
                   >
                     <div class="font-medium text-gray-900">{{ item.item_name }}</div>
-                    <div class="text-xs text-gray-500">Available: {{ item.quantity }} {{ item.unit }}</div>
+                    <div class="text-xs text-gray-500">
+                      Available: {{ item.quantity }} {{ item.unit }}
+                    </div>
                   </div>
                 </div>
                 <!-- No results -->
@@ -67,7 +76,9 @@
                 :disabled="!newRequest.item_id"
                 required
                 class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
-                :placeholder="selectedItemMaxQuantity ? `Max: ${selectedItemMaxQuantity}` : 'Select item first'"
+                :placeholder="
+                  selectedItemMaxQuantity ? `Max: ${selectedItemMaxQuantity}` : 'Select item first'
+                "
               />
               <p v-if="selectedItemMaxQuantity" class="mt-1 text-xs text-gray-500">
                 Maximum available: {{ selectedItemMaxQuantity }} {{ selectedItemUnit }}
@@ -116,8 +127,18 @@
               placeholder="Search requests..."
             />
             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+              <svg
+                class="h-5 w-5 text-gray-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                ></path>
               </svg>
             </div>
           </div>
@@ -144,11 +165,18 @@
       </div>
 
       <!-- Error Display -->
-      <div v-if="stockRequestsStore.error" class="mb-4 bg-red-50 border border-red-200 rounded-md p-4">
+      <div
+        v-if="stockRequestsStore.error"
+        class="mb-4 bg-red-50 border border-red-200 rounded-md p-4"
+      >
         <div class="flex">
           <div class="flex-shrink-0">
             <svg class="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
+              <path
+                fill-rule="evenodd"
+                d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                clip-rule="evenodd"
+              ></path>
             </svg>
           </div>
           <div class="ml-3">
@@ -167,18 +195,37 @@
             </h3>
           </div>
 
-          <div v-if="stockRequestsStore.loading && sortedAndFilteredRequests.length === 0" class="text-center py-8">
-            <div class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+          <div
+            v-if="stockRequestsStore.loading && sortedAndFilteredRequests.length === 0"
+            class="text-center py-8"
+          >
+            <div
+              class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"
+            ></div>
             <p class="mt-2 text-gray-600 text-sm">Loading requests...</p>
           </div>
 
           <div v-else-if="sortedAndFilteredRequests.length === 0" class="text-center py-12">
-            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+            <svg
+              class="mx-auto h-12 w-12 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              ></path>
             </svg>
             <h3 class="mt-2 text-sm font-medium text-gray-900">No requests found</h3>
             <p class="mt-1 text-sm text-gray-500">
-              {{ hasActiveFilters ? 'Try adjusting your search terms or filters.' : 'No requests have been submitted yet.' }}
+              {{
+                hasActiveFilters
+                  ? 'Try adjusting your search terms or filters.'
+                  : 'No requests have been submitted yet.'
+              }}
             </p>
           </div>
 
@@ -190,12 +237,16 @@
                   <h4 class="text-sm font-medium text-gray-900 truncate flex-1 mr-2">
                     {{ request.item_name }}
                   </h4>
-                  <span :class="[
-                    'inline-flex px-2 py-1 text-xs font-semibold rounded-full',
-                    request.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
-                    request.status === 'Approved' ? 'bg-green-100 text-green-800' :
-                    'bg-red-100 text-red-800'
-                  ]">
+                  <span
+                    :class="[
+                      'inline-flex px-2 py-1 text-xs font-semibold rounded-full',
+                      request.status === 'Pending'
+                        ? 'bg-yellow-100 text-yellow-800'
+                        : request.status === 'Approved'
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-red-100 text-red-800',
+                    ]"
+                  >
                     {{ request.status }}
                   </span>
                 </div>
@@ -204,13 +255,17 @@
                 <div class="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <span class="text-gray-500">Quantity:</span>
-                    <div class="font-medium text-gray-900 mt-1">{{ request.quantity }} {{ request.unit }}</div>
+                    <div class="font-medium text-gray-900 mt-1">
+                      {{ request.quantity }} {{ request.unit }}
+                    </div>
                   </div>
                 </div>
 
                 <div class="text-sm">
                   <span class="text-gray-500">Remark:</span>
-                  <div class="font-medium text-gray-900 mt-1">{{ request.remark || 'No Remark' }}</div>
+                  <div class="font-medium text-gray-900 mt-1">
+                    {{ request.remark || 'No Remark' }}
+                  </div>
                 </div>
 
                 <!-- Actions -->
@@ -252,18 +307,37 @@
             </h3>
           </div>
 
-          <div v-if="stockRequestsStore.loading && sortedAndFilteredRequests.length === 0" class="text-center py-8">
-            <div class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+          <div
+            v-if="stockRequestsStore.loading && sortedAndFilteredRequests.length === 0"
+            class="text-center py-8"
+          >
+            <div
+              class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"
+            ></div>
             <p class="mt-2 text-gray-600 text-sm">Loading requests...</p>
           </div>
 
           <div v-else-if="sortedAndFilteredRequests.length === 0" class="text-center py-12">
-            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+            <svg
+              class="mx-auto h-12 w-12 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              ></path>
             </svg>
             <h3 class="mt-2 text-sm font-medium text-gray-900">No requests found</h3>
             <p class="mt-1 text-sm text-gray-500">
-              {{ hasActiveFilters ? 'Try adjusting your search terms or filters.' : 'No requests have been submitted yet.' }}
+              {{
+                hasActiveFilters
+                  ? 'Try adjusting your search terms or filters.'
+                  : 'No requests have been submitted yet.'
+              }}
             </p>
           </div>
 
@@ -271,47 +345,142 @@
             <table class="min-w-full divide-y divide-gray-200">
               <thead class="bg-gray-50">
                 <tr>
-                  <th @click="toggleSort('item_name')" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none">
+                  <th
+                    @click="toggleSort('item_name')"
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                  >
                     <div class="flex items-center justify-between">
                       <span>Item Name</span>
                       <div class="flex flex-col ml-2">
-                        <svg :class="['w-3 h-3 transition-colors', sortConfig.key === 'item_name' && sortConfig.direction === 'asc' ? 'text-blue-600' : 'text-gray-400']" fill="currentColor" viewBox="0 0 20 20">
-                          <path fill-rule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clip-rule="evenodd" />
+                        <svg
+                          :class="[
+                            'w-3 h-3 transition-colors',
+                            sortConfig.key === 'item_name' && sortConfig.direction === 'asc'
+                              ? 'text-blue-600'
+                              : 'text-gray-400',
+                          ]"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path
+                            fill-rule="evenodd"
+                            d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z"
+                            clip-rule="evenodd"
+                          />
                         </svg>
-                        <svg :class="['w-3 h-3 transition-colors -mt-1', sortConfig.key === 'item_name' && sortConfig.direction === 'desc' ? 'text-blue-600' : 'text-gray-400']" fill="currentColor" viewBox="0 0 20 20">
-                          <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                        <svg
+                          :class="[
+                            'w-3 h-3 transition-colors -mt-1',
+                            sortConfig.key === 'item_name' && sortConfig.direction === 'desc'
+                              ? 'text-blue-600'
+                              : 'text-gray-400',
+                          ]"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path
+                            fill-rule="evenodd"
+                            d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                            clip-rule="evenodd"
+                          />
                         </svg>
                       </div>
                     </div>
                   </th>
-                  <th @click="toggleSort('quantity')" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none">
+                  <th
+                    @click="toggleSort('quantity')"
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                  >
                     <div class="flex items-center justify-between">
                       <span>Quantity</span>
                       <div class="flex flex-col ml-2">
-                        <svg :class="['w-3 h-3 transition-colors', sortConfig.key === 'quantity' && sortConfig.direction === 'asc' ? 'text-blue-600' : 'text-gray-400']" fill="currentColor" viewBox="0 0 20 20">
-                          <path fill-rule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clip-rule="evenodd" />
+                        <svg
+                          :class="[
+                            'w-3 h-3 transition-colors',
+                            sortConfig.key === 'quantity' && sortConfig.direction === 'asc'
+                              ? 'text-blue-600'
+                              : 'text-gray-400',
+                          ]"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path
+                            fill-rule="evenodd"
+                            d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z"
+                            clip-rule="evenodd"
+                          />
                         </svg>
-                        <svg :class="['w-3 h-3 transition-colors -mt-1', sortConfig.key === 'quantity' && sortConfig.direction === 'desc' ? 'text-blue-600' : 'text-gray-400']" fill="currentColor" viewBox="0 0 20 20">
-                          <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                        <svg
+                          :class="[
+                            'w-3 h-3 transition-colors -mt-1',
+                            sortConfig.key === 'quantity' && sortConfig.direction === 'desc'
+                              ? 'text-blue-600'
+                              : 'text-gray-400',
+                          ]"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path
+                            fill-rule="evenodd"
+                            d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                            clip-rule="evenodd"
+                          />
                         </svg>
                       </div>
                     </div>
                   </th>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Remark</th>
-                  <th @click="toggleSort('status')" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none">
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Remark
+                  </th>
+                  <th
+                    @click="toggleSort('status')"
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                  >
                     <div class="flex items-center justify-between">
                       <span>Status</span>
                       <div class="flex flex-col ml-2">
-                        <svg :class="['w-3 h-3 transition-colors', sortConfig.key === 'status' && sortConfig.direction === 'asc' ? 'text-blue-600' : 'text-gray-400']" fill="currentColor" viewBox="0 0 20 20">
-                          <path fill-rule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clip-rule="evenodd" />
+                        <svg
+                          :class="[
+                            'w-3 h-3 transition-colors',
+                            sortConfig.key === 'status' && sortConfig.direction === 'asc'
+                              ? 'text-blue-600'
+                              : 'text-gray-400',
+                          ]"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path
+                            fill-rule="evenodd"
+                            d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z"
+                            clip-rule="evenodd"
+                          />
                         </svg>
-                        <svg :class="['w-3 h-3 transition-colors -mt-1', sortConfig.key === 'status' && sortConfig.direction === 'desc' ? 'text-blue-600' : 'text-gray-400']" fill="currentColor" viewBox="0 0 20 20">
-                          <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                        <svg
+                          :class="[
+                            'w-3 h-3 transition-colors -mt-1',
+                            sortConfig.key === 'status' && sortConfig.direction === 'desc'
+                              ? 'text-blue-600'
+                              : 'text-gray-400',
+                          ]"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path
+                            fill-rule="evenodd"
+                            d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                            clip-rule="evenodd"
+                          />
                         </svg>
                       </div>
                     </div>
                   </th>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody class="bg-white divide-y divide-gray-200">
@@ -328,12 +497,16 @@
                     </div>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap">
-                    <span :class="[
-                      'inline-flex px-2 py-1 text-xs font-semibold rounded-full',
-                      request.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
-                      request.status === 'Approved' ? 'bg-green-100 text-green-800' :
-                      'bg-red-100 text-red-800'
-                    ]">
+                    <span
+                      :class="[
+                        'inline-flex px-2 py-1 text-xs font-semibold rounded-full',
+                        request.status === 'Pending'
+                          ? 'bg-yellow-100 text-yellow-800'
+                          : request.status === 'Approved'
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-red-100 text-red-800',
+                      ]"
+                    >
                       {{ request.status }}
                     </span>
                   </td>
@@ -376,11 +549,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
-import { useStockRequestsStore } from '@/stores/stockRequests'
 import { useInventoryStore } from '@/stores/inventory'
-import type { StockRequest, NewStockRequest } from '@/types/stockRequests'
+import { useStockRequestsStore } from '@/stores/stockRequests'
 import type { InventoryItem } from '@/types/inventory'
+import type { NewStockRequest, StockRequest } from '@/types/stockRequests'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 
 // Component imports
 import TablePagination from '@/components/TablePagination.vue'
@@ -397,13 +570,18 @@ const filterDate = ref<string>(today.toISOString().split('T')[0])
 const showCreateForm = ref<boolean>(false)
 const itemSearchQuery = ref<string>('')
 const showItemDropdown = ref<boolean>(false)
+const selectedItemIndex = ref<number>(-1)
+
+// Template refs
+const itemInputRef = ref<HTMLInputElement | null>(null)
+const dropdownRef = ref<HTMLDivElement | null>(null)
 
 // New request form
 const newRequest = ref<NewStockRequest & { quantity: number }>({
   item_id: '',
   item_name: '',
   quantity: 1,
-  remark: ''
+  remark: '',
 })
 
 // Pagination
@@ -416,12 +594,12 @@ const sortConfig = ref<{
   direction: 'asc' | 'desc'
 }>({
   key: null,
-  direction: 'asc'
+  direction: 'asc',
 })
 
 // Computed properties for new request form
 const selectedItem = computed(() => {
-  return inventoryStore.items.find(item => item.id === newRequest.value.item_id)
+  return inventoryStore.items.find((item) => item.id === newRequest.value.item_id)
 })
 
 const selectedItemMaxQuantity = computed(() => {
@@ -435,12 +613,11 @@ const selectedItemUnit = computed(() => {
 const filteredItems = computed((): InventoryItem[] => {
   if (!itemSearchQuery.value) return inventoryStore.items
 
-  return inventoryStore.items
-    .filter(item =>
+  return inventoryStore.items.filter(
+    (item) =>
       item.item_name.toLowerCase().includes(itemSearchQuery.value.toLowerCase()) ||
-      item.id.toLowerCase().includes(itemSearchQuery.value.toLowerCase())
-    )
-    .slice(0, 10) // Limit to 10 results
+      item.id.toLowerCase().includes(itemSearchQuery.value.toLowerCase()),
+  )
 })
 
 const isFormValid = computed(() => {
@@ -561,6 +738,63 @@ const clearFilters = (): void => {
 // New request form functions
 const onItemSearch = (): void => {
   showItemDropdown.value = true
+  selectedItemIndex.value = -1 // Reset selection when searching
+}
+
+const scrollToSelectedItem = (): void => {
+  nextTick(() => {
+    if (dropdownRef.value && selectedItemIndex.value >= 0) {
+      const dropdown = dropdownRef.value
+      const selectedItem = dropdown.querySelector(
+        `[data-index="${selectedItemIndex.value}"]`,
+      ) as HTMLElement
+
+      if (selectedItem) {
+        const dropdownRect = dropdown.getBoundingClientRect()
+        const itemRect = selectedItem.getBoundingClientRect()
+
+        // Check if item is above visible area
+        if (itemRect.top < dropdownRect.top) {
+          dropdown.scrollTop -= dropdownRect.top - itemRect.top
+        }
+        // Check if item is below visible area
+        else if (itemRect.bottom > dropdownRect.bottom) {
+          dropdown.scrollTop += itemRect.bottom - dropdownRect.bottom
+        }
+      }
+    }
+  })
+}
+
+const handleKeyDown = (event: KeyboardEvent): void => {
+  if (!showItemDropdown.value || filteredItems.value.length === 0) return
+
+  switch (event.key) {
+    case 'ArrowDown':
+      event.preventDefault()
+      selectedItemIndex.value = Math.min(
+        selectedItemIndex.value + 1,
+        filteredItems.value.length - 1,
+      )
+      scrollToSelectedItem()
+      break
+    case 'ArrowUp':
+      event.preventDefault()
+      selectedItemIndex.value = Math.max(selectedItemIndex.value - 1, 0)
+      scrollToSelectedItem()
+      break
+    case 'Enter':
+      event.preventDefault()
+      if (selectedItemIndex.value >= 0 && selectedItemIndex.value < filteredItems.value.length) {
+        selectItem(filteredItems.value[selectedItemIndex.value])
+      }
+      break
+    case 'Escape':
+      event.preventDefault()
+      showItemDropdown.value = false
+      selectedItemIndex.value = -1
+      break
+  }
 }
 
 const selectItem = (item: InventoryItem): void => {
@@ -568,6 +802,7 @@ const selectItem = (item: InventoryItem): void => {
   newRequest.value.item_name = item.item_name
   itemSearchQuery.value = item.item_name
   showItemDropdown.value = false
+  selectedItemIndex.value = -1
   newRequest.value.quantity = 1 // Reset quantity when item changes
 }
 
@@ -578,7 +813,7 @@ const createNewRequest = async (): Promise<void> => {
     item_id: newRequest.value.item_id,
     item_name: newRequest.value.item_name,
     quantity: newRequest.value.quantity,
-    remark: newRequest.value.remark || ''
+    remark: newRequest.value.remark || '',
   })
 
   if (!stockRequestsStore.error) {
@@ -586,15 +821,22 @@ const createNewRequest = async (): Promise<void> => {
   }
 }
 
+const openCreateForm = async (): Promise<void> => {
+  showCreateForm.value = true
+  await nextTick() // Wait for DOM to update
+  itemInputRef.value?.focus() // Focus the item input
+}
+
 const cancelCreateForm = (): void => {
   showCreateForm.value = false
   showItemDropdown.value = false
   itemSearchQuery.value = ''
+  selectedItemIndex.value = -1
   newRequest.value = {
     item_id: '',
     item_name: '',
     quantity: 1,
-    remark: ''
+    remark: '',
   }
 }
 
