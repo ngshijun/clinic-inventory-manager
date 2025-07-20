@@ -116,6 +116,12 @@
                 "
               >
                 Stock Approvals
+                <span
+                  v-if="pendingRequestsCount > 0"
+                  class="ml-2 inline-flex items-center justify-center px-2 py-1 m-0.5 text-xs font-bold leading-none text-white bg-red-600 rounded-full"
+                >
+                  {{ pendingRequestsCount }}
+                </span>
               </router-link>
             </div>
 
@@ -219,7 +225,7 @@
 
 <script setup lang="ts">
 import { useAuthStore } from '@/stores/auth'
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useInventoryStore } from './stores/inventory'
 import { useStockMovementsStore } from './stores/stockMovements'
@@ -232,6 +238,10 @@ const stockMovementStore = useStockMovementsStore()
 const router = useRouter()
 const mobileMenuOpen = ref(false)
 const { isAuthenticated, logout, initAuth, user } = useAuthStore()
+
+const pendingRequestsCount = computed(() => {
+  return stockRequestsStore.requests.filter((request) => request.status === 'Pending').length
+})
 
 const handleLogout = () => {
   logout()
