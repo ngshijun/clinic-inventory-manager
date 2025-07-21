@@ -289,6 +289,7 @@
                       class="flex-1 border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
+                  <div class="text-xs text-gray-500">Unit: {{ item.unit }}</div>
                   <div class="flex gap-2">
                     <button
                       @click="handleStockIn(item.id)"
@@ -307,7 +308,7 @@
                   </div>
                   <button
                     @click="cancelEdit"
-                    class="w-full text-gray-600 hover:text-gray-900 text-sm font-medium bg-gray-200 hover:bg-gray-300 px-3 py-2 rounded transition-colors"
+                    class="w-full bg-gray-600 hover:bg-gray-700 disabled:opacity-50 text-white px-3 py-2 rounded text-sm font-medium transition-colors"
                   >
                     Cancel
                   </button>
@@ -570,9 +571,6 @@
                   >
                     Actions
                   </th>
-                  <th
-                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                  ></th>
                 </tr>
               </thead>
               <tbody class="bg-white divide-y divide-gray-200">
@@ -588,31 +586,10 @@
                           type="number"
                           min="1"
                           placeholder="Quantity"
-                          class="w-24 border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          class="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       </div>
-                      <div class="flex space-x-2">
-                        <button
-                          @click="handleStockIn(item.id)"
-                          :disabled="inventoryStore.loading || !stockQuantity || stockQuantity <= 0"
-                          class="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-2 py-1 rounded text-xs font-medium"
-                        >
-                          Stock In (+)
-                        </button>
-                        <button
-                          @click="handleStockOut(item.id)"
-                          :disabled="inventoryStore.loading || !stockQuantity || stockQuantity <= 0"
-                          class="bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-2 py-1 rounded text-xs font-medium"
-                        >
-                          Stock Out (-)
-                        </button>
-                        <button
-                          @click="cancelEdit"
-                          class="text-gray-600 hover:text-gray-900 px-2 py-1 rounded text-xs font-medium border border-gray-300"
-                        >
-                          Cancel
-                        </button>
-                      </div>
+                      <div class="text-xs text-gray-500">Unit: {{ item.unit }}</div>
                     </div>
                     <div v-else>{{ item.quantity }} {{ item.unit }}</div>
                   </td>
@@ -629,19 +606,37 @@
                       {{ getStockStatus(item).text }}
                     </span>
                   </td>
-                  <td class="ps-6 py-4 pe-2 whitespace-nowrap text-sm font-medium">
-                    <button
-                      v-if="editingItem !== item.id"
-                      @click="startEdit(item)"
-                      class="text-blue-600 hover:text-blue-900"
-                    >
-                      Manage Stock
-                    </button>
-                  </td>
-                  <td class="pe-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <button @click="deleteItem(item.id)" class="text-red-600 hover:text-red-900">
-                      Delete
-                    </button>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <div v-if="editingItem === item.id" class="flex flex-col gap-2">
+                      <button
+                        @click="handleStockIn(item.id)"
+                        :disabled="inventoryStore.loading || !stockQuantity || stockQuantity <= 0"
+                        class="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
+                      >
+                        Stock In (+)
+                      </button>
+                      <button
+                        @click="handleStockOut(item.id)"
+                        :disabled="inventoryStore.loading || !stockQuantity || stockQuantity <= 0"
+                        class="bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
+                      >
+                        Stock Out (-)
+                      </button>
+                      <button
+                        @click="cancelEdit"
+                        class="bg-gray-600 hover:bg-gray-700 disabled:opacity-50 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                    <div v-else class="flex gap-2">
+                      <button @click="startEdit(item)" class="text-blue-600 hover:text-blue-900">
+                        Manage Stock
+                      </button>
+                      <button @click="deleteItem(item.id)" class="text-red-600 hover:text-red-900">
+                        Delete
+                      </button>
+                    </div>
                   </td>
                 </tr>
               </tbody>

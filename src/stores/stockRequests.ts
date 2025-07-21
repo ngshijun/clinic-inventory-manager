@@ -135,22 +135,31 @@ export const useStockRequestsStore = defineStore('stockRequests', () => {
     }
   }
 
-  const updateRequestRemark = async (requestId: string, newRemark: string): Promise<void> => {
+  const updateRequest = async (
+    requestId: string,
+    newQuantity?: number,
+    newRemark?: string,
+  ): Promise<void> => {
     loading.value = true
     error.value = null
+
     try {
+      const updateData: { [key: string]: string | number } = {
+        updated_at: new Date().toISOString(),
+      }
+
+      if (newQuantity !== undefined) updateData.quantity = newQuantity
+      if (newRemark !== undefined) updateData.remark = newRemark
+
       const { error: supabaseError } = await supabase
         .from('stock_requests')
-        .update({
-          request_remark: newRemark,
-          updated_at: new Date().toISOString(),
-        })
+        .update(updateData)
         .eq('id', requestId)
 
       if (supabaseError) throw supabaseError
     } catch (err) {
-      error.value = err instanceof Error ? err.message : 'An error occurred while updating remark'
-      console.error('Error updating remark:', err)
+      error.value = err instanceof Error ? err.message : 'An error occurred while updating request'
+      console.error('Error updating request:', err)
     } finally {
       loading.value = false
     }
@@ -245,7 +254,7 @@ export const useStockRequestsStore = defineStore('stockRequests', () => {
     addRequest,
     removeRequest,
     approveRequest,
-    updateRequestRemark,
+    updateRequest,
     searchRequests,
     filterRequestsByStatus,
     filterRequestsByDate,

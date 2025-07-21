@@ -143,7 +143,6 @@
             </div>
           </div>
         </div>
-
         <!-- Date Filter -->
         <div class="w-full sm:w-40">
           <input
@@ -153,7 +152,6 @@
             placeholder="Filter by date"
           />
         </div>
-
         <!-- Clear Filters -->
         <button
           v-if="hasActiveFilters"
@@ -194,7 +192,6 @@
               Requests ({{ sortedAndFilteredRequests.length }})
             </h3>
           </div>
-
           <div
             v-if="stockRequestsStore.loading && sortedAndFilteredRequests.length === 0"
             class="text-center py-8"
@@ -204,7 +201,6 @@
             ></div>
             <p class="mt-2 text-gray-600 text-sm">Loading requests...</p>
           </div>
-
           <div v-else-if="sortedAndFilteredRequests.length === 0" class="text-center py-12">
             <svg
               class="mx-auto h-12 w-12 text-gray-400"
@@ -228,10 +224,66 @@
               }}
             </p>
           </div>
-
           <div v-else class="divide-y divide-gray-200">
             <div v-for="request in paginatedRequests" :key="request.id" class="px-4 py-4">
-              <div class="space-y-3">
+              <!-- Edit Mode -->
+              <div v-if="editingRequestId === request.id" class="space-y-4">
+                <div class="flex items-center justify-between">
+                  <h4 class="text-sm font-medium text-gray-900">
+                    {{ request.item_name }}
+                  </h4>
+                  <span
+                    class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800"
+                  >
+                    {{ request.status }}
+                  </span>
+                </div>
+                <div class="space-y-3">
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
+                    <input
+                      v-model.number="editForm.quantity"
+                      type="number"
+                      min="1"
+                      :max="getItemMaxQuantity(request.item_id)"
+                      class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      :placeholder="`Max: ${getItemMaxQuantity(request.item_id)}`"
+                    />
+                    <p class="mt-1 text-xs text-gray-500">
+                      Maximum available: {{ getItemMaxQuantity(request.item_id) }}
+                      {{ request.unit }}
+                    </p>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Remark</label>
+                    <textarea
+                      v-model="editForm.remark"
+                      rows="3"
+                      class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Enter reason for request..."
+                    ></textarea>
+                  </div>
+                </div>
+                <div class="flex gap-2">
+                  <button
+                    @click="saveEdit(request.id)"
+                    :disabled="stockRequestsStore.loading || !isEditFormValid"
+                    class="flex-1 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-3 py-2 rounded text-sm font-medium transition-colors"
+                  >
+                    {{ stockRequestsStore.loading ? 'Saving...' : 'Save' }}
+                  </button>
+                  <button
+                    @click="cancelEdit"
+                    :disabled="stockRequestsStore.loading"
+                    class="flex-1 bg-gray-600 hover:bg-gray-700 disabled:opacity-50 text-white px-3 py-2 rounded text-sm font-medium transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+
+              <!-- View Mode -->
+              <div v-else class="space-y-3">
                 <!-- Request Header -->
                 <div class="flex items-center justify-between">
                   <h4 class="text-sm font-medium text-gray-900 truncate flex-1 mr-2">
@@ -250,7 +302,6 @@
                     {{ request.status }}
                   </span>
                 </div>
-
                 <!-- Request Details -->
                 <div class="grid grid-cols-2 gap-4 text-sm">
                   <div>
@@ -260,16 +311,21 @@
                     </div>
                   </div>
                 </div>
-
                 <div class="text-sm">
                   <span class="text-gray-500">Remark:</span>
                   <div class="font-medium text-gray-900 mt-1">
                     {{ request.remark || 'No Remark' }}
                   </div>
                 </div>
-
                 <!-- Actions -->
                 <div v-if="request.status === 'Pending'" class="flex gap-2">
+                  <button
+                    @click="startEdit(request)"
+                    :disabled="stockRequestsStore.loading"
+                    class="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-3 py-2 rounded text-sm font-medium transition-colors"
+                  >
+                    Edit
+                  </button>
                   <button
                     @click="removeRequest(request.id)"
                     :disabled="stockRequestsStore.loading"
@@ -281,7 +337,6 @@
               </div>
             </div>
           </div>
-
           <!-- Mobile Pagination -->
           <TablePagination
             v-if="totalPages > 1"
@@ -306,7 +361,6 @@
               Requests ({{ sortedAndFilteredRequests.length }})
             </h3>
           </div>
-
           <div
             v-if="stockRequestsStore.loading && sortedAndFilteredRequests.length === 0"
             class="text-center py-8"
@@ -316,7 +370,6 @@
             ></div>
             <p class="mt-2 text-gray-600 text-sm">Loading requests...</p>
           </div>
-
           <div v-else-if="sortedAndFilteredRequests.length === 0" class="text-center py-12">
             <svg
               class="mx-auto h-12 w-12 text-gray-400"
@@ -340,7 +393,6 @@
               }}
             </p>
           </div>
-
           <div v-else class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
               <thead class="bg-gray-50">
@@ -489,10 +541,31 @@
                     {{ request.item_name }}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {{ request.quantity }} {{ request.unit }}
+                    <div v-if="editingRequestId === request.id" class="space-y-2">
+                      <input
+                        v-model.number="editForm.quantity"
+                        type="number"
+                        min="1"
+                        :max="getItemMaxQuantity(request.item_id)"
+                        class="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        :placeholder="`Max: ${getItemMaxQuantity(request.item_id)}`"
+                      />
+                      <p class="text-xs text-gray-500">
+                        Max: {{ getItemMaxQuantity(request.item_id) }} {{ request.unit }}
+                      </p>
+                    </div>
+                    <div v-else>{{ request.quantity }} {{ request.unit }}</div>
                   </td>
                   <td class="px-6 py-4 text-sm text-gray-900 max-w-xs">
-                    <div class="truncate" :title="request.remark || 'No Remark'">
+                    <div v-if="editingRequestId === request.id">
+                      <textarea
+                        v-model="editForm.remark"
+                        rows="2"
+                        class="w-full max-w-xs border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Enter reason for request..."
+                      ></textarea>
+                    </div>
+                    <div v-else class="truncate" :title="request.remark || 'No Remark'">
                       {{ request.remark || 'No Remark' }}
                     </div>
                   </td>
@@ -511,7 +584,30 @@
                     </span>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div v-if="request.status === 'Pending'">
+                    <div v-if="editingRequestId === request.id" class="flex flex-col gap-2">
+                      <button
+                        @click="saveEdit(request.id)"
+                        :disabled="stockRequestsStore.loading || !isEditFormValid"
+                        class="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
+                      >
+                        {{ stockRequestsStore.loading ? 'Saving...' : 'Save' }}
+                      </button>
+                      <button
+                        @click="cancelEdit"
+                        :disabled="stockRequestsStore.loading"
+                        class="bg-gray-600 hover:bg-gray-700 disabled:opacity-50 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                    <div v-else-if="request.status === 'Pending'" class="flex gap-2">
+                      <button
+                        @click="startEdit(request)"
+                        :disabled="stockRequestsStore.loading"
+                        class="text-blue-600 hover:text-blue-900 disabled:opacity-50"
+                      >
+                        Edit
+                      </button>
                       <button
                         @click="removeRequest(request.id)"
                         :disabled="stockRequestsStore.loading"
@@ -572,6 +668,16 @@ const itemSearchQuery = ref<string>('')
 const showItemDropdown = ref<boolean>(false)
 const selectedItemIndex = ref<number>(-1)
 
+// Edit state
+const editingRequestId = ref<string>('')
+const editForm = ref<{
+  quantity: number
+  remark: string
+}>({
+  quantity: 1,
+  remark: '',
+})
+
 // Template refs
 const itemInputRef = ref<HTMLInputElement | null>(null)
 const dropdownRef = ref<HTMLDivElement | null>(null)
@@ -612,7 +718,6 @@ const selectedItemUnit = computed(() => {
 
 const filteredItems = computed((): InventoryItem[] => {
   if (!itemSearchQuery.value) return inventoryStore.items
-
   return inventoryStore.items.filter(
     (item) =>
       item.item_name.toLowerCase().includes(itemSearchQuery.value.toLowerCase()) ||
@@ -627,6 +732,22 @@ const isFormValid = computed(() => {
     newRequest.value.quantity <= selectedItemMaxQuantity.value
   )
 })
+
+// Edit form validation
+const isEditFormValid = computed(() => {
+  if (!editingRequestId.value) return false
+  const request = stockRequestsStore.requests.find((r) => r.id === editingRequestId.value)
+  if (!request) return false
+
+  const maxQuantity = getItemMaxQuantity(request.item_id)
+  return !!(editForm.value.quantity > 0 && editForm.value.quantity <= maxQuantity)
+})
+
+// Helper function to get item max quantity
+const getItemMaxQuantity = (itemId: string): number => {
+  const item = inventoryStore.items.find((item) => item.id === itemId)
+  return item?.quantity || 0
+}
 
 // Computed properties for filtering and sorting
 const sortedAndFilteredRequests = computed((): StockRequest[] => {
@@ -733,6 +854,33 @@ const clearFilters = (): void => {
   searchQuery.value = ''
   filterDate.value = ''
   currentPage.value = 1
+}
+
+// Edit functions
+const startEdit = (request: StockRequest): void => {
+  editingRequestId.value = request.id
+  editForm.value = {
+    quantity: request.quantity,
+    remark: request.remark || '',
+  }
+}
+
+const cancelEdit = (): void => {
+  editingRequestId.value = ''
+  editForm.value = {
+    quantity: 1,
+    remark: '',
+  }
+}
+
+const saveEdit = async (requestId: string): Promise<void> => {
+  if (!isEditFormValid.value) return
+
+  await stockRequestsStore.updateRequest(requestId, editForm.value.quantity, editForm.value.remark)
+
+  if (!stockRequestsStore.error) {
+    cancelEdit()
+  }
 }
 
 // New request form functions
@@ -843,7 +991,6 @@ const cancelCreateForm = (): void => {
 // Action functions
 const removeRequest = async (requestId: string): Promise<void> => {
   if (!confirm('Are you sure you want to remove this request?')) return
-
   await stockRequestsStore.removeRequest(requestId)
 }
 

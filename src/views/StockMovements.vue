@@ -264,13 +264,13 @@
                       <button
                         @click="saveRemark(movement.id)"
                         :disabled="stockMovementsStore.loading"
-                        class="flex-1 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-3 py-1 rounded text-sm font-medium"
+                        class="flex-1 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-3 py-2 rounded text-sm font-medium transition-colors"
                       >
-                        Save
+                        {{ stockMovementsStore.loading ? 'Saving...' : 'Save' }}
                       </button>
                       <button
                         @click="cancelEditRemark"
-                        class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 px-3 py-1 rounded text-sm font-medium"
+                        class="flex-1 bg-gray-600 hover:bg-gray-700 disabled:opacity-50 text-white px-3 py-2 rounded text-sm font-medium transition-colors"
                       >
                         Cancel
                       </button>
@@ -559,7 +559,7 @@
                       {{ movement.movement_type === 'stock_in' ? 'Stock In (+)' : 'Stock Out (-)' }}
                     </span>
                   </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td class="px-6 py-4 text-sm text-gray-900" style="white-space: pre-line">
                     {{ formatDateTime(movement.created_at) }}
                   </td>
                   <td class="px-6 py-4 text-sm text-gray-900">
@@ -570,29 +570,30 @@
                         class="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="Enter remark..."
                       ></textarea>
-                      <div class="flex space-x-2">
-                        <button
-                          @click="saveRemark(movement.id)"
-                          :disabled="stockMovementsStore.loading"
-                          class="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-2 py-1 rounded text-xs font-medium"
-                        >
-                          Save
-                        </button>
-                        <button
-                          @click="cancelEditRemark"
-                          class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-2 py-1 rounded text-xs font-medium"
-                        >
-                          Cancel
-                        </button>
-                      </div>
                     </div>
                     <div v-else class="max-w-xs">
                       <p class="truncate">{{ movement.remark || 'No remark' }}</p>
                     </div>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <div v-if="editingRemark === movement.id" class="flex flex-col gap-2">
+                      <button
+                        @click="saveRemark(movement.id)"
+                        :disabled="stockMovementsStore.loading"
+                        class="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
+                      >
+                        {{ stockMovementsStore.loading ? 'Saving...' : 'Save' }}
+                      </button>
+                      <button
+                        @click="cancelEditRemark"
+                        :disabled="stockMovementsStore.loading"
+                        class="bg-gray-600 hover:bg-gray-700 disabled:opacity-50 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
                     <button
-                      v-if="editingRemark !== movement.id"
+                      v-else
                       @click="startEditRemark(movement)"
                       class="text-blue-600 hover:text-blue-900"
                     >
@@ -880,7 +881,17 @@ const saveRemark = async (movementId: string): Promise<void> => {
 
 const formatDateTime = (datetime: string): string => {
   const date = new Date(datetime)
-  return date.toLocaleString()
+  const dateStr = date.toLocaleDateString('en-US', {
+    month: '2-digit',
+    day: '2-digit',
+    year: '2-digit',
+  })
+  const timeStr = date.toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  })
+  return `${dateStr}\n${timeStr}`
 }
 
 onMounted(() => {})
