@@ -43,8 +43,12 @@
       <div v-else>
         <!-- Stats Cards - Responsive Grid -->
         <div class="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4 sm:gap-5 mb-6 sm:mb-8">
-          <!-- Total Products -->
-          <div class="bg-white overflow-hidden shadow rounded-lg">
+          <!-- Total Products - Clickable -->
+          <div
+            class="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:shadow-md transition-shadow duration-200"
+            @click="navigateToInventory()"
+            title="Click to view full inventory"
+          >
             <div class="p-3 sm:p-5">
               <div class="flex items-center">
                 <div class="flex-shrink-0">
@@ -80,8 +84,14 @@
             </div>
           </div>
 
-          <!-- Out of Stock Items -->
-          <div class="bg-white overflow-hidden shadow rounded-lg">
+          <!-- Out of Stock Items - Clickable -->
+          <div
+            class="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:shadow-md transition-shadow duration-200"
+            @click="scrollToSection('out-of-stock')"
+            :title="
+              inventoryStore.outOfStockItems.length > 0 ? 'Click to view out of stock items' : ''
+            "
+          >
             <div class="p-3 sm:p-5">
               <div class="flex items-center">
                 <div class="flex-shrink-0">
@@ -117,8 +127,12 @@
             </div>
           </div>
 
-          <!-- Low Stock Items -->
-          <div class="bg-white overflow-hidden shadow rounded-lg">
+          <!-- Low Stock Items - Clickable -->
+          <div
+            class="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:shadow-md transition-shadow duration-200"
+            @click="scrollToSection('low-stock')"
+            title="Click to view low stock items"
+          >
             <div class="p-3 sm:p-5">
               <div class="flex items-center">
                 <div class="flex-shrink-0">
@@ -152,8 +166,12 @@
             </div>
           </div>
 
-          <!-- Stale Inventory -->
-          <div class="bg-white overflow-hidden shadow rounded-lg">
+          <!-- Stale Inventory - Clickable -->
+          <div
+            class="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:shadow-md transition-shadow duration-200"
+            @click="scrollToSection('stale-inventory')"
+            title="Click to view stale inventory items"
+          >
             <div class="p-3 sm:p-5">
               <div class="flex items-center">
                 <div class="flex-shrink-0">
@@ -190,10 +208,11 @@
           </div>
         </div>
 
-        <!-- Out of Stock Alert (NEW) -->
+        <!-- Out of Stock Alert (with ID for scrolling) -->
         <div
           v-if="inventoryStore.outOfStockItems.length > 0"
-          class="bg-red-50 border border-red-200 rounded-md p-3 sm:p-4 mb-4 sm:mb-6"
+          id="out-of-stock"
+          class="bg-red-50 border border-red-200 rounded-md p-3 sm:p-4 mb-4 sm:mb-6 scroll-mt-4"
         >
           <div class="flex">
             <div class="flex-shrink-0">
@@ -235,10 +254,11 @@
           </div>
         </div>
 
-        <!-- Low Stock Alert -->
+        <!-- Low Stock Alert (with ID for scrolling) -->
         <div
           v-if="inventoryStore.lowStockItems.length > 0"
-          class="bg-yellow-50 border border-yellow-200 rounded-md p-3 sm:p-4 mb-4 sm:mb-6"
+          id="low-stock"
+          class="bg-yellow-50 border border-yellow-200 rounded-md p-3 sm:p-4 mb-4 sm:mb-6 scroll-mt-4"
         >
           <div class="flex">
             <div class="flex-shrink-0">
@@ -280,10 +300,11 @@
           </div>
         </div>
 
-        <!-- Stale Inventory Alert -->
+        <!-- Stale Inventory Alert (with ID for scrolling) -->
         <div
           v-if="staleItems.length > 0"
-          class="bg-purple-50 border border-purple-200 rounded-md p-3 sm:p-4 mb-4 sm:mb-6"
+          id="stale-inventory"
+          class="bg-purple-50 border border-purple-200 rounded-md p-3 sm:p-4 mb-4 sm:mb-6 scroll-mt-4"
         >
           <div class="flex">
             <div class="flex-shrink-0">
@@ -383,6 +404,7 @@
 </template>
 
 <script setup lang="ts">
+import router from '@/router'
 import { useInventoryStore } from '@/stores/inventory'
 import { computed, onMounted } from 'vue'
 
@@ -422,6 +444,24 @@ const recentItems = computed(() => {
     .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
     .slice(0, 10) // Show only the 10 most recent
 })
+
+// Navigate to inventory page
+const navigateToInventory = () => {
+  // You can replace this with your router navigation
+  router.push('/inventory')
+  // For now, using window.location as a fallback
+}
+
+// Scroll to section function
+const scrollToSection = (sectionId: string) => {
+  const element = document.getElementById(sectionId)
+  if (element) {
+    element.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    })
+  }
+}
 
 // Format duration for display
 const formatDuration = (days: number): string => {

@@ -567,7 +567,9 @@ const inventoryStore = useInventoryStore()
 // State
 const searchQuery = ref<string>('')
 const today = new Date()
-const filterDate = ref<string>(today.toISOString().split('T')[0])
+const filterDate = ref<string>(
+  `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`,
+)
 const selectedRequests = ref<string[]>([])
 
 // Pagination
@@ -620,20 +622,10 @@ const sortedAndFilteredRequests = computed((): StockRequest[] => {
     requests = stockRequestsStore.searchRequests(searchQuery.value)
   }
 
-  // Date filter
+  // Date filter (applied to whatever results we have from search)
   if (filterDate.value) {
     const filterDateObj = new Date(filterDate.value)
     requests = requests.filter((request) => {
-      const requestDate = new Date(request.created_at)
-      return requestDate.toDateString() === filterDateObj.toDateString()
-    })
-  }
-
-  // Apply date filter on top of search filter
-  if (filterDate.value && searchQuery.value) {
-    const searchResults = stockRequestsStore.searchRequests(searchQuery.value)
-    const filterDateObj = new Date(filterDate.value)
-    requests = searchResults.filter((request) => {
       const requestDate = new Date(request.created_at)
       return requestDate.toDateString() === filterDateObj.toDateString()
     })
