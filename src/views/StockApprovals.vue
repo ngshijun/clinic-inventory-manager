@@ -567,7 +567,6 @@ const inventoryStore = useInventoryStore()
 // State
 const searchQuery = ref<string>('')
 const today = new Date()
-today.setMinutes(today.getMinutes() - today.getTimezoneOffset()) // Adjust for timezone
 const filterDate = ref<string>(today.toISOString().split('T')[0])
 const selectedRequests = ref<string[]>([])
 
@@ -600,8 +599,6 @@ const approvedToday = computed(() => {
     if (request.status !== 'Approved') return false
 
     const updatedDate = new Date(request.updated_at)
-    // Use getTimezoneOffset to adjust for local timezone
-    updatedDate.setMinutes(updatedDate.getMinutes() - updatedDate.getTimezoneOffset())
 
     return updatedDate >= today && updatedDate < tomorrow
   }).length

@@ -396,8 +396,6 @@ const staleItems = computed(() => {
   return inventoryStore.items
     .map((item) => {
       const updatedAt = new Date(item.updated_at)
-      // Use getTimezoneOffset to adjust for local timezone
-      updatedAt.setMinutes(updatedAt.getMinutes() - updatedAt.getTimezoneOffset())
 
       const daysSinceUpdate = Math.floor((Date.now() - updatedAt.getTime()) / (1000 * 60 * 60 * 24))
 
@@ -419,8 +417,6 @@ const recentItems = computed(() => {
   return inventoryStore.items
     .filter((item) => {
       const updatedAt = new Date(item.updated_at)
-      // Use getTimezoneOffset to adjust for local timezone
-      updatedAt.setMinutes(updatedAt.getMinutes() - updatedAt.getTimezoneOffset())
       return updatedAt >= sevenDaysAgo
     })
     .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())

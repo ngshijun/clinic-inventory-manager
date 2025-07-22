@@ -72,7 +72,6 @@ router.beforeEach((to, from, next) => {
   }
   // Check role-based access for authenticated users
   else if (to.meta.requiresAuth && isAuthenticated.value) {
-    console.log('XX', user.value, to.meta.roles)
     if (
       user.value &&
       user.value.role === 'manager' &&
