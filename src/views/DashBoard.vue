@@ -42,10 +42,11 @@
       <!-- Dashboard Content -->
       <div v-else>
         <!-- Stats Cards - Responsive Grid -->
+        <!-- Simplified Enhanced Hover Effects -->
         <div class="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4 sm:gap-5 mb-6 sm:mb-8">
-          <!-- Total Products - Clickable -->
+          <!-- Total Products -->
           <div
-            class="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:shadow-md transition-shadow duration-200"
+            class="bg-white overflow-hidden shadow rounded-lg cursor-pointer transition-all duration-200 ease-out hover:shadow-lg hover:-translate-y-1 hover:ring-2 hover:ring-green-500 hover:ring-opacity-50"
             @click="navigateToInventory()"
             title="Click to view full inventory"
           >
@@ -53,7 +54,7 @@
               <div class="flex items-center">
                 <div class="flex-shrink-0">
                   <div
-                    class="w-6 h-6 sm:w-8 sm:h-8 bg-green-500 rounded-md flex items-center justify-center"
+                    class="w-6 h-6 sm:w-8 sm:h-8 bg-green-500 rounded-md flex items-center justify-center transition-colors duration-200 hover:bg-green-600"
                   >
                     <svg
                       class="w-3 h-3 sm:w-5 sm:h-5 text-white"
@@ -84,9 +85,9 @@
             </div>
           </div>
 
-          <!-- Out of Stock Items - Clickable -->
+          <!-- Out of Stock Items -->
           <div
-            class="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:shadow-md transition-shadow duration-200"
+            class="bg-white overflow-hidden shadow rounded-lg cursor-pointer transition-all duration-200 ease-out hover:shadow-lg hover:-translate-y-1 hover:ring-2 hover:ring-red-500 hover:ring-opacity-50"
             @click="scrollToSection('out-of-stock')"
             :title="
               inventoryStore.outOfStockItems.length > 0 ? 'Click to view out of stock items' : ''
@@ -96,7 +97,7 @@
               <div class="flex items-center">
                 <div class="flex-shrink-0">
                   <div
-                    class="w-6 h-6 sm:w-8 sm:h-8 bg-red-500 rounded-md flex items-center justify-center"
+                    class="w-6 h-6 sm:w-8 sm:h-8 bg-red-500 rounded-md flex items-center justify-center transition-colors duration-200 hover:bg-red-600"
                   >
                     <svg
                       class="w-3 h-3 sm:w-5 sm:h-5 text-white"
@@ -127,9 +128,9 @@
             </div>
           </div>
 
-          <!-- Low Stock Items - Clickable -->
+          <!-- Low Stock Items -->
           <div
-            class="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:shadow-md transition-shadow duration-200"
+            class="bg-white overflow-hidden shadow rounded-lg cursor-pointer transition-all duration-200 ease-out hover:shadow-lg hover:-translate-y-1 hover:ring-2 hover:ring-yellow-500 hover:ring-opacity-50"
             @click="scrollToSection('low-stock')"
             title="Click to view low stock items"
           >
@@ -137,7 +138,7 @@
               <div class="flex items-center">
                 <div class="flex-shrink-0">
                   <div
-                    class="w-6 h-6 sm:w-8 sm:h-8 bg-yellow-500 rounded-md flex items-center justify-center"
+                    class="w-6 h-6 sm:w-8 sm:h-8 bg-yellow-500 rounded-md flex items-center justify-center transition-colors duration-200 hover:bg-yellow-600"
                   >
                     <svg
                       class="w-3 h-3 sm:w-5 sm:h-5 text-white"
@@ -166,9 +167,9 @@
             </div>
           </div>
 
-          <!-- Stale Inventory - Clickable -->
+          <!-- Stale Inventory -->
           <div
-            class="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:shadow-md transition-shadow duration-200"
+            class="bg-white overflow-hidden shadow rounded-lg cursor-pointer transition-all duration-200 ease-out hover:shadow-lg hover:-translate-y-1 hover:ring-2 hover:ring-purple-500 hover:ring-opacity-50"
             @click="scrollToSection('stale-inventory')"
             title="Click to view stale inventory items"
           >
@@ -176,7 +177,7 @@
               <div class="flex items-center">
                 <div class="flex-shrink-0">
                   <div
-                    class="w-6 h-6 sm:w-8 sm:h-8 bg-purple-500 rounded-md flex items-center justify-center"
+                    class="w-6 h-6 sm:w-8 sm:h-8 bg-purple-500 rounded-md flex items-center justify-center transition-colors duration-200 hover:bg-purple-600"
                   >
                     <svg
                       class="w-3 h-3 sm:w-5 sm:h-5 text-white"
