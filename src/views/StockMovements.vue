@@ -277,7 +277,7 @@
                     </div>
                   </div>
                   <div v-else class="mt-1 flex items-center justify-between">
-                    <span class="text-gray-900 text-sm flex-1">{{
+                    <span class="text-gray-900 text-sm flex-1 whitespace-pre-wrap">{{
                       movement.remark || 'No remark'
                     }}</span>
                     <button
@@ -571,8 +571,8 @@
                         placeholder="Enter remark..."
                       ></textarea>
                     </div>
-                    <div v-else class="max-w-xs">
-                      <p class="truncate">{{ movement.remark || 'No remark' }}</p>
+                    <div v-else class="max-w-xs whitespace-pre-wrap">
+                      <p>{{ movement.remark || 'No remark' }}</p>
                     </div>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">

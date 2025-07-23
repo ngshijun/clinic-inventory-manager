@@ -257,7 +257,7 @@
 
                 <div class="text-sm">
                   <span class="text-gray-500">Remark:</span>
-                  <div class="font-medium text-gray-900 mt-1">
+                  <div class="font-medium text-gray-900 mt-1 whitespace-pre-wrap">
                     {{ request.remark || 'No Remark' }}
                   </div>
                 </div>
@@ -580,7 +580,11 @@
                         placeholder="Enter reason for request..."
                       ></textarea>
                     </div>
-                    <div v-else class="truncate" :title="request.remark || 'No Remark'">
+                    <div
+                      v-else
+                      class="break-words whitespace-pre-wrap"
+                      :title="request.remark || 'No Remark'"
+                    >
                       {{ request.remark || 'No Remark' }}
                     </div>
                   </td>

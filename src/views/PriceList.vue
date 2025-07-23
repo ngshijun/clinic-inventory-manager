@@ -132,7 +132,7 @@
                     </div>
                   </div>
                   <div v-else class="mt-1 flex items-center justify-between">
-                    <span class="text-gray-900 text-sm flex-1 break-words">{{
+                    <span class="text-gray-900 text-sm flex-1 break-words whitespace-pre-wrap">{{
                       item.remark || 'No remark'
                     }}</span>
                     <button
@@ -311,7 +311,11 @@
                         placeholder="Enter remark (e.g., last purchase price, supplier info)..."
                       ></textarea>
                     </div>
-                    <div v-else class="break-words" :title="item.remark || 'No remark'">
+                    <div
+                      v-else
+                      class="break-words whitespace-pre-wrap"
+                      :title="item.remark || 'No remark'"
+                    >
                       {{ item.remark || 'No remark' }}
                     </div>
                   </td>
