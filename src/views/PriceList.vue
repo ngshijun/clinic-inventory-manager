@@ -105,41 +105,58 @@
                   </h4>
                 </div>
 
-                <!-- Remark Section -->
-                <div>
-                  <span class="text-gray-500 text-sm">Remark:</span>
-                  <div v-if="editingRemark === item.id" class="mt-1 space-y-2">
+                <!-- Item Details -->
+                <div class="text-sm">
+                  <span class="text-gray-500">Current Stock:</span>
+                  <div class="font-medium text-gray-900 mt-1">
+                    {{ item.quantity }} {{ item.unit }}
+                  </div>
+                </div>
+
+                <!-- Remark Form -->
+                <div v-if="editingRemark === item.id" class="space-y-3 p-3 bg-gray-50 rounded-md">
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Remark</label>
                     <textarea
                       v-model="newRemark"
                       rows="3"
                       class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="Enter remark (e.g., last purchase price, supplier info)..."
                     ></textarea>
-                    <div class="flex gap-2">
-                      <button
-                        @click="saveRemark(item.id)"
-                        :disabled="inventoryStore.loading"
-                        class="flex-1 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-3 py-2 rounded text-sm font-medium transition-colors"
-                      >
-                        {{ inventoryStore.loading ? 'Saving...' : 'Save' }}
-                      </button>
-                      <button
-                        @click="cancelEditRemark"
-                        class="flex-1 bg-gray-600 hover:bg-gray-700 disabled:opacity-50 text-white px-3 py-2 rounded text-sm font-medium transition-colors"
-                      >
-                        Cancel
-                      </button>
+                  </div>
+                  <div class="flex gap-2">
+                    <button
+                      @click="saveRemark(item.id)"
+                      :disabled="inventoryStore.loading"
+                      class="flex-1 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-3 py-2 rounded text-sm font-medium transition-colors"
+                    >
+                      {{ inventoryStore.loading ? 'Saving...' : 'Save' }}
+                    </button>
+                    <button
+                      @click="cancelEditRemark"
+                      class="flex-1 bg-gray-600 hover:bg-gray-700 disabled:opacity-50 text-white px-3 py-2 rounded text-sm font-medium transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Remark Display and Actions -->
+                <div v-else>
+                  <div class="text-sm">
+                    <span class="text-gray-500">Remark:</span>
+                    <div class="font-medium text-gray-900 mt-1 whitespace-pre-wrap">
+                      {{ item.remark || 'No remark' }}
                     </div>
                   </div>
-                  <div v-else class="mt-1 flex items-center justify-between">
-                    <span class="text-gray-900 text-sm flex-1 break-words whitespace-pre-wrap">{{
-                      item.remark || 'No remark'
-                    }}</span>
+
+                  <!-- Actions -->
+                  <div class="flex gap-2 mt-3">
                     <button
                       @click="startEditRemark(item)"
-                      class="ml-2 text-blue-600 hover:text-blue-900 text-sm font-medium bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded flex-shrink-0"
+                      class="flex-1 text-blue-600 hover:text-blue-900 text-sm font-medium bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded"
                     >
-                      Edit
+                      Edit Remark
                     </button>
                   </div>
                 </div>
@@ -249,6 +266,48 @@
                     </div>
                   </th>
                   <th
+                    @click="toggleSort('quantity')"
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                  >
+                    <div class="flex items-center justify-between">
+                      <span>Current Stock</span>
+                      <div class="flex flex-col ml-2">
+                        <svg
+                          :class="[
+                            'w-3 h-3 transition-colors',
+                            sortConfig.key === 'quantity' && sortConfig.direction === 'asc'
+                              ? 'text-blue-600'
+                              : 'text-gray-400',
+                          ]"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path
+                            fill-rule="evenodd"
+                            d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z"
+                            clip-rule="evenodd"
+                          />
+                        </svg>
+                        <svg
+                          :class="[
+                            'w-3 h-3 transition-colors -mt-1',
+                            sortConfig.key === 'quantity' && sortConfig.direction === 'desc'
+                              ? 'text-blue-600'
+                              : 'text-gray-400',
+                          ]"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path
+                            fill-rule="evenodd"
+                            d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                            clip-rule="evenodd"
+                          />
+                        </svg>
+                      </div>
+                    </div>
+                  </th>
+                  <th
                     @click="toggleSort('remark')"
                     class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
                   >
@@ -301,6 +360,9 @@
                 <tr v-for="item in paginatedItems" :key="item.id" class="hover:bg-gray-50">
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                     {{ item.item_name }}
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {{ item.quantity }} {{ item.unit }}
                   </td>
                   <td class="px-6 py-4 text-sm text-gray-900 max-w-md">
                     <div v-if="editingRemark === item.id" class="space-y-2">
