@@ -62,6 +62,7 @@ export const useInventoryStore = defineStore('inventory', () => {
             quantity: Math.max(0, newItem.quantity),
             low_stock_notice_quantity: Math.max(0, newItem.low_stock_notice_quantity),
             unit: newItem.unit,
+            remark: newItem.remark || '',
           },
         ])
         .select()

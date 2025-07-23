@@ -9,6 +9,7 @@ export interface Database {
           quantity: number // int8
           low_stock_notice_quantity: number // int8
           unit: string // unit
+          remark: string
           created_at: string // timestamp
           updated_at: string // timestamp
         }
@@ -17,6 +18,8 @@ export interface Database {
           item_name: string
           quantity: number
           low_stock_notice_quantity: number
+          unit: string
+          remark?: string
           created_at?: string
           updated_at?: string
         }
@@ -25,6 +28,8 @@ export interface Database {
           item_name?: string
           quantity?: number
           low_stock_notice_quantity?: number
+          unit?: string
+          remark?: string
           created_at?: string
           updated_at?: string
         }

@@ -4,6 +4,7 @@ export interface InventoryItem {
   quantity: number
   low_stock_notice_quantity: number
   unit: string
+  remark: string
   created_at: string
   updated_at: string
 }
@@ -13,6 +14,7 @@ export interface NewInventoryItem {
   quantity: number
   low_stock_notice_quantity: number
   unit: string
+  remark?: string
 }
 
 export interface StockStatus {

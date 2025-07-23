@@ -23,6 +23,12 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, roles: ['manager'] },
   },
   {
+    path: '/price-list',
+    name: 'PriceList',
+    component: () => import('@/views/PriceList.vue'),
+    meta: { requiresAuth: true, roles: ['manager'] },
+  },
+  {
     path: '/stock-movements',
     name: 'StockMovements',
     component: () => import('@/views/StockMovements.vue'),
