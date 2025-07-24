@@ -237,16 +237,21 @@
                   <div
                     v-for="item in inventoryStore.outOfStockItems"
                     :key="item.id"
-                    class="flex items-center py-2 border-b border-red-200 last:border-b-0"
+                    class="flex items-start py-2 border-b border-red-200 last:border-b-0"
                   >
-                    <div class="flex-shrink-0 w-1.5 h-1.5 bg-red-400 rounded-full mr-3"></div>
-                    <div class="flex-1 grid grid-cols-3 sm:grid-cols-7 items-center">
-                      <span class="font-medium col-span-2 sm:col-span-5 break-words">{{
-                        item.item_name
-                      }}</span>
-                      <span class="col-span-1 sm:col-span-2 text-right sm:text-left"
-                        >(0 {{ item.unit }} remaining)</span
-                      >
+                    <div
+                      class="flex-shrink-0 w-1.5 h-1.5 bg-red-400 rounded-full mr-3 mt-1.5"
+                    ></div>
+                    <div class="flex-1">
+                      <!-- Mobile: Stack vertically, Desktop: Grid layout -->
+                      <div class="block sm:hidden">
+                        <div class="font-medium break-words">{{ item.item_name }}</div>
+                        <div class="text-xs text-red-600 mt-0.5">(0 {{ item.unit }} remaining)</div>
+                      </div>
+                      <div class="hidden sm:grid sm:grid-cols-7 sm:items-center">
+                        <span class="font-medium col-span-5 break-words">{{ item.item_name }}</span>
+                        <span class="col-span-2">(0 {{ item.unit }} remaining)</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -283,16 +288,25 @@
                   <div
                     v-for="item in inventoryStore.lowStockItems"
                     :key="item.id"
-                    class="flex items-center py-2 border-b border-yellow-200 last:border-b-0"
+                    class="flex items-start py-2 border-b border-yellow-200 last:border-b-0"
                   >
-                    <div class="flex-shrink-0 w-1.5 h-1.5 bg-yellow-400 rounded-full mr-3"></div>
-                    <div class="flex-1 grid grid-cols-3 sm:grid-cols-7 items-center">
-                      <span class="font-medium col-span-2 sm:col-span-5 break-words">{{
-                        item.item_name
-                      }}</span>
-                      <span class="col-span-1 sm:col-span-2 text-right sm:text-left">
-                        ({{ item.quantity }} {{ item.unit }} remaining)
-                      </span>
+                    <div
+                      class="flex-shrink-0 w-1.5 h-1.5 bg-yellow-400 rounded-full mr-3 mt-1.5"
+                    ></div>
+                    <div class="flex-1">
+                      <!-- Mobile: Stack vertically, Desktop: Grid layout -->
+                      <div class="block sm:hidden">
+                        <div class="font-medium break-words">{{ item.item_name }}</div>
+                        <div class="text-xs text-yellow-600 mt-0.5">
+                          ({{ item.quantity }} {{ item.unit }} remaining)
+                        </div>
+                      </div>
+                      <div class="hidden sm:grid sm:grid-cols-7 sm:items-center">
+                        <span class="font-medium col-span-5 break-words">{{ item.item_name }}</span>
+                        <span class="col-span-2">
+                          ({{ item.quantity }} {{ item.unit }} remaining)
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -329,16 +343,25 @@
                   <div
                     v-for="item in staleItems"
                     :key="item.id"
-                    class="flex items-center py-2 border-b border-purple-200 last:border-b-0"
+                    class="flex items-start py-2 border-b border-purple-200 last:border-b-0"
                   >
-                    <div class="flex-shrink-0 w-1.5 h-1.5 bg-purple-400 rounded-full mr-3"></div>
-                    <div class="flex-1 grid grid-cols-3 sm:grid-cols-7 items-center">
-                      <span class="font-medium col-span-2 sm:col-span-5 break-words">{{
-                        item.item_name
-                      }}</span>
-                      <span class="col-span-1 sm:col-span-2 text-right sm:text-left">
-                        ({{ formatDuration(item.daysSinceUpdate) }} ago)
-                      </span>
+                    <div
+                      class="flex-shrink-0 w-1.5 h-1.5 bg-purple-400 rounded-full mr-3 mt-1.5"
+                    ></div>
+                    <div class="flex-1">
+                      <!-- Mobile: Stack vertically, Desktop: Grid layout -->
+                      <div class="block sm:hidden">
+                        <div class="font-medium break-words">{{ item.item_name }}</div>
+                        <div class="text-xs text-purple-600 mt-0.5">
+                          ({{ formatDuration(item.daysSinceUpdate) }} ago)
+                        </div>
+                      </div>
+                      <div class="hidden sm:grid sm:grid-cols-7 sm:items-center">
+                        <span class="font-medium col-span-5 break-words">{{ item.item_name }}</span>
+                        <span class="col-span-2">
+                          ({{ formatDuration(item.daysSinceUpdate) }} ago)
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -350,53 +373,6 @@
                 </p>
               </div>
             </div>
-          </div>
-        </div>
-
-        <!-- Recent Inventory Table -->
-        <div class="bg-white shadow overflow-hidden sm:rounded-md">
-          <div class="px-3 py-4 sm:px-6 sm:py-5">
-            <h3 class="text-base sm:text-lg leading-6 font-medium text-gray-900">
-              Recent Activity
-            </h3>
-            <p class="mt-1 max-w-2xl text-xs sm:text-sm text-gray-500">
-              Recently updated inventory items
-            </p>
-          </div>
-
-          <!-- Recent Items List -->
-          <ul class="divide-y divide-gray-200">
-            <li v-for="item in recentItems" :key="item.id" class="px-4 py-4 sm:px-6">
-              <div class="grid grid-cols-4 items-center">
-                <div class="flex items-center col-span-3">
-                  <div class="flex-shrink-0">
-                    <div
-                      :class="[
-                        'w-3 h-3 rounded-full',
-                        item.quantity === 0
-                          ? 'bg-red-400'
-                          : item.quantity <= item.low_stock_notice_quantity
-                            ? 'bg-yellow-400'
-                            : 'bg-green-400',
-                      ]"
-                    ></div>
-                  </div>
-                  <div class="ml-4">
-                    <div class="text-sm font-medium text-gray-900">{{ item.item_name }}</div>
-                    <div class="text-sm text-gray-500">
-                      Last updated: {{ formatLastUpdated(item.updated_at) }}
-                    </div>
-                  </div>
-                </div>
-                <div class="text-sm text-gray-900 col-span-1 pl-4">
-                  <span class="font-medium">{{ item.quantity }} {{ item.unit }}</span>
-                </div>
-              </div>
-            </li>
-          </ul>
-
-          <div v-if="recentItems.length === 0" class="text-center py-8">
-            <p class="text-sm text-gray-500">No recent activity</p>
           </div>
         </div>
       </div>
@@ -428,22 +404,8 @@ const staleItems = computed(() => {
         isStale: updatedAt < thirtyDaysAgo,
       }
     })
-    .filter((item) => item.isStale)
+    .filter((item) => item.isStale && item.quantity !== 0)
     .sort((a, b) => b.daysSinceUpdate - a.daysSinceUpdate) // Sort by oldest first
-})
-
-// Get recent items (updated within last 7 days)
-const recentItems = computed(() => {
-  const sevenDaysAgo = new Date()
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-
-  return inventoryStore.items
-    .filter((item) => {
-      const updatedAt = new Date(item.updated_at)
-      return updatedAt >= sevenDaysAgo
-    })
-    .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
-    .slice(0, 10) // Show only the 10 most recent
 })
 
 // Navigate to inventory page
@@ -477,25 +439,6 @@ const formatDuration = (days: number): string => {
   } else {
     const years = Math.floor(days / 365)
     return `${years} year${years !== 1 ? 's' : ''}`
-  }
-}
-
-// Format last updated timestamp
-const formatLastUpdated = (timestamp: string): string => {
-  const date = new Date(timestamp)
-  const now = new Date()
-  const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60))
-
-  if (diffInHours < 1) {
-    return 'Just now'
-  } else if (diffInHours < 24) {
-    return `${diffInHours} hour${diffInHours !== 1 ? 's' : ''} ago`
-  } else if (diffInHours < 168) {
-    // 7 days
-    const days = Math.floor(diffInHours / 24)
-    return `${days} day${days !== 1 ? 's' : ''} ago`
-  } else {
-    return date.toLocaleDateString()
   }
 }
 

@@ -46,23 +46,33 @@
         </div>
 
         <!-- Date Filter -->
-        <div class="w-full sm:w-40">
-          <input
-            v-model="filterDate"
-            type="date"
-            class="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="Filter by date"
-          />
-        </div>
+        <div class="flex items-center gap-2">
+          <div class="w-full sm:w-40">
+            <input
+              v-model="filterDate"
+              type="date"
+              class="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Filter by date"
+            />
+          </div>
 
-        <!-- Clear Filters -->
-        <button
-          v-if="hasActiveFilters"
-          @click="clearFilters"
-          class="w-full sm:w-auto px-3 py-2 text-sm text-gray-600 hover:text-gray-900 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
-        >
-          Clear Filters
-        </button>
+          <!-- Clear Filters -->
+          <button
+            v-if="hasActiveFilters"
+            @click="clearFilters"
+            class="flex items-center gap-2 px-4 py-2 border border-red-300 rounded-md text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 transition-colors"
+          >
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              ></path>
+            </svg>
+            Clear Filters
+          </button>
+        </div>
       </div>
 
       <!-- Bulk Actions -->
