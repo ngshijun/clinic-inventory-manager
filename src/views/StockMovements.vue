@@ -882,9 +882,9 @@ const saveRemark = async (movementId: string): Promise<void> => {
 const formatDateTime = (datetime: string): string => {
   const date = new Date(datetime)
   const dateStr = date.toLocaleDateString('en-US', {
-    month: '2-digit',
-    day: '2-digit',
-    year: '2-digit',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
   })
   const timeStr = date.toLocaleTimeString('en-US', {
     hour: '2-digit',

@@ -10,6 +10,7 @@ export interface Database {
           low_stock_notice_quantity: number // int8
           unit: string // unit
           remark: string
+          order_date: string | null // timestamp - Added order_date field
           created_at: string // timestamp
           updated_at: string // timestamp
         }
@@ -20,6 +21,7 @@ export interface Database {
           low_stock_notice_quantity: number
           unit: string
           remark?: string
+          order_date?: string | null // Added order_date field
           created_at?: string
           updated_at?: string
         }
@@ -30,6 +32,7 @@ export interface Database {
           low_stock_notice_quantity?: number
           unit?: string
           remark?: string
+          order_date?: string | null // Added order_date field
           created_at?: string
           updated_at?: string
         }

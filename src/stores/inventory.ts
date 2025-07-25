@@ -63,6 +63,7 @@ export const useInventoryStore = defineStore('inventory', () => {
             low_stock_notice_quantity: Math.max(0, newItem.low_stock_notice_quantity),
             unit: newItem.unit,
             remark: newItem.remark || '',
+            order_date: newItem.order_date || null,
           },
         ])
         .select()
@@ -91,8 +92,12 @@ export const useInventoryStore = defineStore('inventory', () => {
     }
   }
 
-  // Stock In - Add to existing quantity
-  const stockIn = async (itemId: string, quantity: number): Promise<void> => {
+  // Stock In - Add to existing quantity with optional order date clearing
+  const stockIn = async (
+    itemId: string,
+    quantity: number,
+    clearOrderDate: boolean = true,
+  ): Promise<void> => {
     loading.value = true
     error.value = null
     try {
@@ -101,12 +106,19 @@ export const useInventoryStore = defineStore('inventory', () => {
 
       const newQuantity = item.quantity + Math.max(0, quantity)
 
+      const updateData: Partial<InventoryItem> = {
+        quantity: newQuantity,
+        updated_at: new Date().toISOString(),
+      }
+
+      // Clear order_date if requested (default behavior)
+      if (clearOrderDate) {
+        updateData.order_date = null
+      }
+
       const { data, error: supabaseError } = await supabase
         .from('inventory')
-        .update({
-          quantity: newQuantity,
-          updated_at: new Date().toISOString(),
-        })
+        .update(updateData)
         .eq('id', itemId)
         .select()
         .single()
@@ -169,6 +181,52 @@ export const useInventoryStore = defineStore('inventory', () => {
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'An error occurred while removing stock'
       console.error('Error removing stock:', err)
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // Mark item as ordered
+  const markAsOrdered = async (itemId: string, orderDate?: string): Promise<void> => {
+    loading.value = true
+    error.value = null
+    try {
+      const dateToUse = orderDate || new Date().toISOString()
+      const { error: supabaseError } = await supabase
+        .from('inventory')
+        .update({
+          order_date: dateToUse,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', itemId)
+      if (supabaseError) throw supabaseError
+    } catch (err) {
+      error.value =
+        err instanceof Error ? err.message : 'An error occurred while marking item as ordered'
+      console.error('Error marking item as ordered:', err)
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // Clear order date
+  const clearOrderDate = async (itemId: string): Promise<void> => {
+    loading.value = true
+    error.value = null
+    try {
+      const { error: supabaseError } = await supabase
+        .from('inventory')
+        .update({
+          order_date: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', itemId)
+
+      if (supabaseError) throw supabaseError
+    } catch (err) {
+      error.value =
+        err instanceof Error ? err.message : 'An error occurred while clearing order date'
+      console.error('Error clearing order date:', err)
     } finally {
       loading.value = false
     }
@@ -261,6 +319,8 @@ export const useInventoryStore = defineStore('inventory', () => {
     addItem,
     stockIn,
     stockOut,
+    markAsOrdered,
+    clearOrderDate,
     updateItem,
     deleteItem,
     getItemById,

@@ -6,6 +6,50 @@
         <h2 class="text-xl sm:text-2xl font-bold text-gray-900">Price List</h2>
       </div>
 
+      <!-- Mark Ordered Modal -->
+      <div
+        v-if="showOrderModal"
+        class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"
+      >
+        <div class="p-5 border w-96 shadow-lg rounded-md bg-white" @click.stop>
+          <div class="mt-3">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">
+              Mark Ordered: {{ orderItem?.item_name }}
+            </h3>
+            <form @submit.prevent="confirmMarkAsOrdered">
+              <div class="space-y-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1"> Order Date </label>
+                  <input
+                    v-model="orderDate"
+                    type="date"
+                    required
+                    class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div class="flex justify-end gap-3 mt-6">
+                <button
+                  type="button"
+                  @click="closeOrderModal"
+                  class="px-4 py-2 bg-gray-600 rounded-md text-sm font-medium text-white hover:bg-gray-700 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  :disabled="inventoryStore.loading"
+                  class="px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
+                >
+                  {{ inventoryStore.loading ? 'Marking as Ordered...' : 'Mark Ordered' }}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
       <!-- Search Bar -->
       <div class="mb-4 sm:mb-6">
         <div class="w-full sm:max-w-md">
@@ -113,6 +157,20 @@
                   </div>
                 </div>
 
+                <!-- Order Status -->
+                <div v-if="item.order_date" class="text-xs text-blue-600 bg-blue-50 p-2 rounded">
+                  <span class="inline-flex items-center gap-1">
+                    <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                      <path
+                        fill-rule="evenodd"
+                        d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
+                        clip-rule="evenodd"
+                      />
+                    </svg>
+                    Ordered: {{ formatDate(item.order_date) }}
+                  </span>
+                </div>
+
                 <!-- Remark Form -->
                 <div v-if="editingRemark === item.id" class="space-y-3 p-3 bg-gray-50 rounded-md">
                   <div>
@@ -151,12 +209,26 @@
                   </div>
 
                   <!-- Actions -->
-                  <div class="flex gap-2 mt-3">
+                  <div class="flex flex-row gap-2 mt-3 flex-wrap">
                     <button
                       @click="startEditRemark(item)"
                       class="flex-1 text-blue-600 hover:text-blue-900 text-sm font-medium bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded"
                     >
                       Edit Remark
+                    </button>
+                    <button
+                      v-if="!item.order_date"
+                      @click="openOrderModal(item)"
+                      class="flex-1 text-orange-600 hover:text-orange-900 text-sm font-medium bg-orange-50 hover:bg-orange-100 px-3 py-1 rounded"
+                    >
+                      Mark Ordered
+                    </button>
+                    <button
+                      v-else
+                      @click="clearOrderDate(item.id)"
+                      class="flex-1 text-green-600 hover:text-green-900 text-sm font-medium bg-green-50 hover:bg-green-100 px-3 py-1 rounded"
+                    >
+                      Clear Date
                     </button>
                   </div>
                 </div>
@@ -360,6 +432,19 @@
                 <tr v-for="item in paginatedItems" :key="item.id" class="hover:bg-gray-50">
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                     {{ item.item_name }}
+                    <!-- Show order status if item has order date -->
+                    <div v-if="item.order_date" class="text-xs text-blue-600 mt-1">
+                      <span class="inline-flex items-center gap-1">
+                        <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                          <path
+                            fill-rule="evenodd"
+                            d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
+                            clip-rule="evenodd"
+                          />
+                        </svg>
+                        Ordered: {{ formatDate(item.order_date) }}
+                      </span>
+                    </div>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {{ item.quantity }} {{ item.unit }}
@@ -382,7 +467,7 @@
                     </div>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div v-if="editingRemark === item.id" class="flex flex-col gap-2">
+                    <div v-if="editingRemark === item.id" class="flex flex-row gap-x-2">
                       <button
                         @click="saveRemark(item.id)"
                         :disabled="inventoryStore.loading"
@@ -398,13 +483,28 @@
                         Cancel
                       </button>
                     </div>
-                    <button
-                      v-else
-                      @click="startEditRemark(item)"
-                      class="text-blue-600 hover:text-blue-900"
-                    >
-                      Edit Remark
-                    </button>
+                    <div v-else class="flex flex-row gap-x-2">
+                      <button
+                        @click="startEditRemark(item)"
+                        class="text-blue-600 hover:text-blue-900"
+                      >
+                        Edit Remark
+                      </button>
+                      <button
+                        v-if="!item.order_date"
+                        @click="openOrderModal(item)"
+                        class="text-orange-600 hover:text-orange-900"
+                      >
+                        Mark Ordered
+                      </button>
+                      <button
+                        v-else
+                        @click="clearOrderDate(item.id)"
+                        class="text-green-600 hover:text-green-900"
+                      >
+                        Clear Date
+                      </button>
+                    </div>
                   </td>
                 </tr>
               </tbody>
@@ -442,6 +542,11 @@ const searchQuery = ref<string>('')
 const editingRemark = ref<string | null>(null)
 const newRemark = ref<string>('')
 
+// Order modal variables
+const showOrderModal = ref<boolean>(false)
+const orderItem = ref<InventoryItem | null>(null)
+const orderDate = ref<string>('')
+
 // Pagination
 const currentPage = ref<number>(1)
 const itemsPerPage = ref<number>(10)
@@ -455,6 +560,44 @@ const sortConfig = ref<{
   direction: 'asc',
 })
 
+// Format date for display
+const formatDate = (dateString: string): string => {
+  const date = new Date(dateString)
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
+}
+
+// Order modal functions
+const openOrderModal = (item: InventoryItem): void => {
+  orderItem.value = item
+  orderDate.value = new Date().toISOString().split('T')[0] // Today's date
+  showOrderModal.value = true
+}
+
+const closeOrderModal = (): void => {
+  showOrderModal.value = false
+  orderItem.value = null
+  orderDate.value = ''
+}
+
+const confirmMarkAsOrdered = async (): Promise<void> => {
+  if (!orderItem.value || !orderDate.value) return
+
+  // Mark ordered using the store function with selected date
+  await inventoryStore.markAsOrdered(orderItem.value.id, orderDate.value)
+
+  if (!inventoryStore.error) {
+    closeOrderModal()
+  }
+}
+
+const clearOrderDate = async (itemId: string): Promise<void> => {
+  await inventoryStore.clearOrderDate(itemId)
+}
+
 // Sorting and filtering logic
 const sortedAndFilteredItems = computed((): InventoryItem[] => {
   let items = inventoryStore.searchItems(searchQuery.value)
@@ -463,6 +606,11 @@ const sortedAndFilteredItems = computed((): InventoryItem[] => {
     items = [...items].sort((a, b) => {
       const aValue = a[sortConfig.value.key as keyof InventoryItem]
       const bValue = b[sortConfig.value.key as keyof InventoryItem]
+
+      // Handle null values (put them at the end)
+      if (aValue === null && bValue === null) return 0
+      if (aValue === null) return sortConfig.value.direction === 'asc' ? 1 : -1
+      if (bValue === null) return sortConfig.value.direction === 'asc' ? -1 : 1
 
       // Handle string comparison
       if (typeof aValue === 'string' && typeof bValue === 'string') {
@@ -473,6 +621,13 @@ const sortedAndFilteredItems = computed((): InventoryItem[] => {
       // Handle number comparison
       if (typeof aValue === 'number' && typeof bValue === 'number') {
         return sortConfig.value.direction === 'asc' ? aValue - bValue : bValue - aValue
+      }
+
+      // Handle date comparison for order_date
+      if (sortConfig.value.key === 'order_date') {
+        const aDate = aValue ? new Date(aValue as string).getTime() : 0
+        const bDate = bValue ? new Date(bValue as string).getTime() : 0
+        return sortConfig.value.direction === 'asc' ? aDate - bDate : bDate - aDate
       }
 
       return 0

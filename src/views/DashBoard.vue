@@ -3,6 +3,50 @@
     <div class="border-4 border-dashed border-gray-200 rounded-lg p-3 sm:p-6">
       <h2 class="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">Inventory Dashboard</h2>
 
+      <!-- Mark as Ordered Modal -->
+      <div
+        v-if="showOrderModal"
+        class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"
+      >
+        <div class="p-5 border w-96 shadow-lg rounded-md bg-white" @click.stop>
+          <div class="mt-3">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">
+              Mark Ordered: {{ orderItem?.item_name }}
+            </h3>
+            <form @submit.prevent="confirmMarkAsOrdered">
+              <div class="space-y-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1"> Order Date </label>
+                  <input
+                    v-model="orderDate"
+                    type="date"
+                    required
+                    class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div class="flex justify-end gap-3 mt-6">
+                <button
+                  type="button"
+                  @click="closeOrderModal"
+                  class="px-4 py-2 bg-gray-600 rounded-md text-sm font-medium text-white hover:bg-gray-700 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  :disabled="inventoryStore.loading"
+                  class="px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
+                >
+                  {{ inventoryStore.loading ? 'Marking as Ordered...' : 'Mark Ordered' }}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
       <!-- Loading State -->
       <div v-if="inventoryStore.loading" class="text-center py-6 sm:py-8">
         <div
@@ -66,7 +110,7 @@
                         stroke-linecap="round"
                         stroke-linejoin="round"
                         stroke-width="2"
-                        d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012 2v2M7 7h10"
+                        d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2v2M7 7h10"
                       ></path>
                     </svg>
                   </div>
@@ -247,10 +291,57 @@
                       <div class="block sm:hidden">
                         <div class="font-medium break-words">{{ item.item_name }}</div>
                         <div class="text-xs text-red-600 mt-0.5">(0 {{ item.unit }} remaining)</div>
+                        <div v-if="item.order_date" class="text-xs text-blue-600 mt-1">
+                          <span class="inline-flex items-center gap-1">
+                            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                              <path
+                                fill-rule="evenodd"
+                                d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
+                                clip-rule="evenodd"
+                              />
+                            </svg>
+                            Ordered: {{ formatDate(item.order_date) }}
+                          </span>
+                        </div>
+                        <div v-else class="mt-1">
+                          <button
+                            @click="openOrderModal(item)"
+                            :disabled="inventoryStore.loading"
+                            class="text-xs bg-blue-100 hover:bg-blue-200 text-blue-800 px-2 py-1 rounded disabled:opacity-50 transition-colors"
+                          >
+                            {{ inventoryStore.loading ? 'Marking...' : 'Mark Ordered' }}
+                          </button>
+                        </div>
                       </div>
-                      <div class="hidden sm:grid sm:grid-cols-7 sm:items-center">
-                        <span class="font-medium col-span-5 break-words">{{ item.item_name }}</span>
-                        <span class="col-span-2">(0 {{ item.unit }} remaining)</span>
+                      <div class="hidden sm:flex sm:items-center sm:justify-between">
+                        <div class="flex-1 min-w-0">
+                          <div class="font-medium break-words">{{ item.item_name }}</div>
+                          <div class="text-xs text-red-600 mt-0.5">
+                            (0 {{ item.unit }} remaining)
+                          </div>
+                        </div>
+                        <div class="ml-4 flex-shrink-0">
+                          <div v-if="item.order_date" class="text-xs text-blue-600">
+                            <span class="inline-flex items-center gap-1">
+                              <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                <path
+                                  fill-rule="evenodd"
+                                  d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
+                                  clip-rule="evenodd"
+                                />
+                              </svg>
+                              Ordered: {{ formatDate(item.order_date) }}
+                            </span>
+                          </div>
+                          <button
+                            v-else
+                            @click="openOrderModal(item)"
+                            :disabled="inventoryStore.loading"
+                            class="text-xs bg-blue-100 hover:bg-blue-200 text-blue-800 px-2 py-1 rounded disabled:opacity-50 transition-colors"
+                          >
+                            {{ inventoryStore.loading ? 'Marking...' : 'Mark Ordered' }}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -300,12 +391,57 @@
                         <div class="text-xs text-yellow-600 mt-0.5">
                           ({{ item.quantity }} {{ item.unit }} remaining)
                         </div>
+                        <div v-if="item.order_date" class="text-xs text-blue-600 mt-1">
+                          <span class="inline-flex items-center gap-1">
+                            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                              <path
+                                fill-rule="evenodd"
+                                d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
+                                clip-rule="evenodd"
+                              />
+                            </svg>
+                            Ordered: {{ formatDate(item.order_date) }}
+                          </span>
+                        </div>
+                        <div v-else class="mt-1">
+                          <button
+                            @click="openOrderModal(item)"
+                            :disabled="inventoryStore.loading"
+                            class="text-xs bg-blue-100 hover:bg-blue-200 text-blue-800 px-2 py-1 rounded disabled:opacity-50 transition-colors"
+                          >
+                            {{ inventoryStore.loading ? 'Marking...' : 'Mark Ordered' }}
+                          </button>
+                        </div>
                       </div>
-                      <div class="hidden sm:grid sm:grid-cols-7 sm:items-center">
-                        <span class="font-medium col-span-5 break-words">{{ item.item_name }}</span>
-                        <span class="col-span-2">
-                          ({{ item.quantity }} {{ item.unit }} remaining)
-                        </span>
+                      <div class="hidden sm:flex sm:items-center sm:justify-between">
+                        <div class="flex-1 min-w-0">
+                          <div class="font-medium break-words">{{ item.item_name }}</div>
+                          <div class="text-xs text-yellow-600 mt-0.5">
+                            ({{ item.quantity }} {{ item.unit }} remaining)
+                          </div>
+                        </div>
+                        <div class="ml-4 flex-shrink-0">
+                          <div v-if="item.order_date" class="text-xs text-blue-600">
+                            <span class="inline-flex items-center gap-1">
+                              <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                <path
+                                  fill-rule="evenodd"
+                                  d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
+                                  clip-rule="evenodd"
+                                />
+                              </svg>
+                              Ordered: {{ formatDate(item.order_date) }}
+                            </span>
+                          </div>
+                          <button
+                            v-else
+                            @click="openOrderModal(item)"
+                            :disabled="inventoryStore.loading"
+                            class="text-xs bg-blue-100 hover:bg-blue-200 text-blue-800 px-2 py-1 rounded disabled:opacity-50 transition-colors"
+                          >
+                            {{ inventoryStore.loading ? 'Marking...' : 'Mark Ordered' }}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -356,11 +492,13 @@
                           ({{ formatDuration(item.daysSinceUpdate) }} ago)
                         </div>
                       </div>
-                      <div class="hidden sm:grid sm:grid-cols-7 sm:items-center">
-                        <span class="font-medium col-span-5 break-words">{{ item.item_name }}</span>
-                        <span class="col-span-2">
-                          ({{ formatDuration(item.daysSinceUpdate) }} ago)
-                        </span>
+                      <div class="hidden sm:flex sm:items-center sm:justify-between">
+                        <div class="flex-1 min-w-0">
+                          <div class="font-medium break-words">{{ item.item_name }}</div>
+                          <div class="text-xs text-purple-600 mt-0.5">
+                            ({{ formatDuration(item.daysSinceUpdate) }} ago)
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -377,9 +515,28 @@
 <script setup lang="ts">
 import router from '@/router'
 import { useInventoryStore } from '@/stores/inventory'
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import type { InventoryItem } from '@/types/inventory'
 
 const inventoryStore = useInventoryStore()
+
+// Order modal variables
+const showOrderModal = ref<boolean>(false)
+const orderItem = ref<InventoryItem | null>(null)
+const orderDate = ref<string>('')
+
+// Order modal functions
+const openOrderModal = (item: InventoryItem): void => {
+  orderItem.value = item
+  orderDate.value = new Date().toISOString().split('T')[0] // Today's date
+  showOrderModal.value = true
+}
+
+const closeOrderModal = (): void => {
+  showOrderModal.value = false
+  orderItem.value = null
+  orderDate.value = ''
+}
 
 // Calculate stale items (not updated for more than 30 days)
 const staleItems = computed(() => {
@@ -404,9 +561,7 @@ const staleItems = computed(() => {
 
 // Navigate to inventory page
 const navigateToInventory = () => {
-  // You can replace this with your router navigation
   router.push('/inventory')
-  // For now, using window.location as a fallback
 }
 
 // Scroll to section function
@@ -433,6 +588,27 @@ const formatDuration = (days: number): string => {
   } else {
     const years = Math.floor(days / 365)
     return `${years} year${years !== 1 ? 's' : ''}`
+  }
+}
+
+// Format date for display
+const formatDate = (dateString: string): string => {
+  const date = new Date(dateString)
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
+}
+
+const confirmMarkAsOrdered = async (): Promise<void> => {
+  if (!orderItem.value || !orderDate.value) return
+
+  // Mark ordered using the store function with selected date
+  await inventoryStore.markAsOrdered(orderItem.value.id, orderDate.value)
+
+  if (!inventoryStore.error) {
+    closeOrderModal()
   }
 }
 
