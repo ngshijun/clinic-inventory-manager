@@ -366,12 +366,6 @@
                   </div>
                 </div>
               </div>
-              <div class="mt-3">
-                <p class="text-xs text-purple-700">
-                  💡 Consider reviewing these items for potential clearance, promotion, or removal
-                  from inventory.
-                </p>
-              </div>
             </div>
           </div>
         </div>
