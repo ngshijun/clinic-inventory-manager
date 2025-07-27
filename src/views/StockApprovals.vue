@@ -93,6 +93,13 @@
               Approve Selected
             </button>
             <button
+              @click="bulkCancel"
+              :disabled="stockRequestsStore.loading"
+              class="bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-3 py-1 rounded text-sm font-medium transition-colors"
+            >
+              Cancel Selected
+            </button>
+            <button
               @click="clearSelection"
               class="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm font-medium transition-colors"
             >
@@ -120,6 +127,81 @@
           <div class="ml-3">
             <h3 class="text-sm font-medium text-red-800">Error</h3>
             <p class="mt-1 text-sm text-red-700">{{ stockRequestsStore.error }}</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cancel Modal -->
+      <div
+        v-if="showCancelModal"
+        class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"
+      >
+        <div class="p-5 border w-96 shadow-lg rounded-md bg-white" @click.stop>
+          <div class="mt-3">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">
+              Cancel Request{{ cancelRequestIds.length > 1 ? 's' : '' }}
+            </h3>
+            <form @submit.prevent="confirmCancel">
+              <div class="space-y-4">
+                <!-- Confirmation Message -->
+                <div class="bg-red-50 border border-red-200 rounded-md p-3">
+                  <div class="flex items-center gap-2 mb-2">
+                    <svg class="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                      <path
+                        fill-rule="evenodd"
+                        d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                        clip-rule="evenodd"
+                      />
+                    </svg>
+                    <span class="text-sm font-medium text-red-800">
+                      Warning: This action cannot be undone
+                    </span>
+                  </div>
+                  <p class="text-sm text-red-700">
+                    Are you sure you want to cancel
+                    {{
+                      cancelRequestIds.length > 1
+                        ? `${cancelRequestIds.length} requests`
+                        : 'this request'
+                    }}?
+                  </p>
+                </div>
+
+                <!-- Cancellation Reason -->
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">
+                    Cancellation Reason (Optional)
+                  </label>
+                  <textarea
+                    v-model="cancelRemark"
+                    rows="3"
+                    class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                    placeholder="Enter reason for cancellation..."
+                  ></textarea>
+                </div>
+              </div>
+
+              <div class="flex justify-end gap-3 mt-6">
+                <button
+                  type="button"
+                  @click="closeCancelModal"
+                  class="px-4 py-2 bg-gray-600 rounded-md text-sm font-medium text-white hover:bg-gray-700 transition-colors"
+                >
+                  Keep Request{{ cancelRequestIds.length > 1 ? 's' : '' }}
+                </button>
+                <button
+                  type="submit"
+                  :disabled="stockRequestsStore.loading"
+                  class="px-4 py-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50"
+                >
+                  {{
+                    stockRequestsStore.loading
+                      ? 'Cancelling...'
+                      : 'Cancel Request' + (cancelRequestIds.length > 1 ? 's' : '')
+                  }}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       </div>
@@ -248,7 +330,9 @@
                         ? 'bg-yellow-100 text-yellow-800'
                         : request.status === 'Approved'
                           ? 'bg-green-100 text-green-800'
-                          : 'bg-red-100 text-red-800',
+                          : request.status === 'Cancelled'
+                            ? 'bg-red-100 text-red-800'
+                            : 'bg-gray-100 text-gray-800',
                     ]"
                   >
                     {{ request.status }}
@@ -304,6 +388,13 @@
                     class="flex-1 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-3 py-2 rounded text-sm font-medium transition-colors"
                   >
                     Approve
+                  </button>
+                  <button
+                    @click="showCancelDialog(request.id)"
+                    :disabled="stockRequestsStore.loading"
+                    class="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-3 py-2 rounded text-sm font-medium transition-colors"
+                  >
+                    Cancel
                   </button>
                 </div>
               </div>
@@ -606,7 +697,9 @@
                           ? 'bg-yellow-100 text-yellow-800'
                           : request.status === 'Approved'
                             ? 'bg-green-100 text-green-800'
-                            : 'bg-red-100 text-red-800',
+                            : request.status === 'Cancelled'
+                              ? 'bg-red-100 text-red-800'
+                              : 'bg-gray-100 text-gray-800',
                       ]"
                     >
                       {{ request.status }}
@@ -644,9 +737,22 @@
                       >
                         Approve
                       </button>
+                      <button
+                        @click="showCancelDialog(request.id)"
+                        :disabled="stockRequestsStore.loading"
+                        class="text-red-600 hover:text-red-900 disabled:opacity-50"
+                      >
+                        Cancel
+                      </button>
                     </div>
                     <span v-else class="text-gray-400 text-xs">
-                      {{ request.status === 'Approved' ? 'Approved' : 'Completed' }}
+                      {{
+                        request.status === 'Approved'
+                          ? 'Approved'
+                          : request.status === 'Cancelled'
+                            ? 'Cancelled'
+                            : 'Completed'
+                      }}
                     </span>
                   </td>
                 </tr>
@@ -674,10 +780,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
-import { useStockRequestsStore } from '@/stores/stockRequests'
 import { useInventoryStore } from '@/stores/inventory'
+import { useStockRequestsStore } from '@/stores/stockRequests'
 import type { StockRequest } from '@/types/stockRequests'
+import { computed, onMounted, ref, watch } from 'vue'
 
 // Component imports
 import TablePagination from '@/components/TablePagination.vue'
@@ -703,6 +809,11 @@ const editForm = ref<{
   quantity: 1,
   remark: '',
 })
+
+// Cancel modal state
+const showCancelModal = ref<boolean>(false)
+const cancelRequestIds = ref<string[]>([])
+const cancelRemark = ref<string>('')
 
 // Pagination
 const currentPage = ref<number>(1)
@@ -858,6 +969,41 @@ const saveEdit = async (requestId: string): Promise<void> => {
   if (!stockRequestsStore.error) {
     cancelEdit()
   }
+}
+
+// Cancel functions
+const showCancelDialog = (requestId: string): void => {
+  cancelRequestIds.value = [requestId]
+  cancelRemark.value = ''
+  showCancelModal.value = true
+}
+
+const bulkCancel = (): void => {
+  if (selectedRequests.value.length === 0) return
+  cancelRequestIds.value = [...selectedRequests.value]
+  cancelRemark.value = ''
+  showCancelModal.value = true
+}
+
+const closeCancelModal = (): void => {
+  showCancelModal.value = false
+  cancelRequestIds.value = []
+  cancelRemark.value = ''
+}
+
+const confirmCancel = async (): Promise<void> => {
+  if (cancelRequestIds.value.length === 0) return
+
+  for (const requestId of cancelRequestIds.value) {
+    await stockRequestsStore.cancelRequest(requestId, cancelRemark.value)
+  }
+
+  // Remove cancelled requests from selection
+  selectedRequests.value = selectedRequests.value.filter(
+    (id) => !cancelRequestIds.value.includes(id),
+  )
+
+  closeCancelModal()
 }
 
 // Pagination functions

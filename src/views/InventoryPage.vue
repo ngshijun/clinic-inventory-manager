@@ -1085,6 +1085,8 @@ interface ExcelData {
   quantity: number
   low_stock_notice_quantity: number
   unit: string
+  remark: string
+  order_date: string
 }
 
 const parseExcelFile = async (file: File): Promise<ExcelData[]> => {
@@ -1126,10 +1128,12 @@ const importInventoryData = async (data: ExcelData[]): Promise<void> => {
         !row.item_name ||
         typeof row.quantity !== 'number' ||
         typeof row.low_stock_notice_quantity !== 'number' ||
-        !row.unit
+        !row.unit ||
+        !row.remark ||
+        !row.order_date
       ) {
         throw new Error(
-          'Invalid data format. Please ensure all rows have: item_name, quantity, low_stock_notice_quantity, unit',
+          'Invalid data format. Please ensure all rows have: item_name, quantity, low_stock_notice_quantity, unit, remark, order_date',
         )
       }
     }
@@ -1158,13 +1162,17 @@ const importInventoryData = async (data: ExcelData[]): Promise<void> => {
           existingItem.item_name !== row.item_name ||
           existingItem.quantity !== row.quantity ||
           existingItem.low_stock_notice_quantity !== row.low_stock_notice_quantity ||
-          existingItem.unit !== row.unit
+          existingItem.unit !== row.unit ||
+          existingItem.remark !== row.remark ||
+          existingItem.order_date !== row.order_date
         ) {
           await inventoryStore.updateItem(existingItem.id, {
             ...existingItem,
             quantity: Math.max(0, row.quantity),
             low_stock_notice_quantity: Math.max(0, row.low_stock_notice_quantity),
             unit: row.unit,
+            remark: row.remark,
+            order_date: row.order_date,
           })
 
           if (!inventoryStore.error) {
@@ -1178,6 +1186,8 @@ const importInventoryData = async (data: ExcelData[]): Promise<void> => {
           quantity: Math.max(0, row.quantity),
           low_stock_notice_quantity: Math.max(0, row.low_stock_notice_quantity),
           unit: row.unit,
+          remark: row.remark,
+          order_date: row.order_date,
         })
 
         if (!inventoryStore.error) {
@@ -1218,6 +1228,8 @@ const exportToExcel = (): void => {
       quantity: item.quantity,
       low_stock_notice_quantity: item.low_stock_notice_quantity,
       unit: item.unit,
+      remark: item.remark,
+      order_date: item.order_date,
     }))
 
     // Create workbook and worksheet
@@ -1226,10 +1238,12 @@ const exportToExcel = (): void => {
 
     // Set column widths for better formatting
     const columnWidths = [
-      { wch: 25 }, // item_name
+      { wch: 50 }, // item_name
       { wch: 12 }, // quantity
-      { wch: 20 }, // low_stock_notice_quantity
-      { wch: 12 }, // unit
+      { wch: 22 }, // low_stock_notice_quantity
+      { wch: 25 }, // unit
+      { wch: 50 }, // remark
+      { wch: 25 }, // order_date
     ]
     worksheet['!cols'] = columnWidths
 

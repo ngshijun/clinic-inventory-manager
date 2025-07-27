@@ -135,6 +135,30 @@ export const useStockRequestsStore = defineStore('stockRequests', () => {
     }
   }
 
+  const cancelRequest = async (requestId: string, remark?: string): Promise<void> => {
+    loading.value = true
+    error.value = null
+
+    try {
+      const { error: supabaseError } = await supabase
+        .from('stock_requests')
+        .update({
+          status: 'Cancelled',
+          updated_at: new Date().toISOString(),
+          remark: remark || '',
+        })
+        .eq('id', requestId)
+
+      if (supabaseError) throw supabaseError
+    } catch (err) {
+      error.value =
+        err instanceof Error ? err.message : 'An error occurred while cancelling request'
+      console.error('Error cancelling request', err)
+    } finally {
+      loading.value = false
+    }
+  }
+
   const updateRequest = async (
     requestId: string,
     newQuantity?: number,
@@ -254,6 +278,7 @@ export const useStockRequestsStore = defineStore('stockRequests', () => {
     addRequest,
     removeRequest,
     approveRequest,
+    cancelRequest,
     updateRequest,
     searchRequests,
     filterRequestsByStatus,
