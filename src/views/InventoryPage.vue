@@ -121,7 +121,7 @@
                   <div
                     class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-50 text-gray-900 font-medium"
                   >
-                    {{ stockInQuantity }}
+                    {{ stockQuantity }}
                   </div>
                   <p class="mt-1 text-xs text-gray-500">Unit: {{ stockInItem?.unit }}</p>
                 </div>
@@ -786,9 +786,7 @@ const itemNameInputRef = ref<HTMLInputElement | null>(null)
 // New stock in modal variables
 const showStockInModal = ref<boolean>(false)
 const stockInItem = ref<InventoryItem | null>(null)
-const stockInQuantity = ref<number>(1)
 const clearOrderDate = ref<boolean>(true) // Default to clearing order date
-const stockInQuantityRef = ref<HTMLInputElement | null>(null)
 
 // Pagination
 const currentPage = ref<number>(1)
@@ -901,28 +899,22 @@ const formatDate = (dateString: string): string => {
 // Open stock in modal
 const openStockInModal = (item: InventoryItem): void => {
   stockInItem.value = item
-  stockInQuantity.value = 1
   clearOrderDate.value = true // Default to clearing order date
   showStockInModal.value = true
-
-  nextTick(() => {
-    stockInQuantityRef.value?.focus()
-  })
 }
 
 // Close stock in modal
 const closeStockInModal = (): void => {
   showStockInModal.value = false
   stockInItem.value = null
-  stockInQuantity.value = 1
   clearOrderDate.value = true
 }
 
 // Confirm stock in with optional order date clearing
 const confirmStockIn = async (): Promise<void> => {
-  if (!stockInItem.value || stockInQuantity.value <= 0) return
+  if (!stockInItem.value || stockQuantity.value <= 0) return
 
-  await inventoryStore.stockIn(stockInItem.value.id, stockInQuantity.value, clearOrderDate.value)
+  await inventoryStore.stockIn(stockInItem.value.id, stockQuantity.value, clearOrderDate.value)
 
   if (!inventoryStore.error) {
     closeStockInModal()
