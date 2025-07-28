@@ -796,10 +796,7 @@ const sortedAndFilteredMovements = computed((): StockMovement[] => {
 })
 
 // Pagination
-const pagination = usePagination(sortedAndFilteredMovements, {
-  initialItemsPerPage: 10,
-  itemsPerPageOptions: [10, 25, 50, 100],
-})
+const pagination = usePagination(sortedAndFilteredMovements)
 
 // Reset to first page when filters change
 watch(

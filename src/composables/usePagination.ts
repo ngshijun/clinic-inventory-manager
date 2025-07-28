@@ -25,8 +25,8 @@ export function usePagination<T>(
 ): PaginationState<T> {
   const {
     initialPage = 1,
-    initialItemsPerPage = 10,
-    itemsPerPageOptions = [10, 25, 50, 100],
+    initialItemsPerPage = 25,
+    itemsPerPageOptions = [25, 50, 100, 500],
   } = options
 
   // Reactive state

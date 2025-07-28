@@ -638,10 +638,7 @@ const sortedAndFilteredItems = computed((): InventoryItem[] => {
   return items
 })
 
-const pagination = usePagination(sortedAndFilteredItems, {
-  initialItemsPerPage: 10,
-  itemsPerPageOptions: [10, 25, 50, 100],
-})
+const pagination = usePagination(sortedAndFilteredItems)
 
 // Reset to first page when filters change
 watch([searchQuery], () => {

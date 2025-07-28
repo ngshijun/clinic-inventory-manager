@@ -876,10 +876,7 @@ const sortedAndFilteredItems = computed((): InventoryItem[] => {
 })
 
 // Pagination
-const pagination = usePagination<InventoryItem>(sortedAndFilteredItems, {
-  initialItemsPerPage: 10,
-  itemsPerPageOptions: [10, 25, 50, 100],
-})
+const pagination = usePagination(sortedAndFilteredItems)
 
 // Format date for display
 const formatDate = (dateString: string): string => {

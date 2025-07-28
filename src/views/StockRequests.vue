@@ -806,10 +806,7 @@ const sortedAndFilteredRequests = computed((): StockRequest[] => {
 })
 
 // Pagination
-const pagination = usePagination(sortedAndFilteredRequests, {
-  initialItemsPerPage: 10,
-  itemsPerPageOptions: [10, 25, 50, 100],
-})
+const pagination = usePagination(sortedAndFilteredRequests)
 
 // Check if there are active filters
 const hasActiveFilters = computed((): boolean => {
