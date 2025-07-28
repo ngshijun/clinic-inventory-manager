@@ -180,39 +180,21 @@
             </h3>
           </div>
 
-          <div
+          <LoadingSpinner
             v-if="stockMovementsStore.loading && sortedAndFilteredMovements.length === 0"
-            class="text-center py-8"
-          >
-            <div
-              class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"
-            ></div>
-            <p class="mt-2 text-gray-600 text-sm">Loading movements...</p>
-          </div>
+            message="Loading movements..."
+          />
 
-          <div v-else-if="sortedAndFilteredMovements.length === 0" class="text-center py-12">
-            <svg
-              class="mx-auto h-12 w-12 text-gray-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-              ></path>
-            </svg>
-            <h3 class="mt-2 text-sm font-medium text-gray-900">No movements found</h3>
-            <p class="mt-1 text-sm text-gray-500">
-              {{
-                searchQuery
-                  ? 'Try adjusting your search terms.'
-                  : 'Stock movements will appear here when you manage inventory.'
-              }}
-            </p>
-          </div>
+          <EmptyState
+            v-else-if="sortedAndFilteredMovements.length === 0"
+            icon="chart"
+            title="No movements found"
+            :description="
+              searchQuery
+                ? 'Try adjusting your search terms.'
+                : 'Stock movements will appear here when you manage inventory.'
+            "
+          />
 
           <div v-else class="divide-y divide-gray-200">
             <div
@@ -226,16 +208,10 @@
                   <h4 class="text-sm font-medium text-gray-900 truncate flex-1 mr-2">
                     {{ movement.item_name }}
                   </h4>
-                  <span
-                    :class="[
-                      'inline-flex px-2 py-1 text-xs font-semibold rounded-full',
-                      movement.movement_type === 'stock_in'
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-red-100 text-red-800',
-                    ]"
-                  >
-                    {{ movement.movement_type === 'stock_in' ? 'Stock In (+)' : 'Stock Out (-)' }}
-                  </span>
+                  <StatusBadge
+                    :variant="movement.movement_type === 'stock_in' ? 'stock-in' : 'stock-out'"
+                    :text="movement.movement_type === 'stock_in' ? 'Stock In (+)' : 'Stock Out (-)'"
+                  />
                 </div>
 
                 <!-- Movement Details -->
@@ -321,39 +297,21 @@
             </h3>
           </div>
 
-          <div
+          <LoadingSpinner
             v-if="stockMovementsStore.loading && sortedAndFilteredMovements.length === 0"
-            class="text-center py-8"
-          >
-            <div
-              class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"
-            ></div>
-            <p class="mt-2 text-gray-600 text-sm">Loading movements...</p>
-          </div>
+            message="Loading movements..."
+          />
 
-          <div v-else-if="sortedAndFilteredMovements.length === 0" class="text-center py-12">
-            <svg
-              class="mx-auto h-12 w-12 text-gray-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-              ></path>
-            </svg>
-            <h3 class="mt-2 text-sm font-medium text-gray-900">No movements found</h3>
-            <p class="mt-1 text-sm text-gray-500">
-              {{
-                searchQuery
-                  ? 'Try adjusting your search terms.'
-                  : 'Stock movements will appear here when you manage inventory.'
-              }}
-            </p>
-          </div>
+          <EmptyState
+            v-else-if="sortedAndFilteredMovements.length === 0"
+            icon="chart"
+            title="No movements found"
+            :description="
+              searchQuery
+                ? 'Try adjusting your search terms.'
+                : 'Stock movements will appear here when you manage inventory.'
+            "
+          />
 
           <div v-else class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
@@ -552,16 +510,12 @@
                     {{ movement.quantity }} {{ movement.unit }}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap">
-                    <span
-                      :class="[
-                        'inline-flex px-2 py-1 text-xs font-semibold rounded-full',
-                        movement.movement_type === 'stock_in'
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-red-100 text-red-800',
-                      ]"
-                    >
-                      {{ movement.movement_type === 'stock_in' ? 'Stock In (+)' : 'Stock Out (-)' }}
-                    </span>
+                    <StatusBadge
+                      :variant="movement.movement_type === 'stock_in' ? 'stock-in' : 'stock-out'"
+                      :text="
+                        movement.movement_type === 'stock_in' ? 'Stock In (+)' : 'Stock Out (-)'
+                      "
+                    />
                   </td>
                   <td class="px-6 py-4 text-sm text-gray-900" style="white-space: pre-line">
                     {{ formatDateTime(movement.created_at) }}
@@ -634,6 +588,9 @@ import { usePagination } from '@/composables/usePagination'
 import { useStockMovementsStore } from '@/stores/stockMovements'
 import type { StockMovement } from '@/types/stockMovements'
 import { computed, onMounted, ref, watch } from 'vue'
+import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
 
 const stockMovementsStore = useStockMovementsStore()
 

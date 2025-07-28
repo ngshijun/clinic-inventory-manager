@@ -163,25 +163,8 @@
       </div>
 
       <!-- Error Display -->
-      <div
-        v-if="stockRequestsStore.error"
-        class="mb-4 bg-red-50 border border-red-200 rounded-md p-4"
-      >
-        <div class="flex">
-          <div class="flex-shrink-0">
-            <svg class="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
-              <path
-                fill-rule="evenodd"
-                d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                clip-rule="evenodd"
-              ></path>
-            </svg>
-          </div>
-          <div class="ml-3">
-            <h3 class="text-sm font-medium text-red-800">Error</h3>
-            <p class="mt-1 text-sm text-red-700">{{ stockRequestsStore.error }}</p>
-          </div>
-        </div>
+      <div v-if="stockRequestsStore.error" class="mb-4">
+        <ErrorAlert :message="stockRequestsStore.error" />
       </div>
 
       <!-- Mobile Card View -->
@@ -192,38 +175,20 @@
               Requests ({{ sortedAndFilteredRequests.length }})
             </h3>
           </div>
-          <div
+          <LoadingSpinner
             v-if="stockRequestsStore.loading && sortedAndFilteredRequests.length === 0"
-            class="text-center py-8"
-          >
-            <div
-              class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"
-            ></div>
-            <p class="mt-2 text-gray-600 text-sm">Loading requests...</p>
-          </div>
-          <div v-else-if="sortedAndFilteredRequests.length === 0" class="text-center py-12">
-            <svg
-              class="mx-auto h-12 w-12 text-gray-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-              ></path>
-            </svg>
-            <h3 class="mt-2 text-sm font-medium text-gray-900">No requests found</h3>
-            <p class="mt-1 text-sm text-gray-500">
-              {{
-                hasActiveFilters
-                  ? 'Try adjusting your search terms or filters.'
-                  : 'No requests have been submitted yet.'
-              }}
-            </p>
-          </div>
+            message="Loading requests..."
+          />
+          <EmptyState
+            v-else-if="sortedAndFilteredRequests.length === 0"
+            icon="document"
+            title="No requests found"
+            :description="
+              hasActiveFilters
+                ? 'Try adjusting your search terms or filters.'
+                : 'No requests have been submitted yet.'
+            "
+          />
           <div v-else class="divide-y divide-gray-200">
             <div
               v-for="request in pagination.paginatedItems.value"
@@ -236,11 +201,7 @@
                   <h4 class="text-sm font-medium text-gray-900">
                     {{ request.item_name }}
                   </h4>
-                  <span
-                    class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800"
-                  >
-                    {{ request.status }}
-                  </span>
+                  <StatusBadge :variant="getStatusVariant(request.status)" :text="request.status" />
                 </div>
                 <div class="space-y-3">
                   <div>
@@ -292,18 +253,7 @@
                   <h4 class="text-sm font-medium text-gray-900 truncate flex-1 mr-2">
                     {{ request.item_name }}
                   </h4>
-                  <span
-                    :class="[
-                      'inline-flex px-2 py-1 text-xs font-semibold rounded-full',
-                      request.status === 'Pending'
-                        ? 'bg-yellow-100 text-yellow-800'
-                        : request.status === 'Approved'
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-red-100 text-red-800',
-                    ]"
-                  >
-                    {{ request.status }}
-                  </span>
+                  <StatusBadge :variant="getStatusVariant(request.status)" :text="request.status" />
                 </div>
                 <!-- Request Details -->
                 <div class="grid grid-cols-2 gap-4 text-sm">
@@ -364,38 +314,20 @@
               Requests ({{ sortedAndFilteredRequests.length }})
             </h3>
           </div>
-          <div
+          <LoadingSpinner
             v-if="stockRequestsStore.loading && sortedAndFilteredRequests.length === 0"
-            class="text-center py-8"
-          >
-            <div
-              class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"
-            ></div>
-            <p class="mt-2 text-gray-600 text-sm">Loading requests...</p>
-          </div>
-          <div v-else-if="sortedAndFilteredRequests.length === 0" class="text-center py-12">
-            <svg
-              class="mx-auto h-12 w-12 text-gray-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-              ></path>
-            </svg>
-            <h3 class="mt-2 text-sm font-medium text-gray-900">No requests found</h3>
-            <p class="mt-1 text-sm text-gray-500">
-              {{
-                hasActiveFilters
-                  ? 'Try adjusting your search terms or filters.'
-                  : 'No requests have been submitted yet.'
-              }}
-            </p>
-          </div>
+            message="Loading requests..."
+          />
+          <EmptyState
+            v-else-if="sortedAndFilteredRequests.length === 0"
+            icon="document"
+            title="No requests found"
+            :description="
+              hasActiveFilters
+                ? 'Try adjusting your search terms or filters.'
+                : 'No requests have been submitted yet.'
+            "
+          />
           <div v-else class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
               <thead class="bg-gray-50">
@@ -580,18 +512,10 @@
                     </div>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap">
-                    <span
-                      :class="[
-                        'inline-flex px-2 py-1 text-xs font-semibold rounded-full',
-                        request.status === 'Pending'
-                          ? 'bg-yellow-100 text-yellow-800'
-                          : request.status === 'Approved'
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-red-100 text-red-800',
-                      ]"
-                    >
-                      {{ request.status }}
-                    </span>
+                    <StatusBadge
+                      :variant="getStatusVariant(request.status)"
+                      :text="request.status"
+                    />
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div v-if="editingRequestId === request.id" class="flex flex-col gap-2">
@@ -660,10 +584,19 @@ import { useStockRequestsStore } from '@/stores/stockRequests'
 import type { InventoryItem } from '@/types/inventory'
 import type { NewStockRequest, StockRequest } from '@/types/stockRequests'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import ErrorAlert from '@/components/ui/ErrorAlert.vue'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
+import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 
 // Component imports
 import TablePagination from '@/components/TablePagination.vue'
 import { usePagination } from '@/composables/usePagination'
+
+// Helper function to map status to StatusBadge variant
+const getStatusVariant = (status: string): 'pending' | 'approved' | 'cancelled' => {
+  return status.toLowerCase() as 'pending' | 'approved' | 'cancelled'
+}
 
 // Store
 const stockRequestsStore = useStockRequestsStore()

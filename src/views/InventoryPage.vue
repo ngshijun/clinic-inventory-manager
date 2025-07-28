@@ -46,22 +46,8 @@
           </div>
         </div>
 
-        <div v-else-if="importStatus.error" class="bg-red-50 border border-red-200 rounded-md p-4">
-          <div class="flex">
-            <div class="flex-shrink-0">
-              <svg class="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
-                <path
-                  fill-rule="evenodd"
-                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                  clip-rule="evenodd"
-                ></path>
-              </svg>
-            </div>
-            <div class="ml-3">
-              <h3 class="text-sm font-medium text-red-800">Import failed</h3>
-              <p class="mt-1 text-sm text-red-700">{{ importStatus.error }}</p>
-            </div>
-          </div>
+        <div v-else-if="importStatus.error">
+          <ErrorAlert title="Import failed" :message="importStatus.error" />
         </div>
 
         <div
@@ -288,39 +274,21 @@
             </h3>
           </div>
 
-          <div
+          <LoadingSpinner
             v-if="inventoryStore.loading && sortedAndFilteredItems.length === 0"
-            class="text-center py-8"
-          >
-            <div
-              class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"
-            ></div>
-            <p class="mt-2 text-gray-600 text-sm">Loading items...</p>
-          </div>
+            message="Loading items..."
+          />
 
-          <div v-else-if="sortedAndFilteredItems.length === 0" class="text-center py-12">
-            <svg
-              class="mx-auto h-12 w-12 text-gray-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
-              ></path>
-            </svg>
-            <h3 class="mt-2 text-sm font-medium text-gray-900">No items found</h3>
-            <p class="mt-1 text-sm text-gray-500">
-              {{
-                searchQuery
-                  ? 'Try adjusting your search terms.'
-                  : 'Get started by adding your first item.'
-              }}
-            </p>
-          </div>
+          <EmptyState
+            v-else-if="sortedAndFilteredItems.length === 0"
+            icon="box"
+            title="No items found"
+            :description="
+              searchQuery
+                ? 'Try adjusting your search terms.'
+                : 'Get started by adding your first item.'
+            "
+          />
 
           <div v-else class="divide-y divide-gray-200">
             <div v-for="item in pagination.paginatedItems.value" :key="item.id" class="px-4 py-4">
@@ -330,14 +298,10 @@
                   <h4 class="text-sm font-medium text-gray-900 truncate flex-1 mr-2">
                     {{ item.item_name }}
                   </h4>
-                  <span
-                    :class="[
-                      'inline-flex px-2 py-1 text-xs font-semibold rounded-full',
-                      getStockStatus(item).class,
-                    ]"
-                  >
-                    {{ getStockStatus(item).text }}
-                  </span>
+                  <StatusBadge
+                    :variant="getStockStatusVariant(item)"
+                    :text="getStockStatus(item).text"
+                  />
                 </div>
 
                 <!-- Item Details -->
@@ -453,39 +417,21 @@
             </h3>
           </div>
 
-          <div
+          <LoadingSpinner
             v-if="inventoryStore.loading && sortedAndFilteredItems.length === 0"
-            class="text-center py-8"
-          >
-            <div
-              class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"
-            ></div>
-            <p class="mt-2 text-gray-600 text-sm">Loading items...</p>
-          </div>
+            message="Loading items..."
+          />
 
-          <div v-else-if="sortedAndFilteredItems.length === 0" class="text-center py-12">
-            <svg
-              class="mx-auto h-12 w-12 text-gray-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
-              ></path>
-            </svg>
-            <h3 class="mt-2 text-sm font-medium text-gray-900">No items found</h3>
-            <p class="mt-1 text-sm text-gray-500">
-              {{
-                searchQuery
-                  ? 'Try adjusting your search terms.'
-                  : 'Get started by adding your first item.'
-              }}
-            </p>
-          </div>
+          <EmptyState
+            v-else-if="sortedAndFilteredItems.length === 0"
+            icon="box"
+            title="No items found"
+            :description="
+              searchQuery
+                ? 'Try adjusting your search terms.'
+                : 'Get started by adding your first item.'
+            "
+          />
 
           <div v-else class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
@@ -711,14 +657,10 @@
                     {{ item.low_stock_notice_quantity }} {{ item.unit }}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap">
-                    <span
-                      :class="[
-                        'inline-flex px-2 py-1 text-xs font-semibold rounded-full',
-                        getStockStatus(item).class,
-                      ]"
-                    >
-                      {{ getStockStatus(item).text }}
-                    </span>
+                    <StatusBadge
+                      :variant="getStockStatusVariant(item)"
+                      :text="getStockStatus(item).text"
+                    />
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div v-if="editingItem === item.id" class="flex flex-col gap-2">
@@ -782,6 +724,10 @@ import { usePagination } from '@/composables/usePagination'
 import { useInventoryStore } from '@/stores/inventory'
 import type { InventoryItem, NewInventoryItem, StockStatus } from '@/types/inventory'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import ErrorAlert from '@/components/ui/ErrorAlert.vue'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
+import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 import * as XLSX from 'xlsx'
 
 const inventoryStore = useInventoryStore()
@@ -1010,6 +956,12 @@ const getStockStatus = (item: InventoryItem): StockStatus => {
   if (item.quantity <= item.low_stock_notice_quantity)
     return { text: 'Low Stock', class: 'bg-yellow-100 text-yellow-800' }
   return { text: 'In Stock', class: 'bg-green-100 text-green-800' }
+}
+
+const getStockStatusVariant = (item: InventoryItem): 'out-of-stock' | 'low-stock' | 'in-stock' => {
+  if (item.quantity === 0) return 'out-of-stock'
+  if (item.quantity <= item.low_stock_notice_quantity) return 'low-stock'
+  return 'in-stock'
 }
 
 // Excel Import Functions

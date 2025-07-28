@@ -82,22 +82,8 @@
       </div>
 
       <!-- Error Display -->
-      <div v-if="inventoryStore.error" class="mb-4 bg-red-50 border border-red-200 rounded-md p-4">
-        <div class="flex">
-          <div class="flex-shrink-0">
-            <svg class="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
-              <path
-                fill-rule="evenodd"
-                d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                clip-rule="evenodd"
-              ></path>
-            </svg>
-          </div>
-          <div class="ml-3">
-            <h3 class="text-sm font-medium text-red-800">Error</h3>
-            <p class="mt-1 text-sm text-red-700">{{ inventoryStore.error }}</p>
-          </div>
-        </div>
+      <div v-if="inventoryStore.error" class="mb-4">
+        <ErrorAlert :message="inventoryStore.error" />
       </div>
 
       <!-- Mobile Card View -->
@@ -109,35 +95,17 @@
             </h3>
           </div>
 
-          <div
+          <LoadingSpinner
             v-if="inventoryStore.loading && sortedAndFilteredItems.length === 0"
-            class="text-center py-8"
-          >
-            <div
-              class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"
-            ></div>
-            <p class="mt-2 text-gray-600 text-sm">Loading items...</p>
-          </div>
+            message="Loading items..."
+          />
 
-          <div v-else-if="sortedAndFilteredItems.length === 0" class="text-center py-12">
-            <svg
-              class="mx-auto h-12 w-12 text-gray-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
-              ></path>
-            </svg>
-            <h3 class="mt-2 text-sm font-medium text-gray-900">No items found</h3>
-            <p class="mt-1 text-sm text-gray-500">
-              {{ searchQuery ? 'Try adjusting your search terms.' : 'No items available.' }}
-            </p>
-          </div>
+          <EmptyState
+            v-else-if="sortedAndFilteredItems.length === 0"
+            icon="box"
+            title="No items found"
+            :description="searchQuery ? 'Try adjusting your search terms.' : 'No items available.'"
+          />
 
           <div v-else class="divide-y divide-gray-200">
             <div v-for="item in pagination.paginatedItems.value" :key="item.id" class="px-4 py-4">
@@ -261,35 +229,17 @@
             </h3>
           </div>
 
-          <div
+          <LoadingSpinner
             v-if="inventoryStore.loading && sortedAndFilteredItems.length === 0"
-            class="text-center py-8"
-          >
-            <div
-              class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"
-            ></div>
-            <p class="mt-2 text-gray-600 text-sm">Loading items...</p>
-          </div>
+            message="Loading items..."
+          />
 
-          <div v-else-if="sortedAndFilteredItems.length === 0" class="text-center py-12">
-            <svg
-              class="mx-auto h-12 w-12 text-gray-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
-              ></path>
-            </svg>
-            <h3 class="mt-2 text-sm font-medium text-gray-900">No items found</h3>
-            <p class="mt-1 text-sm text-gray-500">
-              {{ searchQuery ? 'Try adjusting your search terms.' : 'No items available.' }}
-            </p>
-          </div>
+          <EmptyState
+            v-else-if="sortedAndFilteredItems.length === 0"
+            icon="box"
+            title="No items found"
+            :description="searchQuery ? 'Try adjusting your search terms.' : 'No items available.'"
+          />
 
           <div v-else class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
@@ -540,6 +490,9 @@ import { usePagination } from '@/composables/usePagination'
 import { useInventoryStore } from '@/stores/inventory'
 import type { InventoryItem } from '@/types/inventory'
 import { computed, onMounted, ref, watch } from 'vue'
+import ErrorAlert from '@/components/ui/ErrorAlert.vue'
+import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 
 const inventoryStore = useInventoryStore()
 
