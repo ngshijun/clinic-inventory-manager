@@ -140,7 +140,7 @@
           </div>
 
           <div v-else class="divide-y divide-gray-200">
-            <div v-for="item in paginatedItems" :key="item.id" class="px-4 py-4">
+            <div v-for="item in pagination.paginatedItems.value" :key="item.id" class="px-4 py-4">
               <div class="space-y-3">
                 <!-- Item Header -->
                 <div class="flex items-center justify-between">
@@ -238,16 +238,16 @@
 
           <!-- Mobile Pagination -->
           <TablePagination
-            v-if="totalPages > 1"
-            :current-page="currentPage"
-            :total-pages="totalPages"
-            :items-per-page="itemsPerPage"
+            v-if="pagination.totalPages.value > 1"
+            :current-page="pagination.currentPage.value"
+            :total-pages="pagination.totalPages.value"
+            :items-per-page="pagination.itemsPerPage.value"
             :total-items="sortedAndFilteredItems.length"
-            :start-index="startIndex"
-            :end-index="endIndex"
+            :start-index="pagination.startIndex.value"
+            :end-index="pagination.endIndex.value"
             :show-items-per-page-selector="false"
-            @page-change="goToPage"
-            @items-per-page-change="updateItemsPerPage"
+            @page-change="pagination.goToPage"
+            @items-per-page-change="pagination.updateItemsPerPage"
           />
         </div>
       </div>
@@ -429,7 +429,11 @@
                 </tr>
               </thead>
               <tbody class="bg-white divide-y divide-gray-200">
-                <tr v-for="item in paginatedItems" :key="item.id" class="hover:bg-gray-50">
+                <tr
+                  v-for="item in pagination.paginatedItems.value"
+                  :key="item.id"
+                  class="hover:bg-gray-50"
+                >
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                     {{ item.item_name }}
                     <!-- Show order status if item has order date -->
@@ -513,16 +517,16 @@
 
           <!-- Desktop Pagination -->
           <TablePagination
-            :current-page="currentPage"
-            :total-pages="totalPages"
-            :items-per-page="itemsPerPage"
+            :current-page="pagination.currentPage.value"
+            :total-pages="pagination.totalPages.value"
+            :items-per-page="pagination.itemsPerPage.value"
             :total-items="sortedAndFilteredItems.length"
-            :start-index="startIndex"
-            :end-index="endIndex"
+            :start-index="pagination.startIndex.value"
+            :end-index="pagination.endIndex.value"
             :show-items-per-page-selector="true"
             :items-per-page-options="[10, 25, 50, 100]"
-            @page-change="goToPage"
-            @items-per-page-change="updateItemsPerPage"
+            @page-change="pagination.goToPage"
+            @items-per-page-change="pagination.updateItemsPerPage"
           />
         </div>
       </div>
@@ -532,6 +536,7 @@
 
 <script setup lang="ts">
 import TablePagination from '@/components/TablePagination.vue'
+import { usePagination } from '@/composables/usePagination'
 import { useInventoryStore } from '@/stores/inventory'
 import type { InventoryItem } from '@/types/inventory'
 import { computed, onMounted, ref, watch } from 'vue'
@@ -546,10 +551,6 @@ const newRemark = ref<string>('')
 const showOrderModal = ref<boolean>(false)
 const orderItem = ref<InventoryItem | null>(null)
 const orderDate = ref<string>('')
-
-// Pagination
-const currentPage = ref<number>(1)
-const itemsPerPage = ref<number>(10)
 
 // Sorting configuration
 const sortConfig = ref<{
@@ -637,36 +638,14 @@ const sortedAndFilteredItems = computed((): InventoryItem[] => {
   return items
 })
 
-// Pagination computed properties
-const totalPages = computed((): number => {
-  return Math.ceil(sortedAndFilteredItems.value.length / itemsPerPage.value)
+const pagination = usePagination(sortedAndFilteredItems, {
+  initialItemsPerPage: 10,
+  itemsPerPageOptions: [10, 25, 50, 100],
 })
-
-const startIndex = computed((): number => {
-  return (currentPage.value - 1) * itemsPerPage.value
-})
-
-const endIndex = computed((): number => {
-  return startIndex.value + itemsPerPage.value
-})
-
-const paginatedItems = computed((): InventoryItem[] => {
-  return sortedAndFilteredItems.value.slice(startIndex.value, endIndex.value)
-})
-
-// Pagination functions
-const goToPage = (page: number): void => {
-  currentPage.value = page
-}
-
-const updateItemsPerPage = (newItemsPerPage: number): void => {
-  itemsPerPage.value = newItemsPerPage
-  currentPage.value = 1 // Reset to first page
-}
 
 // Reset to first page when filters change
-watch([searchQuery, itemsPerPage], () => {
-  currentPage.value = 1
+watch([searchQuery], () => {
+  pagination.resetToFirstPage()
 })
 
 // Sorting functions
@@ -679,7 +658,7 @@ const toggleSort = (key: keyof InventoryItem): void => {
     sortConfig.value.key = key
     sortConfig.value.direction = 'asc'
   }
-  currentPage.value = 1 // Reset to first page when sorting changes
+  pagination.resetToFirstPage()
 }
 
 // Remark editing functions
