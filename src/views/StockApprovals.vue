@@ -250,7 +250,11 @@
           </div>
 
           <div v-else class="divide-y divide-gray-200">
-            <div v-for="request in paginatedRequests" :key="request.id" class="px-4 py-4">
+            <div
+              v-for="request in pagination.paginatedItems.value"
+              :key="request.id"
+              class="px-4 py-4"
+            >
               <!-- Edit Mode -->
               <div v-if="editingRequestId === request.id" class="space-y-4">
                 <div class="flex items-center justify-between">
@@ -403,13 +407,13 @@
 
           <!-- Mobile Pagination -->
           <TablePagination
-            v-if="totalPages > 1"
-            :current-page="currentPage"
-            :total-pages="totalPages"
-            :items-per-page="itemsPerPage"
+            v-if="pagination.totalPages.value > 1"
+            :current-page="pagination.currentPage.value"
+            :total-pages="pagination.totalPages.value"
+            :items-per-page="pagination.itemsPerPage.value"
             :total-items="sortedAndFilteredRequests.length"
-            :start-index="startIndex"
-            :end-index="endIndex"
+            :start-index="pagination.startIndex.value"
+            :end-index="pagination.endIndex.value"
             :show-items-per-page-selector="false"
             @page-change="goToPage"
             @items-per-page-change="updateItemsPerPage"
@@ -625,7 +629,7 @@
               </thead>
               <tbody class="bg-white divide-y divide-gray-200">
                 <tr
-                  v-for="request in paginatedRequests"
+                  v-for="request in pagination.paginatedItems.value"
                   :key="request.id"
                   class="hover:bg-gray-50"
                   :class="{ 'bg-red-50': request.status === 'Pending' && !hasEnoughStock(request) }"
@@ -762,12 +766,12 @@
 
           <!-- Desktop Pagination -->
           <TablePagination
-            :current-page="currentPage"
-            :total-pages="totalPages"
-            :items-per-page="itemsPerPage"
+            :current-page="pagination.currentPage.value"
+            :total-pages="pagination.totalPages.value"
+            :items-per-page="pagination.itemsPerPage.value"
             :total-items="sortedAndFilteredRequests.length"
-            :start-index="startIndex"
-            :end-index="endIndex"
+            :start-index="pagination.startIndex.value"
+            :end-index="pagination.endIndex.value"
             :show-items-per-page-selector="true"
             :items-per-page-options="[10, 25, 50, 100]"
             @page-change="goToPage"
@@ -787,6 +791,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 
 // Component imports
 import TablePagination from '@/components/TablePagination.vue'
+import { usePagination } from '@/composables/usePagination'
 
 // Store
 const stockRequestsStore = useStockRequestsStore()
@@ -814,10 +819,6 @@ const editForm = ref<{
 const showCancelModal = ref<boolean>(false)
 const cancelRequestIds = ref<string[]>([])
 const cancelRemark = ref<string>('')
-
-// Pagination
-const currentPage = ref<number>(1)
-const itemsPerPage = ref<number>(10)
 
 // Sorting configuration
 const sortConfig = ref<{
@@ -850,7 +851,7 @@ const approvedToday = computed(() => {
 })
 
 const allPendingSelected = computed(() => {
-  const pendingIds = paginatedRequests.value
+  const pendingIds = pagination.paginatedItems.value
     .filter((request) => request.status === 'Pending')
     .map((request) => request.id)
   return pendingIds.length > 0 && pendingIds.every((id) => selectedRequests.value.includes(id))
@@ -912,21 +913,9 @@ const sortedAndFilteredRequests = computed((): StockRequest[] => {
   return requests
 })
 
-// Pagination computed properties
-const totalPages = computed((): number => {
-  return Math.ceil(sortedAndFilteredRequests.value.length / itemsPerPage.value)
-})
-
-const startIndex = computed((): number => {
-  return (currentPage.value - 1) * itemsPerPage.value
-})
-
-const endIndex = computed((): number => {
-  return startIndex.value + itemsPerPage.value
-})
-
-const paginatedRequests = computed((): StockRequest[] => {
-  return sortedAndFilteredRequests.value.slice(startIndex.value, endIndex.value)
+const pagination = usePagination(sortedAndFilteredRequests, {
+  initialItemsPerPage: 10,
+  itemsPerPageOptions: [10, 25, 50, 100],
 })
 
 // Check if there are active filters
@@ -1008,17 +997,17 @@ const confirmCancel = async (): Promise<void> => {
 
 // Pagination functions
 const goToPage = (page: number): void => {
-  currentPage.value = page
+  pagination.currentPage.value = page
 }
 
 const updateItemsPerPage = (newItemsPerPage: number): void => {
-  itemsPerPage.value = newItemsPerPage
-  currentPage.value = 1 // Reset to first page
+  pagination.itemsPerPage.value = newItemsPerPage
+  pagination.currentPage.value = 1 // Reset to first page
 }
 
 // Reset to first page when filters change
-watch([searchQuery, filterDate, itemsPerPage], () => {
-  currentPage.value = 1
+watch([searchQuery, filterDate, pagination.itemsPerPage.value], () => {
+  pagination.currentPage.value = 1
 })
 
 // Sorting functions
@@ -1031,14 +1020,14 @@ const toggleSort = (key: keyof StockRequest): void => {
     sortConfig.value.key = key
     sortConfig.value.direction = 'asc'
   }
-  currentPage.value = 1 // Reset to first page when sorting changes
+  pagination.resetToFirstPage() // Reset to first page when sorting changes
 }
 
 // Clear all filters
 const clearFilters = (): void => {
   searchQuery.value = ''
   filterDate.value = ''
-  currentPage.value = 1
+  pagination.resetToFirstPage()
 }
 
 // Selection functions
@@ -1052,7 +1041,7 @@ const toggleSelection = (requestId: string): void => {
 }
 
 const toggleAllSelection = (): void => {
-  const pendingIds = paginatedRequests.value
+  const pendingIds = pagination.paginatedItems.value
     .filter((request) => request.status === 'Pending')
     .map((request) => request.id)
 

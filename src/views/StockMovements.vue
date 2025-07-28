@@ -215,7 +215,11 @@
           </div>
 
           <div v-else class="divide-y divide-gray-200">
-            <div v-for="movement in paginatedMovements" :key="movement.id" class="px-4 py-4">
+            <div
+              v-for="movement in pagination.paginatedItems.value"
+              :key="movement.id"
+              class="px-4 py-4"
+            >
               <div class="space-y-3">
                 <!-- Movement Header -->
                 <div class="flex items-center justify-between">
@@ -294,16 +298,16 @@
 
           <!-- Mobile Pagination -->
           <TablePagination
-            v-if="totalPages > 1"
-            :current-page="currentPage"
-            :total-pages="totalPages"
-            :items-per-page="itemsPerPage"
+            v-if="pagination.totalPages.value > 1"
+            :current-page="pagination.currentPage.value"
+            :total-pages="pagination.totalPages.value"
+            :items-per-page="pagination.itemsPerPage.value"
             :total-items="sortedAndFilteredMovements.length"
-            :start-index="startIndex"
-            :end-index="endIndex"
+            :start-index="pagination.startIndex.value"
+            :end-index="pagination.endIndex.value"
             :show-items-per-page-selector="false"
-            @page-change="goToPage"
-            @items-per-page-change="updateItemsPerPage"
+            @page-change="pagination.goToPage"
+            @items-per-page-change="pagination.updateItemsPerPage"
           />
         </div>
       </div>
@@ -537,7 +541,7 @@
               </thead>
               <tbody class="bg-white divide-y divide-gray-200">
                 <tr
-                  v-for="movement in paginatedMovements"
+                  v-for="movement in pagination.paginatedItems.value"
                   :key="movement.id"
                   class="hover:bg-gray-50"
                 >
@@ -607,16 +611,16 @@
 
           <!-- Desktop Pagination -->
           <TablePagination
-            :current-page="currentPage"
-            :total-pages="totalPages"
-            :items-per-page="itemsPerPage"
+            :current-page="pagination.currentPage.value"
+            :total-pages="pagination.totalPages.value"
+            :items-per-page="pagination.itemsPerPage.value"
             :total-items="sortedAndFilteredMovements.length"
-            :start-index="startIndex"
-            :end-index="endIndex"
+            :start-index="pagination.startIndex.value"
+            :end-index="pagination.endIndex.value"
             :show-items-per-page-selector="true"
             :items-per-page-options="[10, 25, 50, 100]"
-            @page-change="goToPage"
-            @items-per-page-change="updateItemsPerPage"
+            @page-change="pagination.goToPage"
+            @items-per-page-change="pagination.updateItemsPerPage"
           />
         </div>
       </div>
@@ -626,6 +630,7 @@
 
 <script setup lang="ts">
 import TablePagination from '@/components/TablePagination.vue'
+import { usePagination } from '@/composables/usePagination'
 import { useStockMovementsStore } from '@/stores/stockMovements'
 import type { StockMovement } from '@/types/stockMovements'
 import { computed, onMounted, ref, watch } from 'vue'
@@ -636,10 +641,6 @@ const searchQuery = ref<string>('')
 const editingRemark = ref<string | null>(null)
 const newRemark = ref<string>('')
 const showAdvancedSearch = ref<boolean>(false)
-
-// Pagination
-const currentPage = ref<number>(1)
-const itemsPerPage = ref<number>(10)
 
 // Advanced search filters
 const advancedFilters = ref({
@@ -794,38 +795,17 @@ const sortedAndFilteredMovements = computed((): StockMovement[] => {
   return movements
 })
 
-// Pagination computed properties
-const totalPages = computed((): number => {
-  return Math.ceil(sortedAndFilteredMovements.value.length / itemsPerPage.value)
+// Pagination
+const pagination = usePagination(sortedAndFilteredMovements, {
+  initialItemsPerPage: 10,
+  itemsPerPageOptions: [10, 25, 50, 100],
 })
-
-const startIndex = computed((): number => {
-  return (currentPage.value - 1) * itemsPerPage.value
-})
-
-const endIndex = computed((): number => {
-  return startIndex.value + itemsPerPage.value
-})
-
-const paginatedMovements = computed((): StockMovement[] => {
-  return sortedAndFilteredMovements.value.slice(startIndex.value, endIndex.value)
-})
-
-// Pagination functions
-const goToPage = (page: number): void => {
-  currentPage.value = page
-}
-
-const updateItemsPerPage = (newItemsPerPage: number): void => {
-  itemsPerPage.value = newItemsPerPage
-  currentPage.value = 1 // Reset to first page
-}
 
 // Reset to first page when filters change
 watch(
-  [searchQuery, advancedFilters, itemsPerPage],
+  [searchQuery, advancedFilters],
   () => {
-    currentPage.value = 1
+    pagination.resetToFirstPage()
   },
   { deep: true },
 )
@@ -845,7 +825,7 @@ const clearAdvancedFilters = (): void => {
 
 const clearAllFilters = (): void => {
   clearAdvancedFilters()
-  currentPage.value = 1
+  pagination.resetToFirstPage()
 }
 
 // Sorting function
@@ -858,7 +838,7 @@ const toggleSort = (key: keyof StockMovement): void => {
     sortConfig.value.key = key
     sortConfig.value.direction = 'asc'
   }
-  currentPage.value = 1 // Reset to first page when sorting changes
+  pagination.resetToFirstPage()
 }
 
 const startEditRemark = (movement: StockMovement): void => {
