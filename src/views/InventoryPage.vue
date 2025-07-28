@@ -377,11 +377,14 @@
                       v-model.number="stockQuantity"
                       type="number"
                       min="1"
-                      placeholder="Quantity"
+                      :max="getItemMaxQuantity(item.id)"
                       class="flex-1 border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
-                  <div class="text-xs text-gray-500">Unit: {{ item.unit }}</div>
+                  <p class="text-xs text-gray-500">
+                    Max: {{ getItemMaxQuantity(item.id) }}
+                    {{ item.unit }}
+                  </p>
                   <div class="flex gap-2">
                     <button
                       @click="handleStockIn(item.id)"
@@ -690,11 +693,13 @@
                           v-model.number="stockQuantity"
                           type="number"
                           min="1"
-                          placeholder="Quantity"
+                          :max="getItemMaxQuantity(item.id)"
                           class="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       </div>
-                      <div class="text-xs text-gray-500">Unit: {{ item.unit }}</div>
+                      <p class="text-xs text-gray-500">
+                        Max: {{ getItemMaxQuantity(item.id) }} {{ item.unit }}
+                      </p>
                     </div>
                     <div v-else>{{ item.quantity }} {{ item.unit }}</div>
                   </td>
@@ -910,6 +915,12 @@ const closeStockInModal = (): void => {
   clearOrderDate.value = true
 }
 
+// Helper function to get item max quantity
+const getItemMaxQuantity = (itemId: string): number => {
+  const item = inventoryStore.items.find((item) => item.id === itemId)
+  return item?.quantity || 0
+}
+
 // Confirm stock in with optional order date clearing
 const confirmStockIn = async (): Promise<void> => {
   if (!stockInItem.value || stockQuantity.value <= 0) return
@@ -918,6 +929,7 @@ const confirmStockIn = async (): Promise<void> => {
 
   if (!inventoryStore.error) {
     closeStockInModal()
+    cancelEdit()
   }
 }
 
