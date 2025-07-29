@@ -200,141 +200,11 @@
 
           <div v-else class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
-              <thead class="bg-gray-50">
-                <tr>
-                  <th
-                    @click="toggleSort('item_name')"
-                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
-                  >
-                    <div class="flex items-center justify-between">
-                      <span>Item Name</span>
-                      <div class="flex flex-col ml-2">
-                        <svg
-                          :class="[
-                            'w-3 h-3 transition-colors',
-                            sortConfig.key === 'item_name' && sortConfig.direction === 'asc'
-                              ? 'text-blue-600'
-                              : 'text-gray-400',
-                          ]"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fill-rule="evenodd"
-                            d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z"
-                            clip-rule="evenodd"
-                          />
-                        </svg>
-                        <svg
-                          :class="[
-                            'w-3 h-3 transition-colors -mt-1',
-                            sortConfig.key === 'item_name' && sortConfig.direction === 'desc'
-                              ? 'text-blue-600'
-                              : 'text-gray-400',
-                          ]"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fill-rule="evenodd"
-                            d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                            clip-rule="evenodd"
-                          />
-                        </svg>
-                      </div>
-                    </div>
-                  </th>
-                  <th
-                    @click="toggleSort('quantity')"
-                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
-                  >
-                    <div class="flex items-center justify-between">
-                      <span>Current Stock</span>
-                      <div class="flex flex-col ml-2">
-                        <svg
-                          :class="[
-                            'w-3 h-3 transition-colors',
-                            sortConfig.key === 'quantity' && sortConfig.direction === 'asc'
-                              ? 'text-blue-600'
-                              : 'text-gray-400',
-                          ]"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fill-rule="evenodd"
-                            d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z"
-                            clip-rule="evenodd"
-                          />
-                        </svg>
-                        <svg
-                          :class="[
-                            'w-3 h-3 transition-colors -mt-1',
-                            sortConfig.key === 'quantity' && sortConfig.direction === 'desc'
-                              ? 'text-blue-600'
-                              : 'text-gray-400',
-                          ]"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fill-rule="evenodd"
-                            d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                            clip-rule="evenodd"
-                          />
-                        </svg>
-                      </div>
-                    </div>
-                  </th>
-                  <th
-                    @click="toggleSort('remark')"
-                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
-                  >
-                    <div class="flex items-center justify-between">
-                      <span>Remark</span>
-                      <div class="flex flex-col ml-2">
-                        <svg
-                          :class="[
-                            'w-3 h-3 transition-colors',
-                            sortConfig.key === 'remark' && sortConfig.direction === 'asc'
-                              ? 'text-blue-600'
-                              : 'text-gray-400',
-                          ]"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fill-rule="evenodd"
-                            d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z"
-                            clip-rule="evenodd"
-                          />
-                        </svg>
-                        <svg
-                          :class="[
-                            'w-3 h-3 transition-colors -mt-1',
-                            sortConfig.key === 'remark' && sortConfig.direction === 'desc'
-                              ? 'text-blue-600'
-                              : 'text-gray-400',
-                          ]"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fill-rule="evenodd"
-                            d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                            clip-rule="evenodd"
-                          />
-                        </svg>
-                      </div>
-                    </div>
-                  </th>
-                  <th
-                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                  >
-                    Actions
-                  </th>
-                </tr>
-              </thead>
+              <SortableTableHeader
+                :columns="tableColumns"
+                :sort-config="sortConfig"
+                @sort-change="toggleSort"
+              />
               <tbody class="bg-white divide-y divide-gray-200">
                 <tr
                   v-for="item in pagination.paginatedItems.value"
@@ -452,6 +322,7 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import SearchInput from '@/components/ui/SearchInput.vue'
 import ActionModal from '@/components/ui/ActionModal.vue'
+import SortableTableHeader from '@/components/ui/SortableTableHeader.vue'
 
 const inventoryStore = useInventoryStore()
 
@@ -557,14 +428,22 @@ watch([searchQuery], () => {
   pagination.resetToFirstPage()
 })
 
+// Table column configuration
+const tableColumns = [
+  { key: 'item_name', label: 'Item Name', sortable: true },
+  { key: 'quantity', label: 'Current Stock', sortable: true },
+  { key: 'remark', label: 'Remark', sortable: true },
+  { key: 'actions', label: 'Actions', sortable: false },
+]
+
 // Sorting functions
-const toggleSort = (key: keyof InventoryItem): void => {
+const toggleSort = (key: string): void => {
   if (sortConfig.value.key === key) {
     // Same column clicked - toggle direction
     sortConfig.value.direction = sortConfig.value.direction === 'asc' ? 'desc' : 'asc'
   } else {
     // New column clicked - set ascending
-    sortConfig.value.key = key
+    sortConfig.value.key = key as keyof InventoryItem
     sortConfig.value.direction = 'asc'
   }
   pagination.resetToFirstPage()
