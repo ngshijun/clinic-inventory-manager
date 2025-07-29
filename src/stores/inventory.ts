@@ -22,7 +22,7 @@ export const useInventoryStore = defineStore('inventory', () => {
 
   const lowStockItems = computed((): InventoryItem[] => {
     return items.value.filter(
-      (item) => item.quantity <= item.low_stock_notice_quantity && item.quantity !== 0,
+      (item) => item.quantity <= item.reorder_level && item.quantity !== 0,
     )
   })
 
@@ -60,7 +60,7 @@ export const useInventoryStore = defineStore('inventory', () => {
           {
             item_name: newItem.item_name,
             quantity: Math.max(0, newItem.quantity),
-            low_stock_notice_quantity: Math.max(0, newItem.low_stock_notice_quantity),
+            reorder_level: Math.max(0, newItem.reorder_level),
             unit: newItem.unit,
             remark: newItem.remark || '',
             order_date: newItem.order_date || null,

@@ -7,97 +7,40 @@
       </div>
 
       <!-- Mark Ordered Modal -->
-      <div
-        v-if="showOrderModal"
-        class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"
+      <ActionModal
+        :is-open="showOrderModal"
+        :title="`Mark Ordered: ${orderItem?.item_name}`"
+        variant="approve"
+        :loading="inventoryStore.loading"
+        confirm-text="Mark Ordered"
+        @close="closeOrderModal"
+        @cancel="closeOrderModal"
+        @confirm="confirmMarkAsOrdered"
       >
-        <div class="p-5 border w-96 shadow-lg rounded-md bg-white" @click.stop>
-          <div class="mt-3">
-            <h3 class="text-lg font-medium text-gray-900 mb-4">
-              Mark Ordered: {{ orderItem?.item_name }}
-            </h3>
-            <form @submit.prevent="confirmMarkAsOrdered">
-              <div class="space-y-4">
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1"> Order Date </label>
-                  <input
-                    v-model="orderDate"
-                    type="date"
-                    required
-                    class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-              </div>
-
-              <div class="flex justify-end gap-3 mt-6">
-                <button
-                  type="button"
-                  @click="closeOrderModal"
-                  class="px-4 py-2 bg-gray-600 rounded-md text-sm font-medium text-white hover:bg-gray-700 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  :disabled="inventoryStore.loading"
-                  class="px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
-                >
-                  {{ inventoryStore.loading ? 'Marking as Ordered...' : 'Mark Ordered' }}
-                </button>
-              </div>
-            </form>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Order Date</label>
+            <input
+              v-model="orderDate"
+              type="date"
+              required
+              class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
           </div>
         </div>
-      </div>
+      </ActionModal>
 
       <!-- Search Bar -->
       <div class="mb-4 sm:mb-6">
-        <div class="w-full sm:max-w-md">
-          <label for="search" class="sr-only">Search items</label>
-          <div class="relative">
-            <input
-              id="search"
-              v-model="searchQuery"
-              type="text"
-              class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm"
-              placeholder="Search items..."
-            />
-            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <svg
-                class="h-5 w-5 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                ></path>
-              </svg>
-            </div>
-          </div>
-        </div>
+        <SearchInput
+          v-model="searchQuery"
+          placeholder="Search items..."
+        />
       </div>
 
       <!-- Error Display -->
-      <div v-if="inventoryStore.error" class="mb-4 bg-red-50 border border-red-200 rounded-md p-4">
-        <div class="flex">
-          <div class="flex-shrink-0">
-            <svg class="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
-              <path
-                fill-rule="evenodd"
-                d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                clip-rule="evenodd"
-              ></path>
-            </svg>
-          </div>
-          <div class="ml-3">
-            <h3 class="text-sm font-medium text-red-800">Error</h3>
-            <p class="mt-1 text-sm text-red-700">{{ inventoryStore.error }}</p>
-          </div>
-        </div>
+      <div v-if="inventoryStore.error" class="mb-4">
+        <ErrorAlert :message="inventoryStore.error" />
       </div>
 
       <!-- Mobile Card View -->
@@ -109,35 +52,17 @@
             </h3>
           </div>
 
-          <div
+          <LoadingSpinner
             v-if="inventoryStore.loading && sortedAndFilteredItems.length === 0"
-            class="text-center py-8"
-          >
-            <div
-              class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"
-            ></div>
-            <p class="mt-2 text-gray-600 text-sm">Loading items...</p>
-          </div>
+            message="Loading items..."
+          />
 
-          <div v-else-if="sortedAndFilteredItems.length === 0" class="text-center py-12">
-            <svg
-              class="mx-auto h-12 w-12 text-gray-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
-              ></path>
-            </svg>
-            <h3 class="mt-2 text-sm font-medium text-gray-900">No items found</h3>
-            <p class="mt-1 text-sm text-gray-500">
-              {{ searchQuery ? 'Try adjusting your search terms.' : 'No items available.' }}
-            </p>
-          </div>
+          <EmptyState
+            v-else-if="sortedAndFilteredItems.length === 0"
+            icon="box"
+            title="No items found"
+            :description="searchQuery ? 'Try adjusting your search terms.' : 'No items available.'"
+          />
 
           <div v-else class="divide-y divide-gray-200">
             <div v-for="item in pagination.paginatedItems.value" :key="item.id" class="px-4 py-4">
@@ -209,28 +134,12 @@
                   </div>
 
                   <!-- Actions -->
-                  <div class="flex flex-row gap-2 mt-3 flex-wrap">
-                    <button
-                      @click="startEditRemark(item)"
-                      class="flex-1 text-blue-600 hover:text-blue-900 text-sm font-medium bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded"
-                    >
-                      Edit Remark
-                    </button>
-                    <button
-                      v-if="!item.order_date"
-                      @click="openOrderModal(item)"
-                      class="flex-1 text-orange-600 hover:text-orange-900 text-sm font-medium bg-orange-50 hover:bg-orange-100 px-3 py-1 rounded"
-                    >
-                      Mark Ordered
-                    </button>
-                    <button
-                      v-else
-                      @click="clearOrderDate(item.id)"
-                      class="flex-1 text-green-600 hover:text-green-900 text-sm font-medium bg-green-50 hover:bg-green-100 px-3 py-1 rounded"
-                    >
-                      Clear Date
-                    </button>
-                  </div>
+                  <ActionButtonGroup
+                    :actions="getItemActions(item)"
+                    size="sm"
+                    :loading="inventoryStore.loading"
+                    @action-click="(actionKey) => handleActionClick(actionKey, item)"
+                  />
                 </div>
               </div>
             </div>
@@ -261,173 +170,25 @@
             </h3>
           </div>
 
-          <div
+          <LoadingSpinner
             v-if="inventoryStore.loading && sortedAndFilteredItems.length === 0"
-            class="text-center py-8"
-          >
-            <div
-              class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"
-            ></div>
-            <p class="mt-2 text-gray-600 text-sm">Loading items...</p>
-          </div>
+            message="Loading items..."
+          />
 
-          <div v-else-if="sortedAndFilteredItems.length === 0" class="text-center py-12">
-            <svg
-              class="mx-auto h-12 w-12 text-gray-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
-              ></path>
-            </svg>
-            <h3 class="mt-2 text-sm font-medium text-gray-900">No items found</h3>
-            <p class="mt-1 text-sm text-gray-500">
-              {{ searchQuery ? 'Try adjusting your search terms.' : 'No items available.' }}
-            </p>
-          </div>
+          <EmptyState
+            v-else-if="sortedAndFilteredItems.length === 0"
+            icon="box"
+            title="No items found"
+            :description="searchQuery ? 'Try adjusting your search terms.' : 'No items available.'"
+          />
 
           <div v-else class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
-              <thead class="bg-gray-50">
-                <tr>
-                  <th
-                    @click="toggleSort('item_name')"
-                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
-                  >
-                    <div class="flex items-center justify-between">
-                      <span>Item Name</span>
-                      <div class="flex flex-col ml-2">
-                        <svg
-                          :class="[
-                            'w-3 h-3 transition-colors',
-                            sortConfig.key === 'item_name' && sortConfig.direction === 'asc'
-                              ? 'text-blue-600'
-                              : 'text-gray-400',
-                          ]"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fill-rule="evenodd"
-                            d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z"
-                            clip-rule="evenodd"
-                          />
-                        </svg>
-                        <svg
-                          :class="[
-                            'w-3 h-3 transition-colors -mt-1',
-                            sortConfig.key === 'item_name' && sortConfig.direction === 'desc'
-                              ? 'text-blue-600'
-                              : 'text-gray-400',
-                          ]"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fill-rule="evenodd"
-                            d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                            clip-rule="evenodd"
-                          />
-                        </svg>
-                      </div>
-                    </div>
-                  </th>
-                  <th
-                    @click="toggleSort('quantity')"
-                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
-                  >
-                    <div class="flex items-center justify-between">
-                      <span>Current Stock</span>
-                      <div class="flex flex-col ml-2">
-                        <svg
-                          :class="[
-                            'w-3 h-3 transition-colors',
-                            sortConfig.key === 'quantity' && sortConfig.direction === 'asc'
-                              ? 'text-blue-600'
-                              : 'text-gray-400',
-                          ]"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fill-rule="evenodd"
-                            d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z"
-                            clip-rule="evenodd"
-                          />
-                        </svg>
-                        <svg
-                          :class="[
-                            'w-3 h-3 transition-colors -mt-1',
-                            sortConfig.key === 'quantity' && sortConfig.direction === 'desc'
-                              ? 'text-blue-600'
-                              : 'text-gray-400',
-                          ]"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fill-rule="evenodd"
-                            d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                            clip-rule="evenodd"
-                          />
-                        </svg>
-                      </div>
-                    </div>
-                  </th>
-                  <th
-                    @click="toggleSort('remark')"
-                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
-                  >
-                    <div class="flex items-center justify-between">
-                      <span>Remark</span>
-                      <div class="flex flex-col ml-2">
-                        <svg
-                          :class="[
-                            'w-3 h-3 transition-colors',
-                            sortConfig.key === 'remark' && sortConfig.direction === 'asc'
-                              ? 'text-blue-600'
-                              : 'text-gray-400',
-                          ]"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fill-rule="evenodd"
-                            d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z"
-                            clip-rule="evenodd"
-                          />
-                        </svg>
-                        <svg
-                          :class="[
-                            'w-3 h-3 transition-colors -mt-1',
-                            sortConfig.key === 'remark' && sortConfig.direction === 'desc'
-                              ? 'text-blue-600'
-                              : 'text-gray-400',
-                          ]"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fill-rule="evenodd"
-                            d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                            clip-rule="evenodd"
-                          />
-                        </svg>
-                      </div>
-                    </div>
-                  </th>
-                  <th
-                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                  >
-                    Actions
-                  </th>
-                </tr>
-              </thead>
+              <SortableTableHeader
+                :columns="tableColumns"
+                :sort-config="sortConfig"
+                @sort-change="toggleSort"
+              />
               <tbody class="bg-white divide-y divide-gray-200">
                 <tr
                   v-for="item in pagination.paginatedItems.value"
@@ -487,28 +248,13 @@
                         Cancel
                       </button>
                     </div>
-                    <div v-else class="flex flex-row gap-x-2">
-                      <button
-                        @click="startEditRemark(item)"
-                        class="text-blue-600 hover:text-blue-900"
-                      >
-                        Edit Remark
-                      </button>
-                      <button
-                        v-if="!item.order_date"
-                        @click="openOrderModal(item)"
-                        class="text-orange-600 hover:text-orange-900"
-                      >
-                        Mark Ordered
-                      </button>
-                      <button
-                        v-else
-                        @click="clearOrderDate(item.id)"
-                        class="text-green-600 hover:text-green-900"
-                      >
-                        Clear Date
-                      </button>
-                    </div>
+                    <ActionButtonGroup
+                      v-else
+                      :actions="getItemActions(item)"
+                      size="sm"
+                      :loading="inventoryStore.loading"
+                      @action-click="(actionKey) => handleActionClick(actionKey, item)"
+                    />
                   </td>
                 </tr>
               </tbody>
@@ -540,6 +286,13 @@ import { usePagination } from '@/composables/usePagination'
 import { useInventoryStore } from '@/stores/inventory'
 import type { InventoryItem } from '@/types/inventory'
 import { computed, onMounted, ref, watch } from 'vue'
+import ErrorAlert from '@/components/ui/ErrorAlert.vue'
+import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
+import SearchInput from '@/components/ui/SearchInput.vue'
+import ActionModal from '@/components/ui/ActionModal.vue'
+import SortableTableHeader from '@/components/ui/SortableTableHeader.vue'
+import ActionButtonGroup from '@/components/ui/ActionButtonGroup.vue'
 
 const inventoryStore = useInventoryStore()
 
@@ -645,17 +398,67 @@ watch([searchQuery], () => {
   pagination.resetToFirstPage()
 })
 
+// Table column configuration
+const tableColumns = [
+  { key: 'item_name', label: 'Item Name', sortable: true },
+  { key: 'quantity', label: 'Current Stock', sortable: true },
+  { key: 'remark', label: 'Remark', sortable: true },
+  { key: 'actions', label: 'Actions', sortable: false },
+]
+
 // Sorting functions
-const toggleSort = (key: keyof InventoryItem): void => {
+const toggleSort = (key: string): void => {
   if (sortConfig.value.key === key) {
     // Same column clicked - toggle direction
     sortConfig.value.direction = sortConfig.value.direction === 'asc' ? 'desc' : 'asc'
   } else {
     // New column clicked - set ascending
-    sortConfig.value.key = key
+    sortConfig.value.key = key as keyof InventoryItem
     sortConfig.value.direction = 'asc'
   }
   pagination.resetToFirstPage()
+}
+
+// Action button configurations
+const getItemActions = (item: InventoryItem): Array<{key: string, label: string, variant: 'primary' | 'secondary' | 'danger' | 'success' | 'warning' | 'info'}> => {
+  const actions: Array<{key: string, label: string, variant: 'primary' | 'secondary' | 'danger' | 'success' | 'warning' | 'info'}> = [
+    {
+      key: 'edit-remark',
+      label: 'Edit Remark',
+      variant: 'primary'
+    }
+  ]
+
+  if (!item.order_date) {
+    actions.push({
+      key: 'mark-ordered',
+      label: 'Mark Ordered',
+      variant: 'success'
+    })
+  } else {
+    actions.push({
+      key: 'clear-date',
+      label: 'Clear Date',
+      variant: 'warning'
+    })
+  }
+
+  return actions
+}
+
+// Handle action button clicks
+const handleActionClick = (actionKey: string, item: InventoryItem) => {
+  switch (actionKey) {
+    case 'edit-remark':
+      startEditRemark(item)
+      break
+    case 'mark-ordered':
+      openOrderModal(item)
+      break
+    case 'clear-date':
+      clearOrderDate(item.id)
+      break
+  }
 }
 
 // Remark editing functions

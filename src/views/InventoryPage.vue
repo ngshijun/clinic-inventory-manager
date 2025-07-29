@@ -46,22 +46,8 @@
           </div>
         </div>
 
-        <div v-else-if="importStatus.error" class="bg-red-50 border border-red-200 rounded-md p-4">
-          <div class="flex">
-            <div class="flex-shrink-0">
-              <svg class="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
-                <path
-                  fill-rule="evenodd"
-                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                  clip-rule="evenodd"
-                ></path>
-              </svg>
-            </div>
-            <div class="ml-3">
-              <h3 class="text-sm font-medium text-red-800">Import failed</h3>
-              <p class="mt-1 text-sm text-red-700">{{ importStatus.error }}</p>
-            </div>
-          </div>
+        <div v-else-if="importStatus.error">
+          <ErrorAlert title="Import failed" :message="importStatus.error" />
         </div>
 
         <div
@@ -103,82 +89,62 @@
       </div>
 
       <!-- Stock In Modal -->
-      <div
-        v-if="showStockInModal"
-        class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"
+      <ActionModal
+        :is-open="showStockInModal"
+        :title="`Stock In: ${stockInItem?.item_name}`"
+        variant="create"
+        :loading="inventoryStore.loading"
+        confirm-text="Add Stock"
+        @close="closeStockInModal"
+        @cancel="closeStockInModal"
+        @confirm="confirmStockIn"
       >
-        <div class="p-5 border w-96 shadow-lg rounded-md bg-white" @click.stop>
-          <div class="mt-3">
-            <h3 class="text-lg font-medium text-gray-900 mb-4">
-              Stock In: {{ stockInItem?.item_name }}
-            </h3>
-            <form @submit.prevent="confirmStockIn">
-              <div class="space-y-4">
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">
-                    Quantity to Add
-                  </label>
-                  <div
-                    class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-50 text-gray-900 font-medium"
-                  >
-                    {{ stockQuantity }}
-                  </div>
-                  <p class="mt-1 text-xs text-gray-500">Unit: {{ stockInItem?.unit }}</p>
-                </div>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              Quantity to Add
+            </label>
+            <div
+              class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-50 text-gray-900 font-medium"
+            >
+              {{ stockQuantity }}
+            </div>
+            <p class="mt-1 text-xs text-gray-500">Unit: {{ stockInItem?.unit }}</p>
+          </div>
 
-                <!-- Clear Order Date Option -->
-                <div v-if="stockInItem?.order_date" class="space-y-2">
-                  <div class="bg-blue-50 border border-blue-200 rounded-md p-3">
-                    <div class="flex items-center gap-2 mb-2">
-                      <svg class="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
-                        <path
-                          fill-rule="evenodd"
-                          d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
-                          clip-rule="evenodd"
-                        />
-                      </svg>
-                      <span class="text-sm font-medium text-blue-800">
-                        This item was ordered on {{ formatDate(stockInItem.order_date) }}
-                      </span>
-                    </div>
-                    <div class="flex items-center">
-                      <input
-                        id="clearOrderDate"
-                        v-model="clearOrderDate"
-                        type="checkbox"
-                        class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                      />
-                      <label for="clearOrderDate" class="ml-2 text-sm text-gray-700">
-                        Clear order date (mark as received)
-                      </label>
-                    </div>
-                    <p class="mt-1 text-xs text-gray-500">
-                      If unchecked, the order date will remain to track pending orders.
-                    </p>
-                  </div>
-                </div>
+          <!-- Clear Order Date Option -->
+          <div v-if="stockInItem?.order_date" class="space-y-2">
+            <div class="bg-blue-50 border border-blue-200 rounded-md p-3">
+              <div class="flex items-center gap-2 mb-2">
+                <svg class="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                  <path
+                    fill-rule="evenodd"
+                    d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
+                    clip-rule="evenodd"
+                  />
+                </svg>
+                <span class="text-sm font-medium text-blue-800">
+                  This item was ordered on {{ formatDate(stockInItem.order_date) }}
+                </span>
               </div>
-
-              <div class="flex justify-end gap-3 mt-6">
-                <button
-                  type="button"
-                  @click="closeStockInModal"
-                  class="px-4 py-2 bg-gray-600 rounded-md text-sm font-medium text-white hover:bg-gray-700 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  :disabled="inventoryStore.loading"
-                  class="px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700 transition-colors disabled:opacity-50"
-                >
-                  {{ inventoryStore.loading ? 'Adding Stock...' : 'Add Stock' }}
-                </button>
+              <div class="flex items-center">
+                <input
+                  id="clearOrderDate"
+                  v-model="clearOrderDate"
+                  type="checkbox"
+                  class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label for="clearOrderDate" class="ml-2 text-sm text-gray-700">
+                  Clear order date (mark as received)
+                </label>
               </div>
-            </form>
+              <p class="mt-1 text-xs text-gray-500">
+                If unchecked, the order date will remain to track pending orders.
+              </p>
+            </div>
           </div>
         </div>
-      </div>
+      </ActionModal>
 
       <!-- Add New Item Form -->
       <div v-if="showAddForm" class="bg-white p-4 sm:p-6 rounded-lg shadow mb-4 sm:mb-6">
@@ -208,10 +174,10 @@
             </div>
             <div class="col-span-1">
               <label class="block text-sm font-medium text-gray-700 mb-1"
-                >Low Stock Threshold</label
+                >Reorder Level</label
               >
               <input
-                v-model.number="newItem.low_stock_notice_quantity"
+                v-model.number="newItem.reorder_level"
                 type="number"
                 min="0"
                 required
@@ -250,33 +216,10 @@
 
       <!-- Search Bar -->
       <div class="mb-4 sm:mb-6">
-        <div class="w-full sm:max-w-md">
-          <label for="search" class="sr-only">Search inventory</label>
-          <div class="relative">
-            <input
-              id="search"
-              v-model="searchQuery"
-              type="text"
-              class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm"
-              placeholder="Search items..."
-            />
-            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <svg
-                class="h-5 w-5 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                ></path>
-              </svg>
-            </div>
-          </div>
-        </div>
+        <SearchInput
+          v-model="searchQuery"
+          placeholder="Search items..."
+        />
       </div>
 
       <!-- Mobile Card View -->
@@ -288,39 +231,21 @@
             </h3>
           </div>
 
-          <div
+          <LoadingSpinner
             v-if="inventoryStore.loading && sortedAndFilteredItems.length === 0"
-            class="text-center py-8"
-          >
-            <div
-              class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"
-            ></div>
-            <p class="mt-2 text-gray-600 text-sm">Loading items...</p>
-          </div>
+            message="Loading items..."
+          />
 
-          <div v-else-if="sortedAndFilteredItems.length === 0" class="text-center py-12">
-            <svg
-              class="mx-auto h-12 w-12 text-gray-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
-              ></path>
-            </svg>
-            <h3 class="mt-2 text-sm font-medium text-gray-900">No items found</h3>
-            <p class="mt-1 text-sm text-gray-500">
-              {{
-                searchQuery
-                  ? 'Try adjusting your search terms.'
-                  : 'Get started by adding your first item.'
-              }}
-            </p>
-          </div>
+          <EmptyState
+            v-else-if="sortedAndFilteredItems.length === 0"
+            icon="box"
+            title="No items found"
+            :description="
+              searchQuery
+                ? 'Try adjusting your search terms.'
+                : 'Get started by adding your first item.'
+            "
+          />
 
           <div v-else class="divide-y divide-gray-200">
             <div v-for="item in pagination.paginatedItems.value" :key="item.id" class="px-4 py-4">
@@ -330,14 +255,10 @@
                   <h4 class="text-sm font-medium text-gray-900 truncate flex-1 mr-2">
                     {{ item.item_name }}
                   </h4>
-                  <span
-                    :class="[
-                      'inline-flex px-2 py-1 text-xs font-semibold rounded-full',
-                      getStockStatus(item).class,
-                    ]"
-                  >
-                    {{ getStockStatus(item).text }}
-                  </span>
+                  <StatusBadge
+                    :variant="getStockStatusVariant(item)"
+                    :text="getStockStatus(item).text"
+                  />
                 </div>
 
                 <!-- Item Details -->
@@ -349,9 +270,9 @@
                     </div>
                   </div>
                   <div>
-                    <span class="text-gray-500">Low Stock Alert:</span>
+                    <span class="text-gray-500">Reorder Level:</span>
                     <div class="font-medium text-gray-900 mt-1">
-                      {{ item.low_stock_notice_quantity }} {{ item.unit }}
+                      {{ item.reorder_level }} {{ item.unit }}
                     </div>
                   </div>
                 </div>
@@ -410,20 +331,13 @@
                 </div>
 
                 <!-- Actions -->
-                <div v-else class="flex gap-2">
-                  <button
-                    @click="startEdit(item)"
-                    class="flex-1 text-blue-600 hover:text-blue-900 text-sm font-medium bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded"
-                  >
-                    Manage Stock
-                  </button>
-                  <button
-                    @click="deleteItem(item.id)"
-                    class="flex-1 text-red-600 hover:text-red-900 text-sm font-medium bg-red-50 hover:bg-red-100 px-3 py-1 rounded"
-                  >
-                    Delete
-                  </button>
-                </div>
+                <ActionButtonGroup
+                  v-else
+                  :actions="getItemActions()"
+                  size="sm"
+                  :loading="inventoryStore.loading"
+                  @action-click="(actionKey) => handleActionClick(actionKey, item)"
+                />
               </div>
             </div>
           </div>
@@ -453,221 +367,29 @@
             </h3>
           </div>
 
-          <div
+          <LoadingSpinner
             v-if="inventoryStore.loading && sortedAndFilteredItems.length === 0"
-            class="text-center py-8"
-          >
-            <div
-              class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"
-            ></div>
-            <p class="mt-2 text-gray-600 text-sm">Loading items...</p>
-          </div>
+            message="Loading items..."
+          />
 
-          <div v-else-if="sortedAndFilteredItems.length === 0" class="text-center py-12">
-            <svg
-              class="mx-auto h-12 w-12 text-gray-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
-              ></path>
-            </svg>
-            <h3 class="mt-2 text-sm font-medium text-gray-900">No items found</h3>
-            <p class="mt-1 text-sm text-gray-500">
-              {{
-                searchQuery
-                  ? 'Try adjusting your search terms.'
-                  : 'Get started by adding your first item.'
-              }}
-            </p>
-          </div>
+          <EmptyState
+            v-else-if="sortedAndFilteredItems.length === 0"
+            icon="box"
+            title="No items found"
+            :description="
+              searchQuery
+                ? 'Try adjusting your search terms.'
+                : 'Get started by adding your first item.'
+            "
+          />
 
           <div v-else class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
-              <thead class="bg-gray-50">
-                <tr>
-                  <th
-                    @click="toggleSort('item_name')"
-                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
-                  >
-                    <div class="flex items-center justify-between">
-                      <span>Item Name</span>
-                      <div class="flex flex-col ml-2">
-                        <svg
-                          :class="[
-                            'w-3 h-3 transition-colors',
-                            sortConfig.key === 'item_name' && sortConfig.direction === 'asc'
-                              ? 'text-blue-600'
-                              : 'text-gray-400',
-                          ]"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fill-rule="evenodd"
-                            d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z"
-                            clip-rule="evenodd"
-                          />
-                        </svg>
-                        <svg
-                          :class="[
-                            'w-3 h-3 transition-colors -mt-1',
-                            sortConfig.key === 'item_name' && sortConfig.direction === 'desc'
-                              ? 'text-blue-600'
-                              : 'text-gray-400',
-                          ]"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fill-rule="evenodd"
-                            d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                            clip-rule="evenodd"
-                          />
-                        </svg>
-                      </div>
-                    </div>
-                  </th>
-                  <th
-                    @click="toggleSort('quantity')"
-                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
-                  >
-                    <div class="flex items-center justify-between">
-                      <span>Current Stock</span>
-                      <div class="flex flex-col ml-2">
-                        <svg
-                          :class="[
-                            'w-3 h-3 transition-colors',
-                            sortConfig.key === 'quantity' && sortConfig.direction === 'asc'
-                              ? 'text-blue-600'
-                              : 'text-gray-400',
-                          ]"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fill-rule="evenodd"
-                            d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z"
-                            clip-rule="evenodd"
-                          />
-                        </svg>
-                        <svg
-                          :class="[
-                            'w-3 h-3 transition-colors -mt-1',
-                            sortConfig.key === 'quantity' && sortConfig.direction === 'desc'
-                              ? 'text-blue-600'
-                              : 'text-gray-400',
-                          ]"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fill-rule="evenodd"
-                            d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                            clip-rule="evenodd"
-                          />
-                        </svg>
-                      </div>
-                    </div>
-                  </th>
-                  <th
-                    @click="toggleSort('low_stock_notice_quantity')"
-                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
-                  >
-                    <div class="flex items-center justify-between">
-                      <span>Low Stock Threshold</span>
-                      <div class="flex flex-col ml-2">
-                        <svg
-                          :class="[
-                            'w-3 h-3 transition-colors',
-                            sortConfig.key === 'low_stock_notice_quantity' &&
-                            sortConfig.direction === 'asc'
-                              ? 'text-blue-600'
-                              : 'text-gray-400',
-                          ]"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fill-rule="evenodd"
-                            d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z"
-                            clip-rule="evenodd"
-                          />
-                        </svg>
-                        <svg
-                          :class="[
-                            'w-3 h-3 transition-colors -mt-1',
-                            sortConfig.key === 'low_stock_notice_quantity' &&
-                            sortConfig.direction === 'desc'
-                              ? 'text-blue-600'
-                              : 'text-gray-400',
-                          ]"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fill-rule="evenodd"
-                            d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                            clip-rule="evenodd"
-                          />
-                        </svg>
-                      </div>
-                    </div>
-                  </th>
-                  <th
-                    @click="toggleSort('status')"
-                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
-                  >
-                    <div class="flex items-center justify-between">
-                      <span>Status</span>
-                      <div class="flex flex-col ml-2">
-                        <svg
-                          :class="[
-                            'w-3 h-3 transition-colors',
-                            sortConfig.key === 'status' && sortConfig.direction === 'asc'
-                              ? 'text-blue-600'
-                              : 'text-gray-400',
-                          ]"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fill-rule="evenodd"
-                            d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z"
-                            clip-rule="evenodd"
-                          />
-                        </svg>
-                        <svg
-                          :class="[
-                            'w-3 h-3 transition-colors -mt-1',
-                            sortConfig.key === 'status' && sortConfig.direction === 'desc'
-                              ? 'text-blue-600'
-                              : 'text-gray-400',
-                          ]"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fill-rule="evenodd"
-                            d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                            clip-rule="evenodd"
-                          />
-                        </svg>
-                      </div>
-                    </div>
-                  </th>
-                  <th
-                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                  >
-                    Actions
-                  </th>
-                </tr>
-              </thead>
+              <SortableTableHeader
+                :columns="tableColumns"
+                :sort-config="sortConfig"
+                @sort-change="toggleSort"
+              />
               <tbody class="bg-white divide-y divide-gray-200">
                 <tr
                   v-for="item in pagination.paginatedItems.value"
@@ -708,20 +430,16 @@
                     <div v-else>{{ item.quantity }} {{ item.unit }}</div>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {{ item.low_stock_notice_quantity }} {{ item.unit }}
+                    {{ item.reorder_level }} {{ item.unit }}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap">
-                    <span
-                      :class="[
-                        'inline-flex px-2 py-1 text-xs font-semibold rounded-full',
-                        getStockStatus(item).class,
-                      ]"
-                    >
-                      {{ getStockStatus(item).text }}
-                    </span>
+                    <StatusBadge
+                      :variant="getStockStatusVariant(item)"
+                      :text="getStockStatus(item).text"
+                    />
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div v-if="editingItem === item.id" class="flex flex-col gap-2">
+                    <div v-if="editingItem === item.id" class="flex gap-2">
                       <button
                         @click="handleStockIn(item.id)"
                         :disabled="inventoryStore.loading || !stockQuantity || stockQuantity <= 0"
@@ -743,14 +461,13 @@
                         Cancel
                       </button>
                     </div>
-                    <div v-else class="flex gap-2">
-                      <button @click="startEdit(item)" class="text-blue-600 hover:text-blue-900">
-                        Manage Stock
-                      </button>
-                      <button @click="deleteItem(item.id)" class="text-red-600 hover:text-red-900">
-                        Delete
-                      </button>
-                    </div>
+                    <ActionButtonGroup
+                      v-else
+                      :actions="getItemActions()"
+                      size="sm"
+                      :loading="inventoryStore.loading"
+                      @action-click="(actionKey) => handleActionClick(actionKey, item)"
+                    />
                   </td>
                 </tr>
               </tbody>
@@ -782,6 +499,14 @@ import { usePagination } from '@/composables/usePagination'
 import { useInventoryStore } from '@/stores/inventory'
 import type { InventoryItem, NewInventoryItem, StockStatus } from '@/types/inventory'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import ErrorAlert from '@/components/ui/ErrorAlert.vue'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
+import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
+import SearchInput from '@/components/ui/SearchInput.vue'
+import ActionModal from '@/components/ui/ActionModal.vue'
+import SortableTableHeader from '@/components/ui/SortableTableHeader.vue'
+import ActionButtonGroup from '@/components/ui/ActionButtonGroup.vue'
 import * as XLSX from 'xlsx'
 
 const inventoryStore = useInventoryStore()
@@ -824,14 +549,14 @@ const importStatus = ref({
 const newItem = ref<NewInventoryItem>({
   item_name: '',
   quantity: 0,
-  low_stock_notice_quantity: 0,
+  reorder_level: 0,
   unit: '',
 })
 
 // Helper function to get stock status for sorting
 const getStockStatusValue = (item: InventoryItem): number => {
   if (item.quantity === 0) return 0 // Out of Stock
-  if (item.quantity <= item.low_stock_notice_quantity) return 1 // Low Stock
+  if (item.quantity <= item.reorder_level) return 1 // Reorder Level Reached
   return 2 // In Stock
 }
 
@@ -925,17 +650,54 @@ watch([searchQuery], () => {
   pagination.resetToFirstPage()
 })
 
+// Table column configuration
+const tableColumns = [
+  { key: 'item_name', label: 'Item Name', sortable: true },
+  { key: 'quantity', label: 'Current Stock', sortable: true },
+  { key: 'reorder_level', label: 'Reorder Level', sortable: true },
+  { key: 'status', label: 'Status', sortable: true },
+  { key: 'actions', label: 'Actions', sortable: false },
+]
+
 // Sorting functions
-const toggleSort = (key: keyof InventoryItem | 'status'): void => {
+const toggleSort = (key: string): void => {
   if (sortConfig.value.key === key) {
     // Same column clicked - toggle direction
     sortConfig.value.direction = sortConfig.value.direction === 'asc' ? 'desc' : 'asc'
   } else {
     // New column clicked - set ascending
-    sortConfig.value.key = key
+    sortConfig.value.key = key as keyof InventoryItem | 'status'
     sortConfig.value.direction = 'asc'
   }
   pagination.resetToFirstPage() // Reset to first page when sorting changes
+}
+
+// Action button configurations
+const getItemActions = (): Array<{key: string, label: string, variant: 'primary' | 'secondary' | 'danger' | 'success' | 'warning' | 'info'}> => {
+  return [
+    {
+      key: 'manage-stock',
+      label: 'Manage Stock',
+      variant: 'primary'
+    },
+    {
+      key: 'delete',
+      label: 'Delete',
+      variant: 'danger'
+    }
+  ]
+}
+
+// Handle action button clicks
+const handleActionClick = (actionKey: string, item: InventoryItem) => {
+  switch (actionKey) {
+    case 'manage-stock':
+      startEdit(item)
+      break
+    case 'delete':
+      deleteItem(item.id)
+      break
+  }
 }
 
 const startEdit = (item: InventoryItem): void => {
@@ -991,7 +753,7 @@ const addNewItem = async (): Promise<void> => {
       newItem.value = {
         item_name: '',
         quantity: 0,
-        low_stock_notice_quantity: 0,
+        reorder_level: 0,
         unit: '',
       }
       showAddForm.value = false
@@ -1007,9 +769,15 @@ const deleteItem = async (itemId: string): Promise<void> => {
 
 const getStockStatus = (item: InventoryItem): StockStatus => {
   if (item.quantity === 0) return { text: 'Out of Stock', class: 'bg-red-100 text-red-800' }
-  if (item.quantity <= item.low_stock_notice_quantity)
+  if (item.quantity <= item.reorder_level)
     return { text: 'Low Stock', class: 'bg-yellow-100 text-yellow-800' }
   return { text: 'In Stock', class: 'bg-green-100 text-green-800' }
+}
+
+const getStockStatusVariant = (item: InventoryItem): 'out-of-stock' | 'low-stock' | 'in-stock' => {
+  if (item.quantity === 0) return 'out-of-stock'
+  if (item.quantity <= item.reorder_level) return 'low-stock'
+  return 'in-stock'
 }
 
 // Excel Import Functions
@@ -1064,7 +832,7 @@ const handleFileUpload = async (event: Event): Promise<void> => {
 interface ExcelData {
   item_name: string
   quantity: number
-  low_stock_notice_quantity: number
+  reorder_level: number
   unit: string
   remark: string
   order_date: string
@@ -1108,13 +876,13 @@ const importInventoryData = async (data: ExcelData[]): Promise<void> => {
       if (
         !row.item_name ||
         typeof row.quantity !== 'number' ||
-        typeof row.low_stock_notice_quantity !== 'number' ||
+        typeof row.reorder_level !== 'number' ||
         !row.unit ||
         !row.remark ||
         !row.order_date
       ) {
         throw new Error(
-          'Invalid data format. Please ensure all rows have: item_name, quantity, low_stock_notice_quantity, unit, remark, order_date',
+          'Invalid data format. Please ensure all rows have: item_name, quantity, reorder_level, unit, remark, order_date',
         )
       }
     }
@@ -1142,7 +910,7 @@ const importInventoryData = async (data: ExcelData[]): Promise<void> => {
         if (
           existingItem.item_name !== row.item_name ||
           existingItem.quantity !== row.quantity ||
-          existingItem.low_stock_notice_quantity !== row.low_stock_notice_quantity ||
+          existingItem.reorder_level !== row.reorder_level ||
           existingItem.unit !== row.unit ||
           existingItem.remark !== row.remark ||
           existingItem.order_date !== row.order_date
@@ -1150,7 +918,7 @@ const importInventoryData = async (data: ExcelData[]): Promise<void> => {
           await inventoryStore.updateItem(existingItem.id, {
             ...existingItem,
             quantity: Math.max(0, row.quantity),
-            low_stock_notice_quantity: Math.max(0, row.low_stock_notice_quantity),
+            reorder_level: Math.max(0, row.reorder_level),
             unit: row.unit,
             remark: row.remark,
             order_date: row.order_date,
@@ -1165,7 +933,7 @@ const importInventoryData = async (data: ExcelData[]): Promise<void> => {
         await inventoryStore.addItem({
           item_name: row.item_name,
           quantity: Math.max(0, row.quantity),
-          low_stock_notice_quantity: Math.max(0, row.low_stock_notice_quantity),
+          reorder_level: Math.max(0, row.reorder_level),
           unit: row.unit,
           remark: row.remark,
           order_date: row.order_date,
@@ -1207,7 +975,7 @@ const exportToExcel = (): void => {
     const exportData = sortedAndFilteredItems.value.map((item) => ({
       item_name: item.item_name,
       quantity: item.quantity,
-      low_stock_notice_quantity: item.low_stock_notice_quantity,
+      reorder_level: item.reorder_level,
       unit: item.unit,
       remark: item.remark,
       order_date: item.order_date,
@@ -1221,7 +989,7 @@ const exportToExcel = (): void => {
     const columnWidths = [
       { wch: 50 }, // item_name
       { wch: 12 }, // quantity
-      { wch: 22 }, // low_stock_notice_quantity
+      { wch: 22 }, // reorder_level
       { wch: 25 }, // unit
       { wch: 50 }, // remark
       { wch: 25 }, // order_date

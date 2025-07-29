@@ -28,3 +28,6 @@ coverage
 *.sw?
 
 *.tsbuildinfo
+
+# Project documentation
+COMPONENT_EXTRACTION_PHASES.md

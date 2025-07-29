@@ -11,31 +11,10 @@
         <div class="flex flex-col sm:flex-row gap-3 items-start sm:items-end">
           <!-- Quick Search -->
           <div class="flex-1 w-full sm:max-w-md">
-            <label for="search" class="sr-only">Search by item name</label>
-            <div class="relative">
-              <input
-                id="search"
-                v-model="searchQuery"
-                type="text"
-                class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                placeholder="Search items..."
-              />
-              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <svg
-                  class="h-5 w-5 text-gray-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                  ></path>
-                </svg>
-              </div>
-            </div>
+            <SearchInput
+              v-model="searchQuery"
+              placeholder="Search items..."
+            />
           </div>
 
           <!-- Advanced Search Toggle -->
@@ -180,39 +159,21 @@
             </h3>
           </div>
 
-          <div
+          <LoadingSpinner
             v-if="stockMovementsStore.loading && sortedAndFilteredMovements.length === 0"
-            class="text-center py-8"
-          >
-            <div
-              class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"
-            ></div>
-            <p class="mt-2 text-gray-600 text-sm">Loading movements...</p>
-          </div>
+            message="Loading movements..."
+          />
 
-          <div v-else-if="sortedAndFilteredMovements.length === 0" class="text-center py-12">
-            <svg
-              class="mx-auto h-12 w-12 text-gray-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-              ></path>
-            </svg>
-            <h3 class="mt-2 text-sm font-medium text-gray-900">No movements found</h3>
-            <p class="mt-1 text-sm text-gray-500">
-              {{
-                searchQuery
-                  ? 'Try adjusting your search terms.'
-                  : 'Stock movements will appear here when you manage inventory.'
-              }}
-            </p>
-          </div>
+          <EmptyState
+            v-else-if="sortedAndFilteredMovements.length === 0"
+            icon="chart"
+            title="No movements found"
+            :description="
+              searchQuery
+                ? 'Try adjusting your search terms.'
+                : 'Stock movements will appear here when you manage inventory.'
+            "
+          />
 
           <div v-else class="divide-y divide-gray-200">
             <div
@@ -226,16 +187,10 @@
                   <h4 class="text-sm font-medium text-gray-900 truncate flex-1 mr-2">
                     {{ movement.item_name }}
                   </h4>
-                  <span
-                    :class="[
-                      'inline-flex px-2 py-1 text-xs font-semibold rounded-full',
-                      movement.movement_type === 'stock_in'
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-red-100 text-red-800',
-                    ]"
-                  >
-                    {{ movement.movement_type === 'stock_in' ? 'Stock In (+)' : 'Stock Out (-)' }}
-                  </span>
+                  <StatusBadge
+                    :variant="movement.movement_type === 'stock_in' ? 'stock-in' : 'stock-out'"
+                    :text="movement.movement_type === 'stock_in' ? 'Stock In (+)' : 'Stock Out (-)'"
+                  />
                 </div>
 
                 <!-- Movement Details -->
@@ -284,12 +239,12 @@
                     <span class="text-gray-900 text-sm flex-1 whitespace-pre-wrap">{{
                       movement.remark || 'No remark'
                     }}</span>
-                    <button
-                      @click="startEditRemark(movement)"
-                      class="flex-1 text-blue-600 hover:text-blue-900 text-sm font-medium bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded"
-                    >
-                      Edit
-                    </button>
+                    <ActionButtonGroup
+                      :actions="getMovementActions()"
+                      size="sm"
+                      :loading="stockMovementsStore.loading"
+                      @action-click="(actionKey) => handleActionClick(actionKey, movement)"
+                    />
                   </div>
                 </div>
               </div>
@@ -321,224 +276,29 @@
             </h3>
           </div>
 
-          <div
+          <LoadingSpinner
             v-if="stockMovementsStore.loading && sortedAndFilteredMovements.length === 0"
-            class="text-center py-8"
-          >
-            <div
-              class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"
-            ></div>
-            <p class="mt-2 text-gray-600 text-sm">Loading movements...</p>
-          </div>
+            message="Loading movements..."
+          />
 
-          <div v-else-if="sortedAndFilteredMovements.length === 0" class="text-center py-12">
-            <svg
-              class="mx-auto h-12 w-12 text-gray-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-              ></path>
-            </svg>
-            <h3 class="mt-2 text-sm font-medium text-gray-900">No movements found</h3>
-            <p class="mt-1 text-sm text-gray-500">
-              {{
-                searchQuery
-                  ? 'Try adjusting your search terms.'
-                  : 'Stock movements will appear here when you manage inventory.'
-              }}
-            </p>
-          </div>
+          <EmptyState
+            v-else-if="sortedAndFilteredMovements.length === 0"
+            icon="chart"
+            title="No movements found"
+            :description="
+              searchQuery
+                ? 'Try adjusting your search terms.'
+                : 'Stock movements will appear here when you manage inventory.'
+            "
+          />
 
           <div v-else class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
-              <thead class="bg-gray-50">
-                <tr>
-                  <th
-                    @click="toggleSort('item_name')"
-                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
-                  >
-                    <div class="flex items-center justify-between">
-                      <span>Item Name</span>
-                      <div class="flex flex-col ml-2">
-                        <svg
-                          :class="[
-                            'w-3 h-3 transition-colors',
-                            sortConfig.key === 'item_name' && sortConfig.direction === 'asc'
-                              ? 'text-blue-600'
-                              : 'text-gray-400',
-                          ]"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fill-rule="evenodd"
-                            d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z"
-                            clip-rule="evenodd"
-                          />
-                        </svg>
-                        <svg
-                          :class="[
-                            'w-3 h-3 transition-colors -mt-1',
-                            sortConfig.key === 'item_name' && sortConfig.direction === 'desc'
-                              ? 'text-blue-600'
-                              : 'text-gray-400',
-                          ]"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fill-rule="evenodd"
-                            d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                            clip-rule="evenodd"
-                          />
-                        </svg>
-                      </div>
-                    </div>
-                  </th>
-                  <th
-                    @click="toggleSort('quantity')"
-                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
-                  >
-                    <div class="flex items-center justify-between">
-                      <span>Quantity</span>
-                      <div class="flex flex-col ml-2">
-                        <svg
-                          :class="[
-                            'w-3 h-3 transition-colors',
-                            sortConfig.key === 'quantity' && sortConfig.direction === 'asc'
-                              ? 'text-blue-600'
-                              : 'text-gray-400',
-                          ]"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fill-rule="evenodd"
-                            d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z"
-                            clip-rule="evenodd"
-                          />
-                        </svg>
-                        <svg
-                          :class="[
-                            'w-3 h-3 transition-colors -mt-1',
-                            sortConfig.key === 'quantity' && sortConfig.direction === 'desc'
-                              ? 'text-blue-600'
-                              : 'text-gray-400',
-                          ]"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fill-rule="evenodd"
-                            d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                            clip-rule="evenodd"
-                          />
-                        </svg>
-                      </div>
-                    </div>
-                  </th>
-                  <th
-                    @click="toggleSort('movement_type')"
-                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
-                  >
-                    <div class="flex items-center justify-between">
-                      <span>Movement</span>
-                      <div class="flex flex-col ml-2">
-                        <svg
-                          :class="[
-                            'w-3 h-3 transition-colors',
-                            sortConfig.key === 'movement_type' && sortConfig.direction === 'asc'
-                              ? 'text-blue-600'
-                              : 'text-gray-400',
-                          ]"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fill-rule="evenodd"
-                            d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z"
-                            clip-rule="evenodd"
-                          />
-                        </svg>
-                        <svg
-                          :class="[
-                            'w-3 h-3 transition-colors -mt-1',
-                            sortConfig.key === 'movement_type' && sortConfig.direction === 'desc'
-                              ? 'text-blue-600'
-                              : 'text-gray-400',
-                          ]"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fill-rule="evenodd"
-                            d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                            clip-rule="evenodd"
-                          />
-                        </svg>
-                      </div>
-                    </div>
-                  </th>
-                  <th
-                    @click="toggleSort('created_at')"
-                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
-                  >
-                    <div class="flex items-center justify-between">
-                      <span>Date/Time</span>
-                      <div class="flex flex-col ml-2">
-                        <svg
-                          :class="[
-                            'w-3 h-3 transition-colors',
-                            sortConfig.key === 'created_at' && sortConfig.direction === 'asc'
-                              ? 'text-blue-600'
-                              : 'text-gray-400',
-                          ]"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fill-rule="evenodd"
-                            d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z"
-                            clip-rule="evenodd"
-                          />
-                        </svg>
-                        <svg
-                          :class="[
-                            'w-3 h-3 transition-colors -mt-1',
-                            sortConfig.key === 'created_at' && sortConfig.direction === 'desc'
-                              ? 'text-blue-600'
-                              : 'text-gray-400',
-                          ]"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fill-rule="evenodd"
-                            d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                            clip-rule="evenodd"
-                          />
-                        </svg>
-                      </div>
-                    </div>
-                  </th>
-                  <th
-                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                  >
-                    Remark
-                  </th>
-                  <th
-                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                  >
-                    Actions
-                  </th>
-                </tr>
-              </thead>
+              <SortableTableHeader
+                :columns="tableColumns"
+                :sort-config="sortConfig"
+                @sort-change="toggleSort"
+              />
               <tbody class="bg-white divide-y divide-gray-200">
                 <tr
                   v-for="movement in pagination.paginatedItems.value"
@@ -552,16 +312,12 @@
                     {{ movement.quantity }} {{ movement.unit }}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap">
-                    <span
-                      :class="[
-                        'inline-flex px-2 py-1 text-xs font-semibold rounded-full',
-                        movement.movement_type === 'stock_in'
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-red-100 text-red-800',
-                      ]"
-                    >
-                      {{ movement.movement_type === 'stock_in' ? 'Stock In (+)' : 'Stock Out (-)' }}
-                    </span>
+                    <StatusBadge
+                      :variant="movement.movement_type === 'stock_in' ? 'stock-in' : 'stock-out'"
+                      :text="
+                        movement.movement_type === 'stock_in' ? 'Stock In (+)' : 'Stock Out (-)'
+                      "
+                    />
                   </td>
                   <td class="px-6 py-4 text-sm text-gray-900" style="white-space: pre-line">
                     {{ formatDateTime(movement.created_at) }}
@@ -580,7 +336,7 @@
                     </div>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div v-if="editingRemark === movement.id" class="flex flex-col gap-2">
+                    <div v-if="editingRemark === movement.id" class="flex gap-2">
                       <button
                         @click="saveRemark(movement.id)"
                         :disabled="stockMovementsStore.loading"
@@ -596,13 +352,13 @@
                         Cancel
                       </button>
                     </div>
-                    <button
+                    <ActionButtonGroup
                       v-else
-                      @click="startEditRemark(movement)"
-                      class="text-blue-600 hover:text-blue-900"
-                    >
-                      Edit Remark
-                    </button>
+                      :actions="getMovementActions()"
+                      size="sm"
+                      :loading="stockMovementsStore.loading"
+                      @action-click="(actionKey) => handleActionClick(actionKey, movement)"
+                    />
                   </td>
                 </tr>
               </tbody>
@@ -634,6 +390,12 @@ import { usePagination } from '@/composables/usePagination'
 import { useStockMovementsStore } from '@/stores/stockMovements'
 import type { StockMovement } from '@/types/stockMovements'
 import { computed, onMounted, ref, watch } from 'vue'
+import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
+import SearchInput from '@/components/ui/SearchInput.vue'
+import SortableTableHeader from '@/components/ui/SortableTableHeader.vue'
+import ActionButtonGroup from '@/components/ui/ActionButtonGroup.vue'
 
 const stockMovementsStore = useStockMovementsStore()
 
@@ -825,17 +587,47 @@ const clearAllFilters = (): void => {
   pagination.resetToFirstPage()
 }
 
+// Table column configuration
+const tableColumns = [
+  { key: 'item_name', label: 'Item Name', sortable: true },
+  { key: 'quantity', label: 'Quantity', sortable: true },
+  { key: 'movement_type', label: 'Movement', sortable: true },
+  { key: 'created_at', label: 'Date/Time', sortable: true },
+  { key: 'remark', label: 'Remark', sortable: false },
+  { key: 'actions', label: 'Actions', sortable: false },
+]
+
 // Sorting function
-const toggleSort = (key: keyof StockMovement): void => {
+const toggleSort = (key: string): void => {
   if (sortConfig.value.key === key) {
     // Same column clicked - toggle direction
     sortConfig.value.direction = sortConfig.value.direction === 'asc' ? 'desc' : 'asc'
   } else {
     // New column clicked - set ascending
-    sortConfig.value.key = key
+    sortConfig.value.key = key as keyof StockMovement
     sortConfig.value.direction = 'asc'
   }
   pagination.resetToFirstPage()
+}
+
+// Action button configurations
+const getMovementActions = (): Array<{key: string, label: string, variant: 'primary' | 'secondary' | 'danger' | 'success' | 'warning' | 'info'}> => {
+  return [
+    {
+      key: 'edit-remark',
+      label: 'Edit Remark',
+      variant: 'primary'
+    }
+  ]
+}
+
+// Handle action button clicks
+const handleActionClick = (actionKey: string, movement: StockMovement) => {
+  switch (actionKey) {
+    case 'edit-remark':
+      startEditRemark(movement)
+      break
+  }
 }
 
 const startEditRemark = (movement: StockMovement): void => {

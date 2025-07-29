@@ -135,7 +135,7 @@ export const useStockRequestsStore = defineStore('stockRequests', () => {
     }
   }
 
-  const cancelRequest = async (requestId: string, remark?: string): Promise<void> => {
+  const rejectRequest = async (requestId: string, remark?: string): Promise<void> => {
     loading.value = true
     error.value = null
 
@@ -143,7 +143,7 @@ export const useStockRequestsStore = defineStore('stockRequests', () => {
       const { error: supabaseError } = await supabase
         .from('stock_requests')
         .update({
-          status: 'Cancelled',
+          status: 'Rejected',
           updated_at: new Date().toISOString(),
           remark: remark || '',
         })
@@ -152,8 +152,8 @@ export const useStockRequestsStore = defineStore('stockRequests', () => {
       if (supabaseError) throw supabaseError
     } catch (err) {
       error.value =
-        err instanceof Error ? err.message : 'An error occurred while cancelling request'
-      console.error('Error cancelling request', err)
+        err instanceof Error ? err.message : 'An error occurred while rejecting request'
+      console.error('Error rejecting request', err)
     } finally {
       loading.value = false
     }
@@ -278,7 +278,7 @@ export const useStockRequestsStore = defineStore('stockRequests', () => {
     addRequest,
     removeRequest,
     approveRequest,
-    cancelRequest,
+    rejectRequest,
     updateRequest,
     searchRequests,
     filterRequestsByStatus,

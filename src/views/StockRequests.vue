@@ -117,31 +117,10 @@
       <div class="mb-4 sm:mb-6 flex flex-col sm:flex-row gap-4">
         <!-- Search -->
         <div class="flex-1 sm:max-w-md">
-          <label for="search" class="sr-only">Search requests</label>
-          <div class="relative">
-            <input
-              id="search"
-              v-model="searchQuery"
-              type="text"
-              class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm"
-              placeholder="Search requests..."
-            />
-            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <svg
-                class="h-5 w-5 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                ></path>
-              </svg>
-            </div>
-          </div>
+          <SearchInput
+            v-model="searchQuery"
+            placeholder="Search requests..."
+          />
         </div>
         <!-- Date Filter -->
         <div class="w-full sm:w-40">
@@ -163,25 +142,8 @@
       </div>
 
       <!-- Error Display -->
-      <div
-        v-if="stockRequestsStore.error"
-        class="mb-4 bg-red-50 border border-red-200 rounded-md p-4"
-      >
-        <div class="flex">
-          <div class="flex-shrink-0">
-            <svg class="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
-              <path
-                fill-rule="evenodd"
-                d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                clip-rule="evenodd"
-              ></path>
-            </svg>
-          </div>
-          <div class="ml-3">
-            <h3 class="text-sm font-medium text-red-800">Error</h3>
-            <p class="mt-1 text-sm text-red-700">{{ stockRequestsStore.error }}</p>
-          </div>
-        </div>
+      <div v-if="stockRequestsStore.error" class="mb-4">
+        <ErrorAlert :message="stockRequestsStore.error" />
       </div>
 
       <!-- Mobile Card View -->
@@ -192,38 +154,20 @@
               Requests ({{ sortedAndFilteredRequests.length }})
             </h3>
           </div>
-          <div
+          <LoadingSpinner
             v-if="stockRequestsStore.loading && sortedAndFilteredRequests.length === 0"
-            class="text-center py-8"
-          >
-            <div
-              class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"
-            ></div>
-            <p class="mt-2 text-gray-600 text-sm">Loading requests...</p>
-          </div>
-          <div v-else-if="sortedAndFilteredRequests.length === 0" class="text-center py-12">
-            <svg
-              class="mx-auto h-12 w-12 text-gray-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-              ></path>
-            </svg>
-            <h3 class="mt-2 text-sm font-medium text-gray-900">No requests found</h3>
-            <p class="mt-1 text-sm text-gray-500">
-              {{
-                hasActiveFilters
-                  ? 'Try adjusting your search terms or filters.'
-                  : 'No requests have been submitted yet.'
-              }}
-            </p>
-          </div>
+            message="Loading requests..."
+          />
+          <EmptyState
+            v-else-if="sortedAndFilteredRequests.length === 0"
+            icon="document"
+            title="No requests found"
+            :description="
+              hasActiveFilters
+                ? 'Try adjusting your search terms or filters.'
+                : 'No requests have been submitted yet.'
+            "
+          />
           <div v-else class="divide-y divide-gray-200">
             <div
               v-for="request in pagination.paginatedItems.value"
@@ -236,11 +180,7 @@
                   <h4 class="text-sm font-medium text-gray-900">
                     {{ request.item_name }}
                   </h4>
-                  <span
-                    class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800"
-                  >
-                    {{ request.status }}
-                  </span>
+                  <StatusBadge :variant="getStatusVariant(request.status)" :text="request.status" />
                 </div>
                 <div class="space-y-3">
                   <div>
@@ -292,18 +232,7 @@
                   <h4 class="text-sm font-medium text-gray-900 truncate flex-1 mr-2">
                     {{ request.item_name }}
                   </h4>
-                  <span
-                    :class="[
-                      'inline-flex px-2 py-1 text-xs font-semibold rounded-full',
-                      request.status === 'Pending'
-                        ? 'bg-yellow-100 text-yellow-800'
-                        : request.status === 'Approved'
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-red-100 text-red-800',
-                    ]"
-                  >
-                    {{ request.status }}
-                  </span>
+                  <StatusBadge :variant="getStatusVariant(request.status)" :text="request.status" />
                 </div>
                 <!-- Request Details -->
                 <div class="grid grid-cols-2 gap-4 text-sm">
@@ -321,22 +250,13 @@
                   </div>
                 </div>
                 <!-- Actions -->
-                <div v-if="request.status === 'Pending'" class="flex gap-2">
-                  <button
-                    @click="startEdit(request)"
-                    :disabled="stockRequestsStore.loading"
-                    class="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-3 py-2 rounded text-sm font-medium transition-colors"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    @click="removeRequest(request.id)"
-                    :disabled="stockRequestsStore.loading"
-                    class="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-3 py-2 rounded text-sm font-medium transition-colors"
-                  >
-                    Remove
-                  </button>
-                </div>
+                <ActionButtonGroup
+                  v-if="request.status === 'Pending'"
+                  :actions="getRequestActions(request)"
+                  size="sm"
+                  :loading="stockRequestsStore.loading"
+                  @action-click="(actionKey) => handleActionClick(actionKey, request)"
+                />
               </div>
             </div>
           </div>
@@ -364,180 +284,27 @@
               Requests ({{ sortedAndFilteredRequests.length }})
             </h3>
           </div>
-          <div
+          <LoadingSpinner
             v-if="stockRequestsStore.loading && sortedAndFilteredRequests.length === 0"
-            class="text-center py-8"
-          >
-            <div
-              class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"
-            ></div>
-            <p class="mt-2 text-gray-600 text-sm">Loading requests...</p>
-          </div>
-          <div v-else-if="sortedAndFilteredRequests.length === 0" class="text-center py-12">
-            <svg
-              class="mx-auto h-12 w-12 text-gray-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-              ></path>
-            </svg>
-            <h3 class="mt-2 text-sm font-medium text-gray-900">No requests found</h3>
-            <p class="mt-1 text-sm text-gray-500">
-              {{
-                hasActiveFilters
-                  ? 'Try adjusting your search terms or filters.'
-                  : 'No requests have been submitted yet.'
-              }}
-            </p>
-          </div>
+            message="Loading requests..."
+          />
+          <EmptyState
+            v-else-if="sortedAndFilteredRequests.length === 0"
+            icon="document"
+            title="No requests found"
+            :description="
+              hasActiveFilters
+                ? 'Try adjusting your search terms or filters.'
+                : 'No requests have been submitted yet.'
+            "
+          />
           <div v-else class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
-              <thead class="bg-gray-50">
-                <tr>
-                  <th
-                    @click="toggleSort('item_name')"
-                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
-                  >
-                    <div class="flex items-center justify-between">
-                      <span>Item Name</span>
-                      <div class="flex flex-col ml-2">
-                        <svg
-                          :class="[
-                            'w-3 h-3 transition-colors',
-                            sortConfig.key === 'item_name' && sortConfig.direction === 'asc'
-                              ? 'text-blue-600'
-                              : 'text-gray-400',
-                          ]"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fill-rule="evenodd"
-                            d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z"
-                            clip-rule="evenodd"
-                          />
-                        </svg>
-                        <svg
-                          :class="[
-                            'w-3 h-3 transition-colors -mt-1',
-                            sortConfig.key === 'item_name' && sortConfig.direction === 'desc'
-                              ? 'text-blue-600'
-                              : 'text-gray-400',
-                          ]"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fill-rule="evenodd"
-                            d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                            clip-rule="evenodd"
-                          />
-                        </svg>
-                      </div>
-                    </div>
-                  </th>
-                  <th
-                    @click="toggleSort('quantity')"
-                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
-                  >
-                    <div class="flex items-center justify-between">
-                      <span>Quantity</span>
-                      <div class="flex flex-col ml-2">
-                        <svg
-                          :class="[
-                            'w-3 h-3 transition-colors',
-                            sortConfig.key === 'quantity' && sortConfig.direction === 'asc'
-                              ? 'text-blue-600'
-                              : 'text-gray-400',
-                          ]"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fill-rule="evenodd"
-                            d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z"
-                            clip-rule="evenodd"
-                          />
-                        </svg>
-                        <svg
-                          :class="[
-                            'w-3 h-3 transition-colors -mt-1',
-                            sortConfig.key === 'quantity' && sortConfig.direction === 'desc'
-                              ? 'text-blue-600'
-                              : 'text-gray-400',
-                          ]"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fill-rule="evenodd"
-                            d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                            clip-rule="evenodd"
-                          />
-                        </svg>
-                      </div>
-                    </div>
-                  </th>
-                  <th
-                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                  >
-                    Remark
-                  </th>
-                  <th
-                    @click="toggleSort('status')"
-                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
-                  >
-                    <div class="flex items-center justify-between">
-                      <span>Status</span>
-                      <div class="flex flex-col ml-2">
-                        <svg
-                          :class="[
-                            'w-3 h-3 transition-colors',
-                            sortConfig.key === 'status' && sortConfig.direction === 'asc'
-                              ? 'text-blue-600'
-                              : 'text-gray-400',
-                          ]"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fill-rule="evenodd"
-                            d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z"
-                            clip-rule="evenodd"
-                          />
-                        </svg>
-                        <svg
-                          :class="[
-                            'w-3 h-3 transition-colors -mt-1',
-                            sortConfig.key === 'status' && sortConfig.direction === 'desc'
-                              ? 'text-blue-600'
-                              : 'text-gray-400',
-                          ]"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path
-                            fill-rule="evenodd"
-                            d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                            clip-rule="evenodd"
-                          />
-                        </svg>
-                      </div>
-                    </div>
-                  </th>
-                  <th
-                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                  >
-                    Actions
-                  </th>
-                </tr>
-              </thead>
+              <SortableTableHeader
+                :columns="tableColumns"
+                :sort-config="sortConfig"
+                @sort-change="toggleSort"
+              />
               <tbody class="bg-white divide-y divide-gray-200">
                 <tr
                   v-for="request in pagination.paginatedItems.value"
@@ -580,21 +347,13 @@
                     </div>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap">
-                    <span
-                      :class="[
-                        'inline-flex px-2 py-1 text-xs font-semibold rounded-full',
-                        request.status === 'Pending'
-                          ? 'bg-yellow-100 text-yellow-800'
-                          : request.status === 'Approved'
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-red-100 text-red-800',
-                      ]"
-                    >
-                      {{ request.status }}
-                    </span>
+                    <StatusBadge
+                      :variant="getStatusVariant(request.status)"
+                      :text="request.status"
+                    />
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div v-if="editingRequestId === request.id" class="flex flex-col gap-2">
+                    <div v-if="editingRequestId === request.id" class="flex gap-2">
                       <button
                         @click="saveEdit(request.id)"
                         :disabled="stockRequestsStore.loading || !isEditFormValid"
@@ -610,24 +369,15 @@
                         Cancel
                       </button>
                     </div>
-                    <div v-else-if="request.status === 'Pending'" class="flex gap-2">
-                      <button
-                        @click="startEdit(request)"
-                        :disabled="stockRequestsStore.loading"
-                        class="text-blue-600 hover:text-blue-900 disabled:opacity-50"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        @click="removeRequest(request.id)"
-                        :disabled="stockRequestsStore.loading"
-                        class="text-red-600 hover:text-red-900 disabled:opacity-50"
-                      >
-                        Remove
-                      </button>
-                    </div>
+                    <ActionButtonGroup
+                      v-else-if="request.status === 'Pending'"
+                      :actions="getRequestActions(request)"
+                      size="sm"
+                      :loading="stockRequestsStore.loading"
+                      @action-click="(actionKey) => handleActionClick(actionKey, request)"
+                    />
                     <span v-else class="text-gray-400 text-xs">
-                      {{ request.status === 'Approved' ? 'Completed' : 'Cancelled' }}
+                      {{ request.status === 'Approved' ? 'Completed' : 'Rejected' }}
                     </span>
                   </td>
                 </tr>
@@ -660,10 +410,22 @@ import { useStockRequestsStore } from '@/stores/stockRequests'
 import type { InventoryItem } from '@/types/inventory'
 import type { NewStockRequest, StockRequest } from '@/types/stockRequests'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import ErrorAlert from '@/components/ui/ErrorAlert.vue'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
+import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
+import SearchInput from '@/components/ui/SearchInput.vue'
+import SortableTableHeader from '@/components/ui/SortableTableHeader.vue'
+import ActionButtonGroup from '@/components/ui/ActionButtonGroup.vue'
 
 // Component imports
 import TablePagination from '@/components/TablePagination.vue'
 import { usePagination } from '@/composables/usePagination'
+
+// Helper function to map status to StatusBadge variant
+const getStatusVariant = (status: string): 'pending' | 'approved' | 'cancelled' => {
+  return status.toLowerCase() as 'pending' | 'approved' | 'cancelled'
+}
 
 // Store
 const stockRequestsStore = useStockRequestsStore()
@@ -818,17 +580,56 @@ watch([searchQuery, filterDate], () => {
   pagination.resetToFirstPage()
 })
 
+// Table column configuration
+const tableColumns = [
+  { key: 'item_name', label: 'Item Name', sortable: true },
+  { key: 'quantity', label: 'Quantity', sortable: true },
+  { key: 'remark', label: 'Remark', sortable: false },
+  { key: 'status', label: 'Status', sortable: true },
+  { key: 'actions', label: 'Actions', sortable: false },
+]
+
 // Sorting functions
-const toggleSort = (key: keyof StockRequest): void => {
+const toggleSort = (key: string): void => {
   if (sortConfig.value.key === key) {
     // Same column clicked - toggle direction
     sortConfig.value.direction = sortConfig.value.direction === 'asc' ? 'desc' : 'asc'
   } else {
     // New column clicked - set ascending
-    sortConfig.value.key = key
+    sortConfig.value.key = key as keyof StockRequest
     sortConfig.value.direction = 'asc'
   }
   pagination.resetToFirstPage()
+}
+
+// Action button configurations
+const getRequestActions = (request: StockRequest): Array<{key: string, label: string, variant: 'primary' | 'secondary' | 'danger' | 'success' | 'warning' | 'info'}> => {
+  if (request.status !== 'Pending') return []
+  
+  return [
+    {
+      key: 'edit',
+      label: 'Edit',
+      variant: 'info'
+    },
+    {
+      key: 'delete',
+      label: 'Remove',
+      variant: 'danger'
+    }
+  ]
+}
+
+// Handle action button clicks
+const handleActionClick = (actionKey: string, request: StockRequest) => {
+  switch (actionKey) {
+    case 'edit':
+      startEdit(request)
+      break
+    case 'delete':
+      removeRequest(request.id)
+      break
+  }
 }
 
 // Clear all filters

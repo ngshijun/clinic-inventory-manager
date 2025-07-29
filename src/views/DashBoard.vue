@@ -37,7 +37,7 @@
                 <button
                   type="submit"
                   :disabled="inventoryStore.loading"
-                  class="px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
+                  class="px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700 transition-colors disabled:opacity-50"
                 >
                   {{ inventoryStore.loading ? 'Marking as Ordered...' : 'Mark Ordered' }}
                 </button>
@@ -48,39 +48,18 @@
       </div>
 
       <!-- Loading State -->
-      <div v-if="inventoryStore.loading" class="text-center py-6 sm:py-8">
-        <div
-          class="inline-block animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-blue-600"
-        ></div>
-        <p class="mt-2 text-gray-600 text-sm sm:text-base">Loading inventory data...</p>
-      </div>
+      <LoadingSpinner v-if="inventoryStore.loading" message="Loading inventory data..." size="lg" />
 
       <!-- Error State -->
-      <div
-        v-else-if="inventoryStore.error"
-        class="bg-red-50 border border-red-200 rounded-md p-3 sm:p-4 mb-4 sm:mb-6"
-      >
-        <div class="flex">
-          <div class="flex-shrink-0">
-            <svg class="h-4 w-4 sm:h-5 sm:w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
-              <path
-                fill-rule="evenodd"
-                d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                clip-rule="evenodd"
-              ></path>
-            </svg>
-          </div>
-          <div class="ml-3 flex-1">
-            <h3 class="text-sm font-medium text-red-800">Error loading data</h3>
-            <p class="mt-1 text-sm text-red-700">{{ inventoryStore.error }}</p>
-            <button
-              @click="inventoryStore.fetchItems()"
-              class="mt-2 text-xs sm:text-sm bg-red-100 hover:bg-red-200 text-red-800 px-2 sm:px-3 py-1 rounded"
-            >
-              Retry
-            </button>
-          </div>
-        </div>
+      <div v-else-if="inventoryStore.error" class="mb-4 sm:mb-6">
+        <ErrorAlert title="Error loading data" :message="inventoryStore.error" size="lg">
+          <button
+            @click="inventoryStore.fetchItems()"
+            class="mt-2 text-xs sm:text-sm bg-red-100 hover:bg-red-200 text-red-800 px-2 sm:px-3 py-1 rounded"
+          >
+            Retry
+          </button>
+        </ErrorAlert>
       </div>
 
       <!-- Dashboard Content -->
@@ -291,7 +270,7 @@
                       <div class="block sm:hidden">
                         <div class="font-medium break-words">{{ item.item_name }}</div>
                         <div class="text-xs text-red-600 mt-0.5">(0 {{ item.unit }} remaining)</div>
-                        <div v-if="item.order_date" class="text-xs text-blue-600 mt-1">
+                        <div v-if="item.order_date" class="text-sm text-blue-600 mt-1">
                           <span class="inline-flex items-center gap-1">
                             <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                               <path
@@ -307,7 +286,7 @@
                           <button
                             @click="openOrderModal(item)"
                             :disabled="inventoryStore.loading"
-                            class="text-xs bg-blue-100 hover:bg-blue-200 text-blue-800 px-2 py-1 rounded disabled:opacity-50 transition-colors"
+                            class="text-xs bg-green-100 hover:bg-green-200 text-green-800 px-2 py-1 rounded disabled:opacity-50 transition-colors"
                           >
                             {{ inventoryStore.loading ? 'Marking...' : 'Mark Ordered' }}
                           </button>
@@ -321,7 +300,7 @@
                           </div>
                         </div>
                         <div class="ml-4 flex-shrink-0">
-                          <div v-if="item.order_date" class="text-xs text-blue-600">
+                          <div v-if="item.order_date" class="text-sm text-blue-600">
                             <span class="inline-flex items-center gap-1">
                               <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                                 <path
@@ -337,7 +316,7 @@
                             v-else
                             @click="openOrderModal(item)"
                             :disabled="inventoryStore.loading"
-                            class="text-xs bg-blue-100 hover:bg-blue-200 text-blue-800 px-2 py-1 rounded disabled:opacity-50 transition-colors"
+                            class="text-xs bg-green-100 hover:bg-green-200 text-green-800 px-2 py-1 rounded disabled:opacity-50 transition-colors"
                           >
                             {{ inventoryStore.loading ? 'Marking...' : 'Mark Ordered' }}
                           </button>
@@ -391,7 +370,7 @@
                         <div class="text-xs text-yellow-600 mt-0.5">
                           ({{ item.quantity }} {{ item.unit }} remaining)
                         </div>
-                        <div v-if="item.order_date" class="text-xs text-blue-600 mt-1">
+                        <div v-if="item.order_date" class="text-sm text-blue-600 mt-1">
                           <span class="inline-flex items-center gap-1">
                             <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                               <path
@@ -407,7 +386,7 @@
                           <button
                             @click="openOrderModal(item)"
                             :disabled="inventoryStore.loading"
-                            class="text-xs bg-blue-100 hover:bg-blue-200 text-blue-800 px-2 py-1 rounded disabled:opacity-50 transition-colors"
+                            class="text-xs bg-green-100 hover:bg-green-200 text-green-800 px-2 py-1 rounded disabled:opacity-50 transition-colors"
                           >
                             {{ inventoryStore.loading ? 'Marking...' : 'Mark Ordered' }}
                           </button>
@@ -421,7 +400,7 @@
                           </div>
                         </div>
                         <div class="ml-4 flex-shrink-0">
-                          <div v-if="item.order_date" class="text-xs text-blue-600">
+                          <div v-if="item.order_date" class="text-sm text-blue-600">
                             <span class="inline-flex items-center gap-1">
                               <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                                 <path
@@ -437,7 +416,7 @@
                             v-else
                             @click="openOrderModal(item)"
                             :disabled="inventoryStore.loading"
-                            class="text-xs bg-blue-100 hover:bg-blue-200 text-blue-800 px-2 py-1 rounded disabled:opacity-50 transition-colors"
+                            class="text-xs bg-green-100 hover:bg-green-200 text-green-800 px-2 py-1 rounded disabled:opacity-50 transition-colors"
                           >
                             {{ inventoryStore.loading ? 'Marking...' : 'Mark Ordered' }}
                           </button>
@@ -517,6 +496,8 @@ import router from '@/router'
 import { useInventoryStore } from '@/stores/inventory'
 import { computed, onMounted, ref } from 'vue'
 import type { InventoryItem } from '@/types/inventory'
+import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
+import ErrorAlert from '@/components/ui/ErrorAlert.vue'
 
 const inventoryStore = useInventoryStore()
 

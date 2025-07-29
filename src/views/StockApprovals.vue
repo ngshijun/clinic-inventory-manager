@@ -18,31 +18,10 @@
       <div class="mb-4 sm:mb-6 flex flex-col sm:flex-row gap-4">
         <!-- Search -->
         <div class="flex-1 sm:max-w-md">
-          <label for="search" class="sr-only">Search requests</label>
-          <div class="relative">
-            <input
-              id="search"
-              v-model="searchQuery"
-              type="text"
-              class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm"
-              placeholder="Search requests..."
-            />
-            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <svg
-                class="h-5 w-5 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                ></path>
-              </svg>
-            </div>
-          </div>
+          <SearchInput
+            v-model="searchQuery"
+            placeholder="Search requests..."
+          />
         </div>
 
         <!-- Date Filter -->
@@ -93,11 +72,11 @@
               Approve Selected
             </button>
             <button
-              @click="bulkCancel"
+              @click="bulkReject"
               :disabled="stockRequestsStore.loading"
               class="bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-3 py-1 rounded text-sm font-medium transition-colors"
             >
-              Cancel Selected
+              Reject Selected
             </button>
             <button
               @click="clearSelection"
@@ -131,80 +110,57 @@
         </div>
       </div>
 
-      <!-- Cancel Modal -->
-      <div
-        v-if="showCancelModal"
-        class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"
+      <!-- Reject Modal -->
+      <ActionModal
+        :is-open="showRejectModal"
+        :title="`Reject Request${rejectRequestIds.length > 1 ? 's' : ''}`"
+        variant="reject"
+        :loading="stockRequestsStore.loading"
+        :confirm-text="`Reject Request${rejectRequestIds.length > 1 ? 's' : ''}`"
+        :cancel-text="`Keep Request${rejectRequestIds.length > 1 ? 's' : ''}`"
+        @close="closeRejectModal"
+        @cancel="closeRejectModal"
+        @confirm="confirmReject"
       >
-        <div class="p-5 border w-96 shadow-lg rounded-md bg-white" @click.stop>
-          <div class="mt-3">
-            <h3 class="text-lg font-medium text-gray-900 mb-4">
-              Cancel Request{{ cancelRequestIds.length > 1 ? 's' : '' }}
-            </h3>
-            <form @submit.prevent="confirmCancel">
-              <div class="space-y-4">
-                <!-- Confirmation Message -->
-                <div class="bg-red-50 border border-red-200 rounded-md p-3">
-                  <div class="flex items-center gap-2 mb-2">
-                    <svg class="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20">
-                      <path
-                        fill-rule="evenodd"
-                        d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                        clip-rule="evenodd"
-                      />
-                    </svg>
-                    <span class="text-sm font-medium text-red-800">
-                      Warning: This action cannot be undone
-                    </span>
-                  </div>
-                  <p class="text-sm text-red-700">
-                    Are you sure you want to cancel
-                    {{
-                      cancelRequestIds.length > 1
-                        ? `${cancelRequestIds.length} requests`
-                        : 'this request'
-                    }}?
-                  </p>
-                </div>
+        <div class="space-y-4">
+          <!-- Confirmation Message -->
+          <div class="bg-red-50 border border-red-200 rounded-md p-3">
+            <div class="flex items-center gap-2 mb-2">
+              <svg class="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                <path
+                  fill-rule="evenodd"
+                  d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                  clip-rule="evenodd"
+                />
+              </svg>
+              <span class="text-sm font-medium text-red-800">
+                Warning: This action cannot be undone
+              </span>
+            </div>
+            <p class="text-sm text-red-700">
+              Are you sure you want to reject
+              {{
+                rejectRequestIds.length > 1
+                  ? `${rejectRequestIds.length} requests`
+                  : 'this request'
+              }}?
+            </p>
+          </div>
 
-                <!-- Cancellation Reason -->
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">
-                    Cancellation Reason (Optional)
-                  </label>
-                  <textarea
-                    v-model="cancelRemark"
-                    rows="3"
-                    class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                    placeholder="Enter reason for cancellation..."
-                  ></textarea>
-                </div>
-              </div>
-
-              <div class="flex justify-end gap-3 mt-6">
-                <button
-                  type="button"
-                  @click="closeCancelModal"
-                  class="px-4 py-2 bg-gray-600 rounded-md text-sm font-medium text-white hover:bg-gray-700 transition-colors"
-                >
-                  Keep Request{{ cancelRequestIds.length > 1 ? 's' : '' }}
-                </button>
-                <button
-                  type="submit"
-                  :disabled="stockRequestsStore.loading"
-                  class="px-4 py-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50"
-                >
-                  {{
-                    stockRequestsStore.loading
-                      ? 'Cancelling...'
-                      : 'Cancel Request' + (cancelRequestIds.length > 1 ? 's' : '')
-                  }}
-                </button>
-              </div>
-            </form>
+          <!-- Rejection Reason -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              Rejection Reason (Optional)
+            </label>
+            <textarea
+              v-model="rejectRemark"
+              rows="3"
+              class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+              placeholder="Enter reason for rejection..."
+            ></textarea>
           </div>
         </div>
-      </div>
+      </ActionModal>
 
       <!-- Mobile Card View -->
       <div class="block lg:hidden">
@@ -215,39 +171,21 @@
             </h3>
           </div>
 
-          <div
+          <LoadingSpinner
             v-if="stockRequestsStore.loading && sortedAndFilteredRequests.length === 0"
-            class="text-center py-8"
-          >
-            <div
-              class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"
-            ></div>
-            <p class="mt-2 text-gray-600 text-sm">Loading requests...</p>
-          </div>
+            message="Loading requests..."
+          />
 
-          <div v-else-if="sortedAndFilteredRequests.length === 0" class="text-center py-12">
-            <svg
-              class="mx-auto h-12 w-12 text-gray-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-              ></path>
-            </svg>
-            <h3 class="mt-2 text-sm font-medium text-gray-900">No requests found</h3>
-            <p class="mt-1 text-sm text-gray-500">
-              {{
-                hasActiveFilters
-                  ? 'Try adjusting your search terms or filters.'
-                  : 'No requests need approval at the moment.'
-              }}
-            </p>
-          </div>
+          <EmptyState
+            v-else-if="sortedAndFilteredRequests.length === 0"
+            icon="document"
+            title="No requests found"
+            :description="
+              hasActiveFilters
+                ? 'Try adjusting your search terms or filters.'
+                : 'No requests need approval at the moment.'
+            "
+          />
 
           <div v-else class="divide-y divide-gray-200">
             <div
@@ -334,7 +272,7 @@
                         ? 'bg-yellow-100 text-yellow-800'
                         : request.status === 'Approved'
                           ? 'bg-green-100 text-green-800'
-                          : request.status === 'Cancelled'
+                          : request.status === 'Rejected'
                             ? 'bg-red-100 text-red-800'
                             : 'bg-gray-100 text-gray-800',
                     ]"
@@ -378,29 +316,13 @@
                 </div>
 
                 <!-- Actions -->
-                <div v-if="request.status === 'Pending'" class="flex gap-2">
-                  <button
-                    @click="startEdit(request)"
-                    :disabled="stockRequestsStore.loading"
-                    class="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-3 py-2 rounded text-sm font-medium transition-colors"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    @click="approveRequest(request.id)"
-                    :disabled="stockRequestsStore.loading || !hasEnoughStock(request)"
-                    class="flex-1 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-3 py-2 rounded text-sm font-medium transition-colors"
-                  >
-                    Approve
-                  </button>
-                  <button
-                    @click="showCancelDialog(request.id)"
-                    :disabled="stockRequestsStore.loading"
-                    class="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-3 py-2 rounded text-sm font-medium transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </div>
+                <ActionButtonGroup
+                  v-if="request.status === 'Pending'"
+                  :actions="getRequestActions(request)"
+                  size="sm"
+                  :loading="stockRequestsStore.loading"
+                  @action-click="(actionKey) => handleActionClick(actionKey, request)"
+                />
               </div>
             </div>
           </div>
@@ -441,39 +363,21 @@
             </div>
           </div>
 
-          <div
+          <LoadingSpinner
             v-if="stockRequestsStore.loading && sortedAndFilteredRequests.length === 0"
-            class="text-center py-8"
-          >
-            <div
-              class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"
-            ></div>
-            <p class="mt-2 text-gray-600 text-sm">Loading requests...</p>
-          </div>
+            message="Loading requests..."
+          />
 
-          <div v-else-if="sortedAndFilteredRequests.length === 0" class="text-center py-12">
-            <svg
-              class="mx-auto h-12 w-12 text-gray-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-              ></path>
-            </svg>
-            <h3 class="mt-2 text-sm font-medium text-gray-900">No requests found</h3>
-            <p class="mt-1 text-sm text-gray-500">
-              {{
-                hasActiveFilters
-                  ? 'Try adjusting your search terms or filters.'
-                  : 'No requests need approval at the moment.'
-              }}
-            </p>
-          </div>
+          <EmptyState
+            v-else-if="sortedAndFilteredRequests.length === 0"
+            icon="document"
+            title="No requests found"
+            :description="
+              hasActiveFilters
+                ? 'Try adjusting your search terms or filters.'
+                : 'No requests need approval at the moment.'
+            "
+          />
 
           <div v-else class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
@@ -701,7 +605,7 @@
                           ? 'bg-yellow-100 text-yellow-800'
                           : request.status === 'Approved'
                             ? 'bg-green-100 text-green-800'
-                            : request.status === 'Cancelled'
+                            : request.status === 'Rejected'
                               ? 'bg-red-100 text-red-800'
                               : 'bg-gray-100 text-gray-800',
                       ]"
@@ -710,7 +614,7 @@
                     </span>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div v-if="editingRequestId === request.id" class="flex flex-col gap-2">
+                    <div v-if="editingRequestId === request.id" class="flex gap-2">
                       <button
                         @click="saveEdit(request.id)"
                         :disabled="stockRequestsStore.loading || !isEditFormValid"
@@ -726,35 +630,19 @@
                         Cancel
                       </button>
                     </div>
-                    <div v-else-if="request.status === 'Pending'" class="flex gap-2">
-                      <button
-                        @click="startEdit(request)"
-                        :disabled="stockRequestsStore.loading"
-                        class="text-blue-600 hover:text-blue-900 disabled:opacity-50"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        @click="approveRequest(request.id)"
-                        :disabled="stockRequestsStore.loading || !hasEnoughStock(request)"
-                        class="text-green-600 hover:text-green-900 disabled:opacity-50"
-                      >
-                        Approve
-                      </button>
-                      <button
-                        @click="showCancelDialog(request.id)"
-                        :disabled="stockRequestsStore.loading"
-                        class="text-red-600 hover:text-red-900 disabled:opacity-50"
-                      >
-                        Cancel
-                      </button>
-                    </div>
+                    <ActionButtonGroup
+                      v-else-if="request.status === 'Pending'"
+                      :actions="getRequestActions(request)"
+                      size="sm"
+                      :loading="stockRequestsStore.loading"
+                      @action-click="(actionKey) => handleActionClick(actionKey, request)"
+                    />
                     <span v-else class="text-gray-400 text-xs">
                       {{
                         request.status === 'Approved'
                           ? 'Approved'
-                          : request.status === 'Cancelled'
-                            ? 'Cancelled'
+                          : request.status === 'Rejected'
+                            ? 'Rejected'
                             : 'Completed'
                       }}
                     </span>
@@ -792,6 +680,13 @@ import { computed, onMounted, ref, watch } from 'vue'
 // Component imports
 import TablePagination from '@/components/TablePagination.vue'
 import { usePagination } from '@/composables/usePagination'
+// import ErrorAlert from '@/components/ui/ErrorAlert.vue' // Available for error displays
+// import StatusBadge from '@/components/ui/StatusBadge.vue' // Available for status badges
+import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
+import SearchInput from '@/components/ui/SearchInput.vue'
+import ActionModal from '@/components/ui/ActionModal.vue'
+import ActionButtonGroup from '@/components/ui/ActionButtonGroup.vue'
 
 // Store
 const stockRequestsStore = useStockRequestsStore()
@@ -815,10 +710,10 @@ const editForm = ref<{
   remark: '',
 })
 
-// Cancel modal state
-const showCancelModal = ref<boolean>(false)
-const cancelRequestIds = ref<string[]>([])
-const cancelRemark = ref<string>('')
+// Reject modal state
+const showRejectModal = ref<boolean>(false)
+const rejectRequestIds = ref<string[]>([])
+const rejectRemark = ref<string>('')
 
 // Sorting configuration
 const sortConfig = ref<{
@@ -930,6 +825,45 @@ const hasEnoughStock = (request: StockRequest): boolean => {
   return getAvailableStock(request.item_id) >= request.quantity
 }
 
+// Action button configurations
+const getRequestActions = (request: StockRequest): Array<{key: string, label: string, variant: 'primary' | 'secondary' | 'danger' | 'success' | 'warning' | 'info', disabled?: boolean}> => {
+  if (request.status !== 'Pending') return []
+
+  return [
+    {
+      key: 'edit',
+      label: 'Edit',
+      variant: 'primary'
+    },
+    {
+      key: 'approve',
+      label: 'Approve',
+      variant: 'success',
+      disabled: !hasEnoughStock(request)
+    },
+    {
+      key: 'reject',
+      label: 'Reject',
+      variant: 'danger'
+    }
+  ]
+}
+
+// Handle action button clicks
+const handleActionClick = (actionKey: string, request: StockRequest) => {
+  switch (actionKey) {
+    case 'edit':
+      startEdit(request)
+      break
+    case 'approve':
+      approveRequest(request.id)
+      break
+    case 'reject':
+      showRejectDialog(request.id)
+      break
+  }
+}
+
 // Edit functions
 const startEdit = (request: StockRequest): void => {
   editingRequestId.value = request.id
@@ -957,39 +891,39 @@ const saveEdit = async (requestId: string): Promise<void> => {
   }
 }
 
-// Cancel functions
-const showCancelDialog = (requestId: string): void => {
-  cancelRequestIds.value = [requestId]
-  cancelRemark.value = ''
-  showCancelModal.value = true
+// Reject functions
+const showRejectDialog = (requestId: string): void => {
+  rejectRequestIds.value = [requestId]
+  rejectRemark.value = ''
+  showRejectModal.value = true
 }
 
-const bulkCancel = (): void => {
+const bulkReject = (): void => {
   if (selectedRequests.value.length === 0) return
-  cancelRequestIds.value = [...selectedRequests.value]
-  cancelRemark.value = ''
-  showCancelModal.value = true
+  rejectRequestIds.value = [...selectedRequests.value]
+  rejectRemark.value = ''
+  showRejectModal.value = true
 }
 
-const closeCancelModal = (): void => {
-  showCancelModal.value = false
-  cancelRequestIds.value = []
-  cancelRemark.value = ''
+const closeRejectModal = (): void => {
+  showRejectModal.value = false
+  rejectRequestIds.value = []
+  rejectRemark.value = ''
 }
 
-const confirmCancel = async (): Promise<void> => {
-  if (cancelRequestIds.value.length === 0) return
+const confirmReject = async (): Promise<void> => {
+  if (rejectRequestIds.value.length === 0) return
 
-  for (const requestId of cancelRequestIds.value) {
-    await stockRequestsStore.cancelRequest(requestId, cancelRemark.value)
+  for (const requestId of rejectRequestIds.value) {
+    await stockRequestsStore.rejectRequest(requestId, rejectRemark.value)
   }
 
-  // Remove cancelled requests from selection
+  // Remove rejected requests from selection
   selectedRequests.value = selectedRequests.value.filter(
-    (id) => !cancelRequestIds.value.includes(id),
+    (id) => !rejectRequestIds.value.includes(id),
   )
 
-  closeCancelModal()
+  closeRejectModal()
 }
 
 // Pagination functions
