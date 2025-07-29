@@ -1,8 +1,8 @@
 <template>
   <div class="space-y-1">
     <!-- Label -->
-    <label 
-      :for="fieldId" 
+    <label
+      :for="fieldId"
       class="block text-sm font-medium text-gray-700"
       :class="{ 'after:content-[\'*\'] after:text-red-500 after:ml-1': required }"
     >
@@ -20,7 +20,7 @@
       :required="required"
       :class="[
         'w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500',
-        error ? 'border-red-300' : 'border-gray-300'
+        error ? 'border-red-300' : 'border-gray-300',
       ]"
     />
 
@@ -35,7 +35,7 @@
       :required="required"
       :class="[
         'w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500',
-        error ? 'border-red-300' : 'border-gray-300'
+        error ? 'border-red-300' : 'border-gray-300',
       ]"
     />
 
@@ -49,7 +49,7 @@
       :required="required"
       :class="[
         'w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500',
-        error ? 'border-red-300' : 'border-gray-300'
+        error ? 'border-red-300' : 'border-gray-300',
       ]"
     />
 
@@ -64,7 +64,7 @@
       :required="required"
       :class="[
         'w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-vertical',
-        error ? 'border-red-300' : 'border-gray-300'
+        error ? 'border-red-300' : 'border-gray-300',
       ]"
     ></textarea>
 
@@ -77,15 +77,11 @@
       :required="required"
       :class="[
         'w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500',
-        error ? 'border-red-300' : 'border-gray-300'
+        error ? 'border-red-300' : 'border-gray-300',
       ]"
     >
       <option value="" disabled>{{ placeholder || 'Select an option' }}</option>
-      <option
-        v-for="option in options"
-        :key="option.value"
-        :value="option.value"
-      >
+      <option v-for="option in options" :key="option.value" :value="option.value">
         {{ option.label }}
       </option>
     </select>
@@ -119,7 +115,7 @@ const props = withDefaults(defineProps<FormFieldProps>(), {
   required: false,
   error: '',
   options: () => [],
-  placeholder: ''
+  placeholder: '',
 })
 
 const emit = defineEmits<{
@@ -132,7 +128,7 @@ const fieldId = computed(() => `form-field-${Math.random().toString(36).substrin
 // Update model value
 const updateValue = (event: Event) => {
   const target = event.target as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-  
+
   if (props.type === 'number') {
     const numValue = parseFloat(target.value)
     emit('update:modelValue', isNaN(numValue) ? 0 : numValue)

@@ -151,8 +151,7 @@ export const useStockRequestsStore = defineStore('stockRequests', () => {
 
       if (supabaseError) throw supabaseError
     } catch (err) {
-      error.value =
-        err instanceof Error ? err.message : 'An error occurred while rejecting request'
+      error.value = err instanceof Error ? err.message : 'An error occurred while rejecting request'
       console.error('Error rejecting request', err)
     } finally {
       loading.value = false

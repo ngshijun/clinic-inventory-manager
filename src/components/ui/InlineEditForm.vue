@@ -42,11 +42,7 @@
       class="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:bg-gray-100"
     >
       <option value="" disabled>{{ placeholder || 'Select an option' }}</option>
-      <option
-        v-for="option in options"
-        :key="option.value"
-        :value="option.value"
-      >
+      <option v-for="option in options" :key="option.value" :value="option.value">
         {{ option.label }}
       </option>
     </select>
@@ -88,7 +84,7 @@ interface InlineEditFormProps {
 const props = withDefaults(defineProps<InlineEditFormProps>(), {
   loading: false,
   placeholder: '',
-  options: () => []
+  options: () => [],
 })
 
 const emit = defineEmits<{
@@ -100,7 +96,7 @@ const emit = defineEmits<{
 // Update model value
 const updateValue = (event: Event) => {
   const target = event.target as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-  
+
   if (props.fieldType === 'number') {
     const numValue = parseFloat(target.value)
     emit('update:modelValue', isNaN(numValue) ? 0 : numValue)

@@ -98,14 +98,14 @@
             <button
               type="button"
               @click="cancelCreateForm"
-              class="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+              class="w-full sm:w-auto px-4 py-2 bg-gray-600 hover:bg-gray-700 disabled:opacity-50 text-white rounded-md text-sm font-medium transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               :disabled="stockRequestsStore.loading || !isFormValid"
-              class="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
+              class="w-full sm:w-auto px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700 transition-colors disabled:opacity-50"
             >
               {{ stockRequestsStore.loading ? 'Creating...' : 'Create Request' }}
             </button>
@@ -117,10 +117,7 @@
       <div class="mb-4 sm:mb-6 flex flex-col sm:flex-row gap-4">
         <!-- Search -->
         <div class="flex-1 sm:max-w-md">
-          <SearchInput
-            v-model="searchQuery"
-            placeholder="Search requests..."
-          />
+          <SearchInput v-model="searchQuery" placeholder="Search requests..." />
         </div>
         <!-- Date Filter -->
         <div class="w-full sm:w-40">
@@ -135,8 +132,16 @@
         <button
           v-if="hasActiveFilters"
           @click="clearFilters"
-          class="w-full sm:w-auto px-3 py-2 text-sm text-gray-600 hover:text-gray-900 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+          class="flex items-center justify-center gap-2 px-4 py-2 border border-red-300 rounded-md text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 transition-colors w-full sm:w-auto"
         >
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M6 18L18 6M6 6l12 12"
+            ></path>
+          </svg>
           Clear Filters
         </button>
       </div>
@@ -434,7 +439,9 @@ const inventoryStore = useInventoryStore()
 // State
 const searchQuery = ref<string>('')
 const today = new Date()
-const filterDate = ref<string>(today.toISOString().split('T')[0])
+const filterDate = ref<string>(
+  `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`,
+)
 const showCreateForm = ref<boolean>(false)
 const itemSearchQuery = ref<string>('')
 const showItemDropdown = ref<boolean>(false)
@@ -603,20 +610,26 @@ const toggleSort = (key: string): void => {
 }
 
 // Action button configurations
-const getRequestActions = (request: StockRequest): Array<{key: string, label: string, variant: 'primary' | 'secondary' | 'danger' | 'success' | 'warning' | 'info'}> => {
+const getRequestActions = (
+  request: StockRequest,
+): Array<{
+  key: string
+  label: string
+  variant: 'primary' | 'secondary' | 'danger' | 'success' | 'warning' | 'info'
+}> => {
   if (request.status !== 'Pending') return []
-  
+
   return [
     {
       key: 'edit',
       label: 'Edit',
-      variant: 'info'
+      variant: 'primary',
     },
     {
       key: 'delete',
       label: 'Remove',
-      variant: 'danger'
-    }
+      variant: 'danger',
+    },
   ]
 }
 

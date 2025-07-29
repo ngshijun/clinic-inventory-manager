@@ -32,10 +32,7 @@
 
       <!-- Search Bar -->
       <div class="mb-4 sm:mb-6">
-        <SearchInput
-          v-model="searchQuery"
-          placeholder="Search items..."
-        />
+        <SearchInput v-model="searchQuery" placeholder="Search items..." />
       </div>
 
       <!-- Error Display -->
@@ -420,26 +417,36 @@ const toggleSort = (key: string): void => {
 }
 
 // Action button configurations
-const getItemActions = (item: InventoryItem): Array<{key: string, label: string, variant: 'primary' | 'secondary' | 'danger' | 'success' | 'warning' | 'info'}> => {
-  const actions: Array<{key: string, label: string, variant: 'primary' | 'secondary' | 'danger' | 'success' | 'warning' | 'info'}> = [
+const getItemActions = (
+  item: InventoryItem,
+): Array<{
+  key: string
+  label: string
+  variant: 'primary' | 'secondary' | 'danger' | 'success' | 'warning' | 'info'
+}> => {
+  const actions: Array<{
+    key: string
+    label: string
+    variant: 'primary' | 'secondary' | 'danger' | 'success' | 'warning' | 'info'
+  }> = [
     {
       key: 'edit-remark',
       label: 'Edit Remark',
-      variant: 'primary'
-    }
+      variant: 'primary',
+    },
   ]
 
   if (!item.order_date) {
     actions.push({
       key: 'mark-ordered',
       label: 'Mark Ordered',
-      variant: 'success'
+      variant: 'success',
     })
   } else {
     actions.push({
       key: 'clear-date',
       label: 'Clear Date',
-      variant: 'warning'
+      variant: 'warning',
     })
   }
 

@@ -92,7 +92,7 @@
       <ActionModal
         :is-open="showStockInModal"
         :title="`Stock In: ${stockInItem?.item_name}`"
-        variant="create"
+        variant="approve"
         :loading="inventoryStore.loading"
         confirm-text="Add Stock"
         @close="closeStockInModal"
@@ -101,9 +101,7 @@
       >
         <div class="space-y-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">
-              Quantity to Add
-            </label>
+            <label class="block text-sm font-medium text-gray-700 mb-1"> Quantity to Add </label>
             <div
               class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-50 text-gray-900 font-medium"
             >
@@ -173,9 +171,7 @@
               />
             </div>
             <div class="col-span-1">
-              <label class="block text-sm font-medium text-gray-700 mb-1"
-                >Reorder Level</label
-              >
+              <label class="block text-sm font-medium text-gray-700 mb-1">Reorder Level</label>
               <input
                 v-model.number="newItem.reorder_level"
                 type="number"
@@ -216,10 +212,7 @@
 
       <!-- Search Bar -->
       <div class="mb-4 sm:mb-6">
-        <SearchInput
-          v-model="searchQuery"
-          placeholder="Search items..."
-        />
+        <SearchInput v-model="searchQuery" placeholder="Search items..." />
       </div>
 
       <!-- Mobile Card View -->
@@ -673,18 +666,22 @@ const toggleSort = (key: string): void => {
 }
 
 // Action button configurations
-const getItemActions = (): Array<{key: string, label: string, variant: 'primary' | 'secondary' | 'danger' | 'success' | 'warning' | 'info'}> => {
+const getItemActions = (): Array<{
+  key: string
+  label: string
+  variant: 'primary' | 'secondary' | 'danger' | 'success' | 'warning' | 'info'
+}> => {
   return [
     {
       key: 'manage-stock',
       label: 'Manage Stock',
-      variant: 'primary'
+      variant: 'primary',
     },
     {
       key: 'delete',
       label: 'Delete',
-      variant: 'danger'
-    }
+      variant: 'danger',
+    },
   ]
 }
 

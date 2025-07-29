@@ -11,7 +11,7 @@
         :class="{ 'pr-24': showAdvancedToggle || showClearFilters }"
         :placeholder="placeholder"
       />
-      
+
       <!-- Search Icon -->
       <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
         <svg
@@ -31,7 +31,10 @@
       </div>
 
       <!-- Right side buttons -->
-      <div v-if="showAdvancedToggle || showClearFilters" class="absolute inset-y-0 right-0 flex items-center pr-3">
+      <div
+        v-if="showAdvancedToggle || showClearFilters"
+        class="absolute inset-y-0 right-0 flex items-center pr-3"
+      >
         <!-- Clear Filters Button -->
         <button
           v-if="showClearFilters && hasActiveFilters"

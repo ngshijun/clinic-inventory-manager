@@ -7,7 +7,7 @@
         :class="[
           'px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider',
           column.sortable ? 'cursor-pointer hover:bg-gray-100 select-none' : '',
-          getAlignmentClass(column.align)
+          getAlignmentClass(column.align),
         ]"
         @click="column.sortable ? handleSort(column.key) : undefined"
       >

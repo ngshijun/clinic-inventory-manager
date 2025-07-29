@@ -5,8 +5,8 @@
     @click="handleBackdropClick"
     @keydown.esc="handleEscape"
   >
-    <div 
-      class="p-5 border w-96 shadow-lg rounded-md bg-white" 
+    <div
+      class="p-5 border w-96 shadow-lg rounded-md bg-white"
       @click.stop
       role="dialog"
       :aria-labelledby="titleId"
@@ -95,8 +95,9 @@ const loadingText = computed(() => {
 
 // Compute button classes based on variant
 const confirmButtonClasses = computed(() => {
-  const baseClasses = 'px-4 py-2 rounded-md text-sm font-medium text-white transition-colors disabled:opacity-50'
-  
+  const baseClasses =
+    'px-4 py-2 rounded-md text-sm font-medium text-white transition-colors disabled:opacity-50'
+
   switch (props.variant) {
     case 'delete':
     case 'reject':
@@ -158,13 +159,16 @@ onUnmounted(() => {
 
 // Watch for isOpen changes to manage body scroll
 import { watch } from 'vue'
-watch(() => props.isOpen, (newValue) => {
-  if (newValue) {
-    document.addEventListener('keydown', handleKeydown)
-    document.body.style.overflow = 'hidden'
-  } else {
-    document.removeEventListener('keydown', handleKeydown)
-    document.body.style.overflow = ''
-  }
-})
+watch(
+  () => props.isOpen,
+  (newValue) => {
+    if (newValue) {
+      document.addEventListener('keydown', handleKeydown)
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.removeEventListener('keydown', handleKeydown)
+      document.body.style.overflow = ''
+    }
+  },
+)
 </script>

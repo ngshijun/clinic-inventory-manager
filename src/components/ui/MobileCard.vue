@@ -7,11 +7,7 @@
           {{ title }}
         </h4>
         <div v-if="badge" class="flex-shrink-0">
-          <StatusBadge 
-            :variant="badge.variant" 
-            :text="badge.text"
-            size="sm"
-          />
+          <StatusBadge :variant="badge.variant" :text="badge.text" size="sm" />
         </div>
       </div>
 
@@ -51,7 +47,20 @@ interface MobileCardAction {
 }
 
 interface MobileCardBadge {
-  variant: 'success' | 'warning' | 'danger' | 'info' | 'gray' | 'stock-in' | 'stock-out' | 'pending' | 'approved' | 'cancelled' | 'in-stock' | 'low-stock' | 'out-of-stock'
+  variant:
+    | 'success'
+    | 'warning'
+    | 'danger'
+    | 'info'
+    | 'gray'
+    | 'stock-in'
+    | 'stock-out'
+    | 'pending'
+    | 'approved'
+    | 'cancelled'
+    | 'in-stock'
+    | 'low-stock'
+    | 'out-of-stock'
   text: string
 }
 

@@ -18,10 +18,7 @@
       <div class="mb-4 sm:mb-6 flex flex-col sm:flex-row gap-4">
         <!-- Search -->
         <div class="flex-1 sm:max-w-md">
-          <SearchInput
-            v-model="searchQuery"
-            placeholder="Search requests..."
-          />
+          <SearchInput v-model="searchQuery" placeholder="Search requests..." />
         </div>
 
         <!-- Date Filter -->
@@ -826,26 +823,33 @@ const hasEnoughStock = (request: StockRequest): boolean => {
 }
 
 // Action button configurations
-const getRequestActions = (request: StockRequest): Array<{key: string, label: string, variant: 'primary' | 'secondary' | 'danger' | 'success' | 'warning' | 'info', disabled?: boolean}> => {
+const getRequestActions = (
+  request: StockRequest,
+): Array<{
+  key: string
+  label: string
+  variant: 'primary' | 'secondary' | 'danger' | 'success' | 'warning' | 'info'
+  disabled?: boolean
+}> => {
   if (request.status !== 'Pending') return []
 
   return [
     {
       key: 'edit',
       label: 'Edit',
-      variant: 'primary'
+      variant: 'primary',
     },
     {
       key: 'approve',
       label: 'Approve',
       variant: 'success',
-      disabled: !hasEnoughStock(request)
+      disabled: !hasEnoughStock(request),
     },
     {
       key: 'reject',
       label: 'Reject',
-      variant: 'danger'
-    }
+      variant: 'danger',
+    },
   ]
 }
 

@@ -9,12 +9,7 @@
       :title="action.label"
     >
       <!-- Icon if provided -->
-      <svg
-        v-if="action.icon"
-        class="w-4 h-4 mr-1"
-        fill="currentColor"
-        viewBox="0 0 20 20"
-      >
+      <svg v-if="action.icon" class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
         <!-- Add icon paths based on action.icon type if needed -->
         <path
           v-if="action.icon === 'edit'"
@@ -31,7 +26,7 @@
           clip-rule="evenodd"
         />
       </svg>
-      
+
       {{ action.label }}
     </button>
   </div>
@@ -58,7 +53,7 @@ interface ActionButtonGroupProps {
 const props = withDefaults(defineProps<ActionButtonGroupProps>(), {
   loading: false,
   size: 'md',
-  layout: 'horizontal'
+  layout: 'horizontal',
 })
 
 const emit = defineEmits<{
@@ -69,7 +64,7 @@ const emit = defineEmits<{
 const containerClasses = computed(() => {
   const baseClasses = 'flex'
   const layoutClasses = props.layout === 'horizontal' ? 'flex-row gap-x-2' : 'flex-col gap-y-2'
-  
+
   return `${baseClasses} ${layoutClasses}`
 })
 
@@ -77,8 +72,9 @@ const containerClasses = computed(() => {
 const getButtonClasses = (variant: string): string => {
   const sizeClasses = getSizeClasses()
   const variantClasses = getVariantClasses(variant)
-  const baseClasses = 'font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
-  
+  const baseClasses =
+    'font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
+
   return `${baseClasses} ${sizeClasses} ${variantClasses}`
 }
 

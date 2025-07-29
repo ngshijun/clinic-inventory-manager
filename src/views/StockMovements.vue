@@ -11,10 +11,7 @@
         <div class="flex flex-col sm:flex-row gap-3 items-start sm:items-end">
           <!-- Quick Search -->
           <div class="flex-1 w-full sm:max-w-md">
-            <SearchInput
-              v-model="searchQuery"
-              placeholder="Search items..."
-            />
+            <SearchInput v-model="searchQuery" placeholder="Search items..." />
           </div>
 
           <!-- Advanced Search Toggle -->
@@ -611,13 +608,17 @@ const toggleSort = (key: string): void => {
 }
 
 // Action button configurations
-const getMovementActions = (): Array<{key: string, label: string, variant: 'primary' | 'secondary' | 'danger' | 'success' | 'warning' | 'info'}> => {
+const getMovementActions = (): Array<{
+  key: string
+  label: string
+  variant: 'primary' | 'secondary' | 'danger' | 'success' | 'warning' | 'info'
+}> => {
   return [
     {
       key: 'edit-remark',
       label: 'Edit Remark',
-      variant: 'primary'
-    }
+      variant: 'primary',
+    },
   ]
 }
 
