@@ -89,82 +89,62 @@
       </div>
 
       <!-- Stock In Modal -->
-      <div
-        v-if="showStockInModal"
-        class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"
+      <ActionModal
+        :is-open="showStockInModal"
+        :title="`Stock In: ${stockInItem?.item_name}`"
+        variant="create"
+        :loading="inventoryStore.loading"
+        confirm-text="Add Stock"
+        @close="closeStockInModal"
+        @cancel="closeStockInModal"
+        @confirm="confirmStockIn"
       >
-        <div class="p-5 border w-96 shadow-lg rounded-md bg-white" @click.stop>
-          <div class="mt-3">
-            <h3 class="text-lg font-medium text-gray-900 mb-4">
-              Stock In: {{ stockInItem?.item_name }}
-            </h3>
-            <form @submit.prevent="confirmStockIn">
-              <div class="space-y-4">
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">
-                    Quantity to Add
-                  </label>
-                  <div
-                    class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-50 text-gray-900 font-medium"
-                  >
-                    {{ stockQuantity }}
-                  </div>
-                  <p class="mt-1 text-xs text-gray-500">Unit: {{ stockInItem?.unit }}</p>
-                </div>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              Quantity to Add
+            </label>
+            <div
+              class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-50 text-gray-900 font-medium"
+            >
+              {{ stockQuantity }}
+            </div>
+            <p class="mt-1 text-xs text-gray-500">Unit: {{ stockInItem?.unit }}</p>
+          </div>
 
-                <!-- Clear Order Date Option -->
-                <div v-if="stockInItem?.order_date" class="space-y-2">
-                  <div class="bg-blue-50 border border-blue-200 rounded-md p-3">
-                    <div class="flex items-center gap-2 mb-2">
-                      <svg class="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
-                        <path
-                          fill-rule="evenodd"
-                          d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
-                          clip-rule="evenodd"
-                        />
-                      </svg>
-                      <span class="text-sm font-medium text-blue-800">
-                        This item was ordered on {{ formatDate(stockInItem.order_date) }}
-                      </span>
-                    </div>
-                    <div class="flex items-center">
-                      <input
-                        id="clearOrderDate"
-                        v-model="clearOrderDate"
-                        type="checkbox"
-                        class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                      />
-                      <label for="clearOrderDate" class="ml-2 text-sm text-gray-700">
-                        Clear order date (mark as received)
-                      </label>
-                    </div>
-                    <p class="mt-1 text-xs text-gray-500">
-                      If unchecked, the order date will remain to track pending orders.
-                    </p>
-                  </div>
-                </div>
+          <!-- Clear Order Date Option -->
+          <div v-if="stockInItem?.order_date" class="space-y-2">
+            <div class="bg-blue-50 border border-blue-200 rounded-md p-3">
+              <div class="flex items-center gap-2 mb-2">
+                <svg class="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                  <path
+                    fill-rule="evenodd"
+                    d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
+                    clip-rule="evenodd"
+                  />
+                </svg>
+                <span class="text-sm font-medium text-blue-800">
+                  This item was ordered on {{ formatDate(stockInItem.order_date) }}
+                </span>
               </div>
-
-              <div class="flex justify-end gap-3 mt-6">
-                <button
-                  type="button"
-                  @click="closeStockInModal"
-                  class="px-4 py-2 bg-gray-600 rounded-md text-sm font-medium text-white hover:bg-gray-700 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  :disabled="inventoryStore.loading"
-                  class="px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700 transition-colors disabled:opacity-50"
-                >
-                  {{ inventoryStore.loading ? 'Adding Stock...' : 'Add Stock' }}
-                </button>
+              <div class="flex items-center">
+                <input
+                  id="clearOrderDate"
+                  v-model="clearOrderDate"
+                  type="checkbox"
+                  class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label for="clearOrderDate" class="ml-2 text-sm text-gray-700">
+                  Clear order date (mark as received)
+                </label>
               </div>
-            </form>
+              <p class="mt-1 text-xs text-gray-500">
+                If unchecked, the order date will remain to track pending orders.
+              </p>
+            </div>
           </div>
         </div>
-      </div>
+      </ActionModal>
 
       <!-- Add New Item Form -->
       <div v-if="showAddForm" class="bg-white p-4 sm:p-6 rounded-lg shadow mb-4 sm:mb-6">
@@ -236,33 +216,10 @@
 
       <!-- Search Bar -->
       <div class="mb-4 sm:mb-6">
-        <div class="w-full sm:max-w-md">
-          <label for="search" class="sr-only">Search inventory</label>
-          <div class="relative">
-            <input
-              id="search"
-              v-model="searchQuery"
-              type="text"
-              class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm"
-              placeholder="Search items..."
-            />
-            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <svg
-                class="h-5 w-5 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                ></path>
-              </svg>
-            </div>
-          </div>
-        </div>
+        <SearchInput
+          v-model="searchQuery"
+          placeholder="Search items..."
+        />
       </div>
 
       <!-- Mobile Card View -->
@@ -728,6 +685,8 @@ import ErrorAlert from '@/components/ui/ErrorAlert.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
 import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
+import SearchInput from '@/components/ui/SearchInput.vue'
+import ActionModal from '@/components/ui/ActionModal.vue'
 import * as XLSX from 'xlsx'
 
 const inventoryStore = useInventoryStore()

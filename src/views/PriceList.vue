@@ -7,78 +7,35 @@
       </div>
 
       <!-- Mark Ordered Modal -->
-      <div
-        v-if="showOrderModal"
-        class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"
+      <ActionModal
+        :is-open="showOrderModal"
+        :title="`Mark Ordered: ${orderItem?.item_name}`"
+        variant="edit"
+        :loading="inventoryStore.loading"
+        confirm-text="Mark Ordered"
+        @close="closeOrderModal"
+        @cancel="closeOrderModal"
+        @confirm="confirmMarkAsOrdered"
       >
-        <div class="p-5 border w-96 shadow-lg rounded-md bg-white" @click.stop>
-          <div class="mt-3">
-            <h3 class="text-lg font-medium text-gray-900 mb-4">
-              Mark Ordered: {{ orderItem?.item_name }}
-            </h3>
-            <form @submit.prevent="confirmMarkAsOrdered">
-              <div class="space-y-4">
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1"> Order Date </label>
-                  <input
-                    v-model="orderDate"
-                    type="date"
-                    required
-                    class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-              </div>
-
-              <div class="flex justify-end gap-3 mt-6">
-                <button
-                  type="button"
-                  @click="closeOrderModal"
-                  class="px-4 py-2 bg-gray-600 rounded-md text-sm font-medium text-white hover:bg-gray-700 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  :disabled="inventoryStore.loading"
-                  class="px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
-                >
-                  {{ inventoryStore.loading ? 'Marking as Ordered...' : 'Mark Ordered' }}
-                </button>
-              </div>
-            </form>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Order Date</label>
+            <input
+              v-model="orderDate"
+              type="date"
+              required
+              class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
           </div>
         </div>
-      </div>
+      </ActionModal>
 
       <!-- Search Bar -->
       <div class="mb-4 sm:mb-6">
-        <div class="w-full sm:max-w-md">
-          <label for="search" class="sr-only">Search items</label>
-          <div class="relative">
-            <input
-              id="search"
-              v-model="searchQuery"
-              type="text"
-              class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm"
-              placeholder="Search items..."
-            />
-            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <svg
-                class="h-5 w-5 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                ></path>
-              </svg>
-            </div>
-          </div>
-        </div>
+        <SearchInput
+          v-model="searchQuery"
+          placeholder="Search items..."
+        />
       </div>
 
       <!-- Error Display -->
@@ -493,6 +450,8 @@ import { computed, onMounted, ref, watch } from 'vue'
 import ErrorAlert from '@/components/ui/ErrorAlert.vue'
 import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
+import SearchInput from '@/components/ui/SearchInput.vue'
+import ActionModal from '@/components/ui/ActionModal.vue'
 
 const inventoryStore = useInventoryStore()
 

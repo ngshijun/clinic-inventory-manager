@@ -18,31 +18,10 @@
       <div class="mb-4 sm:mb-6 flex flex-col sm:flex-row gap-4">
         <!-- Search -->
         <div class="flex-1 sm:max-w-md">
-          <label for="search" class="sr-only">Search requests</label>
-          <div class="relative">
-            <input
-              id="search"
-              v-model="searchQuery"
-              type="text"
-              class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm"
-              placeholder="Search requests..."
-            />
-            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <svg
-                class="h-5 w-5 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                ></path>
-              </svg>
-            </div>
-          </div>
+          <SearchInput
+            v-model="searchQuery"
+            placeholder="Search requests..."
+          />
         </div>
 
         <!-- Date Filter -->
@@ -132,79 +111,56 @@
       </div>
 
       <!-- Cancel Modal -->
-      <div
-        v-if="showCancelModal"
-        class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"
+      <ActionModal
+        :is-open="showCancelModal"
+        :title="`Cancel Request${cancelRequestIds.length > 1 ? 's' : ''}`"
+        variant="reject"
+        :loading="stockRequestsStore.loading"
+        :confirm-text="`Cancel Request${cancelRequestIds.length > 1 ? 's' : ''}`"
+        :cancel-text="`Keep Request${cancelRequestIds.length > 1 ? 's' : ''}`"
+        @close="closeCancelModal"
+        @cancel="closeCancelModal"
+        @confirm="confirmCancel"
       >
-        <div class="p-5 border w-96 shadow-lg rounded-md bg-white" @click.stop>
-          <div class="mt-3">
-            <h3 class="text-lg font-medium text-gray-900 mb-4">
-              Cancel Request{{ cancelRequestIds.length > 1 ? 's' : '' }}
-            </h3>
-            <form @submit.prevent="confirmCancel">
-              <div class="space-y-4">
-                <!-- Confirmation Message -->
-                <div class="bg-red-50 border border-red-200 rounded-md p-3">
-                  <div class="flex items-center gap-2 mb-2">
-                    <svg class="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20">
-                      <path
-                        fill-rule="evenodd"
-                        d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                        clip-rule="evenodd"
-                      />
-                    </svg>
-                    <span class="text-sm font-medium text-red-800">
-                      Warning: This action cannot be undone
-                    </span>
-                  </div>
-                  <p class="text-sm text-red-700">
-                    Are you sure you want to cancel
-                    {{
-                      cancelRequestIds.length > 1
-                        ? `${cancelRequestIds.length} requests`
-                        : 'this request'
-                    }}?
-                  </p>
-                </div>
+        <div class="space-y-4">
+          <!-- Confirmation Message -->
+          <div class="bg-red-50 border border-red-200 rounded-md p-3">
+            <div class="flex items-center gap-2 mb-2">
+              <svg class="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                <path
+                  fill-rule="evenodd"
+                  d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                  clip-rule="evenodd"
+                />
+              </svg>
+              <span class="text-sm font-medium text-red-800">
+                Warning: This action cannot be undone
+              </span>
+            </div>
+            <p class="text-sm text-red-700">
+              Are you sure you want to cancel
+              {{
+                cancelRequestIds.length > 1
+                  ? `${cancelRequestIds.length} requests`
+                  : 'this request'
+              }}?
+            </p>
+          </div>
 
-                <!-- Cancellation Reason -->
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">
-                    Cancellation Reason (Optional)
-                  </label>
-                  <textarea
-                    v-model="cancelRemark"
-                    rows="3"
-                    class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                    placeholder="Enter reason for cancellation..."
-                  ></textarea>
-                </div>
-              </div>
-
-              <div class="flex justify-end gap-3 mt-6">
-                <button
-                  type="button"
-                  @click="closeCancelModal"
-                  class="px-4 py-2 bg-gray-600 rounded-md text-sm font-medium text-white hover:bg-gray-700 transition-colors"
-                >
-                  Keep Request{{ cancelRequestIds.length > 1 ? 's' : '' }}
-                </button>
-                <button
-                  type="submit"
-                  :disabled="stockRequestsStore.loading"
-                  class="px-4 py-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50"
-                >
-                  {{
-                    stockRequestsStore.loading
-                      ? 'Cancelling...'
-                      : 'Cancel Request' + (cancelRequestIds.length > 1 ? 's' : '')
-                  }}
-                </button>
-              </div>
-            </form>
+          <!-- Cancellation Reason -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              Cancellation Reason (Optional)
+            </label>
+            <textarea
+              v-model="cancelRemark"
+              rows="3"
+              class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+              placeholder="Enter reason for cancellation..."
+            ></textarea>
           </div>
         </div>
-      </div>
+      </ActionModal>
 
       <!-- Mobile Card View -->
       <div class="block lg:hidden">
@@ -760,6 +716,8 @@ import { usePagination } from '@/composables/usePagination'
 // import StatusBadge from '@/components/ui/StatusBadge.vue' // Available for status badges
 import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
+import SearchInput from '@/components/ui/SearchInput.vue'
+import ActionModal from '@/components/ui/ActionModal.vue'
 
 // Store
 const stockRequestsStore = useStockRequestsStore()
