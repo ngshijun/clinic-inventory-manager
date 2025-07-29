@@ -51,7 +51,7 @@ interface MobileCardAction {
 }
 
 interface MobileCardBadge {
-  variant: string
+  variant: 'success' | 'warning' | 'danger' | 'info' | 'gray' | 'stock-in' | 'stock-out' | 'pending' | 'approved' | 'cancelled' | 'in-stock' | 'low-stock' | 'out-of-stock'
   text: string
 }
 
