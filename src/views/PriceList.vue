@@ -10,7 +10,7 @@
       <ActionModal
         :is-open="showOrderModal"
         :title="`Mark Ordered: ${orderItem?.item_name}`"
-        variant="edit"
+        variant="approve"
         :loading="inventoryStore.loading"
         confirm-text="Mark Ordered"
         @close="closeOrderModal"
@@ -134,28 +134,12 @@
                   </div>
 
                   <!-- Actions -->
-                  <div class="flex flex-row gap-2 mt-3 flex-wrap">
-                    <button
-                      @click="startEditRemark(item)"
-                      class="flex-1 text-blue-600 hover:text-blue-900 text-sm font-medium bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded"
-                    >
-                      Edit Remark
-                    </button>
-                    <button
-                      v-if="!item.order_date"
-                      @click="openOrderModal(item)"
-                      class="flex-1 text-orange-600 hover:text-orange-900 text-sm font-medium bg-orange-50 hover:bg-orange-100 px-3 py-1 rounded"
-                    >
-                      Mark Ordered
-                    </button>
-                    <button
-                      v-else
-                      @click="clearOrderDate(item.id)"
-                      class="flex-1 text-green-600 hover:text-green-900 text-sm font-medium bg-green-50 hover:bg-green-100 px-3 py-1 rounded"
-                    >
-                      Clear Date
-                    </button>
-                  </div>
+                  <ActionButtonGroup
+                    :actions="getItemActions(item)"
+                    size="sm"
+                    :loading="inventoryStore.loading"
+                    @action-click="(actionKey) => handleActionClick(actionKey, item)"
+                  />
                 </div>
               </div>
             </div>
@@ -264,28 +248,13 @@
                         Cancel
                       </button>
                     </div>
-                    <div v-else class="flex flex-row gap-x-2">
-                      <button
-                        @click="startEditRemark(item)"
-                        class="text-blue-600 hover:text-blue-900"
-                      >
-                        Edit Remark
-                      </button>
-                      <button
-                        v-if="!item.order_date"
-                        @click="openOrderModal(item)"
-                        class="text-orange-600 hover:text-orange-900"
-                      >
-                        Mark Ordered
-                      </button>
-                      <button
-                        v-else
-                        @click="clearOrderDate(item.id)"
-                        class="text-green-600 hover:text-green-900"
-                      >
-                        Clear Date
-                      </button>
-                    </div>
+                    <ActionButtonGroup
+                      v-else
+                      :actions="getItemActions(item)"
+                      size="sm"
+                      :loading="inventoryStore.loading"
+                      @action-click="(actionKey) => handleActionClick(actionKey, item)"
+                    />
                   </td>
                 </tr>
               </tbody>
@@ -323,6 +292,7 @@ import EmptyState from '@/components/ui/EmptyState.vue'
 import SearchInput from '@/components/ui/SearchInput.vue'
 import ActionModal from '@/components/ui/ActionModal.vue'
 import SortableTableHeader from '@/components/ui/SortableTableHeader.vue'
+import ActionButtonGroup from '@/components/ui/ActionButtonGroup.vue'
 
 const inventoryStore = useInventoryStore()
 
@@ -447,6 +417,48 @@ const toggleSort = (key: string): void => {
     sortConfig.value.direction = 'asc'
   }
   pagination.resetToFirstPage()
+}
+
+// Action button configurations
+const getItemActions = (item: InventoryItem): Array<{key: string, label: string, variant: 'primary' | 'secondary' | 'danger' | 'success' | 'warning' | 'info'}> => {
+  const actions: Array<{key: string, label: string, variant: 'primary' | 'secondary' | 'danger' | 'success' | 'warning' | 'info'}> = [
+    {
+      key: 'edit-remark',
+      label: 'Edit Remark',
+      variant: 'primary'
+    }
+  ]
+
+  if (!item.order_date) {
+    actions.push({
+      key: 'mark-ordered',
+      label: 'Mark Ordered',
+      variant: 'success'
+    })
+  } else {
+    actions.push({
+      key: 'clear-date',
+      label: 'Clear Date',
+      variant: 'warning'
+    })
+  }
+
+  return actions
+}
+
+// Handle action button clicks
+const handleActionClick = (actionKey: string, item: InventoryItem) => {
+  switch (actionKey) {
+    case 'edit-remark':
+      startEditRemark(item)
+      break
+    case 'mark-ordered':
+      openOrderModal(item)
+      break
+    case 'clear-date':
+      clearOrderDate(item.id)
+      break
+  }
 }
 
 // Remark editing functions

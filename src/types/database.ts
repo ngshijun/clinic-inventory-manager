@@ -7,7 +7,7 @@ export interface Database {
           id: string // uuid
           item_name: string // text
           quantity: number // int8
-          low_stock_notice_quantity: number // int8
+          reorder_level: number // int8
           unit: string // unit
           remark: string
           order_date: string | null // timestamp - Added order_date field
@@ -18,7 +18,7 @@ export interface Database {
           id?: string // uuid (auto-generated)
           item_name: string
           quantity: number
-          low_stock_notice_quantity: number
+          reorder_level: number
           unit: string
           remark?: string
           order_date?: string | null // Added order_date field
@@ -29,7 +29,7 @@ export interface Database {
           id?: string
           item_name?: string
           quantity?: number
-          low_stock_notice_quantity?: number
+          reorder_level?: number
           unit?: string
           remark?: string
           order_date?: string | null // Added order_date field
@@ -77,7 +77,7 @@ export interface Database {
         item_name: string
         quantity: number
         remark: string
-        status: 'Approved' | 'Pending' | 'Cancelled'
+        status: 'Approved' | 'Pending' | 'Rejected'
         created_at: string
         updated_at: string
       }
@@ -87,7 +87,7 @@ export interface Database {
         item_name: string
         quantity: number
         remark?: string
-        status?: 'Approved' | 'Pending' | 'Cancelled'
+        status?: 'Approved' | 'Pending' | 'Rejected'
         created_at?: string
         updated_at?: string
       }
@@ -97,7 +97,7 @@ export interface Database {
         item_name?: string
         quantity?: number
         remark?: string
-        status?: 'Approved' | 'Pending' | 'Cancelled'
+        status?: 'Approved' | 'Pending' | 'Rejected'
         created_at?: string
         updated_at?: string
       }

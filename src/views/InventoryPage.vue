@@ -174,10 +174,10 @@
             </div>
             <div class="col-span-1">
               <label class="block text-sm font-medium text-gray-700 mb-1"
-                >Low Stock Threshold</label
+                >Reorder Level</label
               >
               <input
-                v-model.number="newItem.low_stock_notice_quantity"
+                v-model.number="newItem.reorder_level"
                 type="number"
                 min="0"
                 required
@@ -270,9 +270,9 @@
                     </div>
                   </div>
                   <div>
-                    <span class="text-gray-500">Low Stock Alert:</span>
+                    <span class="text-gray-500">Reorder Level:</span>
                     <div class="font-medium text-gray-900 mt-1">
-                      {{ item.low_stock_notice_quantity }} {{ item.unit }}
+                      {{ item.reorder_level }} {{ item.unit }}
                     </div>
                   </div>
                 </div>
@@ -331,20 +331,13 @@
                 </div>
 
                 <!-- Actions -->
-                <div v-else class="flex gap-2">
-                  <button
-                    @click="startEdit(item)"
-                    class="flex-1 text-blue-600 hover:text-blue-900 text-sm font-medium bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded"
-                  >
-                    Manage Stock
-                  </button>
-                  <button
-                    @click="deleteItem(item.id)"
-                    class="flex-1 text-red-600 hover:text-red-900 text-sm font-medium bg-red-50 hover:bg-red-100 px-3 py-1 rounded"
-                  >
-                    Delete
-                  </button>
-                </div>
+                <ActionButtonGroup
+                  v-else
+                  :actions="getItemActions()"
+                  size="sm"
+                  :loading="inventoryStore.loading"
+                  @action-click="(actionKey) => handleActionClick(actionKey, item)"
+                />
               </div>
             </div>
           </div>
@@ -437,7 +430,7 @@
                     <div v-else>{{ item.quantity }} {{ item.unit }}</div>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {{ item.low_stock_notice_quantity }} {{ item.unit }}
+                    {{ item.reorder_level }} {{ item.unit }}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap">
                     <StatusBadge
@@ -446,7 +439,7 @@
                     />
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div v-if="editingItem === item.id" class="flex flex-col gap-2">
+                    <div v-if="editingItem === item.id" class="flex gap-2">
                       <button
                         @click="handleStockIn(item.id)"
                         :disabled="inventoryStore.loading || !stockQuantity || stockQuantity <= 0"
@@ -468,14 +461,13 @@
                         Cancel
                       </button>
                     </div>
-                    <div v-else class="flex gap-2">
-                      <button @click="startEdit(item)" class="text-blue-600 hover:text-blue-900">
-                        Manage Stock
-                      </button>
-                      <button @click="deleteItem(item.id)" class="text-red-600 hover:text-red-900">
-                        Delete
-                      </button>
-                    </div>
+                    <ActionButtonGroup
+                      v-else
+                      :actions="getItemActions()"
+                      size="sm"
+                      :loading="inventoryStore.loading"
+                      @action-click="(actionKey) => handleActionClick(actionKey, item)"
+                    />
                   </td>
                 </tr>
               </tbody>
@@ -514,6 +506,7 @@ import EmptyState from '@/components/ui/EmptyState.vue'
 import SearchInput from '@/components/ui/SearchInput.vue'
 import ActionModal from '@/components/ui/ActionModal.vue'
 import SortableTableHeader from '@/components/ui/SortableTableHeader.vue'
+import ActionButtonGroup from '@/components/ui/ActionButtonGroup.vue'
 import * as XLSX from 'xlsx'
 
 const inventoryStore = useInventoryStore()
@@ -556,14 +549,14 @@ const importStatus = ref({
 const newItem = ref<NewInventoryItem>({
   item_name: '',
   quantity: 0,
-  low_stock_notice_quantity: 0,
+  reorder_level: 0,
   unit: '',
 })
 
 // Helper function to get stock status for sorting
 const getStockStatusValue = (item: InventoryItem): number => {
   if (item.quantity === 0) return 0 // Out of Stock
-  if (item.quantity <= item.low_stock_notice_quantity) return 1 // Low Stock
+  if (item.quantity <= item.reorder_level) return 1 // Reorder Level Reached
   return 2 // In Stock
 }
 
@@ -679,6 +672,34 @@ const toggleSort = (key: string): void => {
   pagination.resetToFirstPage() // Reset to first page when sorting changes
 }
 
+// Action button configurations
+const getItemActions = (): Array<{key: string, label: string, variant: 'primary' | 'secondary' | 'danger' | 'success' | 'warning' | 'info'}> => {
+  return [
+    {
+      key: 'manage-stock',
+      label: 'Manage Stock',
+      variant: 'primary'
+    },
+    {
+      key: 'delete',
+      label: 'Delete',
+      variant: 'danger'
+    }
+  ]
+}
+
+// Handle action button clicks
+const handleActionClick = (actionKey: string, item: InventoryItem) => {
+  switch (actionKey) {
+    case 'manage-stock':
+      startEdit(item)
+      break
+    case 'delete':
+      deleteItem(item.id)
+      break
+  }
+}
+
 const startEdit = (item: InventoryItem): void => {
   editingItem.value = item.id
   stockQuantity.value = 1 // Default to 1
@@ -732,7 +753,7 @@ const addNewItem = async (): Promise<void> => {
       newItem.value = {
         item_name: '',
         quantity: 0,
-        low_stock_notice_quantity: 0,
+        reorder_level: 0,
         unit: '',
       }
       showAddForm.value = false
@@ -748,14 +769,14 @@ const deleteItem = async (itemId: string): Promise<void> => {
 
 const getStockStatus = (item: InventoryItem): StockStatus => {
   if (item.quantity === 0) return { text: 'Out of Stock', class: 'bg-red-100 text-red-800' }
-  if (item.quantity <= item.low_stock_notice_quantity)
+  if (item.quantity <= item.reorder_level)
     return { text: 'Low Stock', class: 'bg-yellow-100 text-yellow-800' }
   return { text: 'In Stock', class: 'bg-green-100 text-green-800' }
 }
 
 const getStockStatusVariant = (item: InventoryItem): 'out-of-stock' | 'low-stock' | 'in-stock' => {
   if (item.quantity === 0) return 'out-of-stock'
-  if (item.quantity <= item.low_stock_notice_quantity) return 'low-stock'
+  if (item.quantity <= item.reorder_level) return 'low-stock'
   return 'in-stock'
 }
 
@@ -811,7 +832,7 @@ const handleFileUpload = async (event: Event): Promise<void> => {
 interface ExcelData {
   item_name: string
   quantity: number
-  low_stock_notice_quantity: number
+  reorder_level: number
   unit: string
   remark: string
   order_date: string
@@ -855,13 +876,13 @@ const importInventoryData = async (data: ExcelData[]): Promise<void> => {
       if (
         !row.item_name ||
         typeof row.quantity !== 'number' ||
-        typeof row.low_stock_notice_quantity !== 'number' ||
+        typeof row.reorder_level !== 'number' ||
         !row.unit ||
         !row.remark ||
         !row.order_date
       ) {
         throw new Error(
-          'Invalid data format. Please ensure all rows have: item_name, quantity, low_stock_notice_quantity, unit, remark, order_date',
+          'Invalid data format. Please ensure all rows have: item_name, quantity, reorder_level, unit, remark, order_date',
         )
       }
     }
@@ -889,7 +910,7 @@ const importInventoryData = async (data: ExcelData[]): Promise<void> => {
         if (
           existingItem.item_name !== row.item_name ||
           existingItem.quantity !== row.quantity ||
-          existingItem.low_stock_notice_quantity !== row.low_stock_notice_quantity ||
+          existingItem.reorder_level !== row.reorder_level ||
           existingItem.unit !== row.unit ||
           existingItem.remark !== row.remark ||
           existingItem.order_date !== row.order_date
@@ -897,7 +918,7 @@ const importInventoryData = async (data: ExcelData[]): Promise<void> => {
           await inventoryStore.updateItem(existingItem.id, {
             ...existingItem,
             quantity: Math.max(0, row.quantity),
-            low_stock_notice_quantity: Math.max(0, row.low_stock_notice_quantity),
+            reorder_level: Math.max(0, row.reorder_level),
             unit: row.unit,
             remark: row.remark,
             order_date: row.order_date,
@@ -912,7 +933,7 @@ const importInventoryData = async (data: ExcelData[]): Promise<void> => {
         await inventoryStore.addItem({
           item_name: row.item_name,
           quantity: Math.max(0, row.quantity),
-          low_stock_notice_quantity: Math.max(0, row.low_stock_notice_quantity),
+          reorder_level: Math.max(0, row.reorder_level),
           unit: row.unit,
           remark: row.remark,
           order_date: row.order_date,
@@ -954,7 +975,7 @@ const exportToExcel = (): void => {
     const exportData = sortedAndFilteredItems.value.map((item) => ({
       item_name: item.item_name,
       quantity: item.quantity,
-      low_stock_notice_quantity: item.low_stock_notice_quantity,
+      reorder_level: item.reorder_level,
       unit: item.unit,
       remark: item.remark,
       order_date: item.order_date,
@@ -968,7 +989,7 @@ const exportToExcel = (): void => {
     const columnWidths = [
       { wch: 50 }, // item_name
       { wch: 12 }, // quantity
-      { wch: 22 }, // low_stock_notice_quantity
+      { wch: 22 }, // reorder_level
       { wch: 25 }, // unit
       { wch: 50 }, // remark
       { wch: 25 }, // order_date

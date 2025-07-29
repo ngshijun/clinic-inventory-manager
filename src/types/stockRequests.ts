@@ -4,7 +4,7 @@ export interface StockRequest {
   item_name: string
   quantity: number
   remark: string
-  status: 'Approved' | 'Pending' | 'Cancelled'
+  status: 'Approved' | 'Pending' | 'Rejected'
   unit: string
   created_at: string
   updated_at: string

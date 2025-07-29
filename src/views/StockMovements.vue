@@ -239,12 +239,12 @@
                     <span class="text-gray-900 text-sm flex-1 whitespace-pre-wrap">{{
                       movement.remark || 'No remark'
                     }}</span>
-                    <button
-                      @click="startEditRemark(movement)"
-                      class="flex-1 text-blue-600 hover:text-blue-900 text-sm font-medium bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded"
-                    >
-                      Edit
-                    </button>
+                    <ActionButtonGroup
+                      :actions="getMovementActions()"
+                      size="sm"
+                      :loading="stockMovementsStore.loading"
+                      @action-click="(actionKey) => handleActionClick(actionKey, movement)"
+                    />
                   </div>
                 </div>
               </div>
@@ -336,7 +336,7 @@
                     </div>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div v-if="editingRemark === movement.id" class="flex flex-col gap-2">
+                    <div v-if="editingRemark === movement.id" class="flex gap-2">
                       <button
                         @click="saveRemark(movement.id)"
                         :disabled="stockMovementsStore.loading"
@@ -352,13 +352,13 @@
                         Cancel
                       </button>
                     </div>
-                    <button
+                    <ActionButtonGroup
                       v-else
-                      @click="startEditRemark(movement)"
-                      class="text-blue-600 hover:text-blue-900"
-                    >
-                      Edit Remark
-                    </button>
+                      :actions="getMovementActions()"
+                      size="sm"
+                      :loading="stockMovementsStore.loading"
+                      @action-click="(actionKey) => handleActionClick(actionKey, movement)"
+                    />
                   </td>
                 </tr>
               </tbody>
@@ -395,6 +395,7 @@ import EmptyState from '@/components/ui/EmptyState.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
 import SearchInput from '@/components/ui/SearchInput.vue'
 import SortableTableHeader from '@/components/ui/SortableTableHeader.vue'
+import ActionButtonGroup from '@/components/ui/ActionButtonGroup.vue'
 
 const stockMovementsStore = useStockMovementsStore()
 
@@ -607,6 +608,26 @@ const toggleSort = (key: string): void => {
     sortConfig.value.direction = 'asc'
   }
   pagination.resetToFirstPage()
+}
+
+// Action button configurations
+const getMovementActions = (): Array<{key: string, label: string, variant: 'primary' | 'secondary' | 'danger' | 'success' | 'warning' | 'info'}> => {
+  return [
+    {
+      key: 'edit-remark',
+      label: 'Edit Remark',
+      variant: 'primary'
+    }
+  ]
+}
+
+// Handle action button clicks
+const handleActionClick = (actionKey: string, movement: StockMovement) => {
+  switch (actionKey) {
+    case 'edit-remark':
+      startEditRemark(movement)
+      break
+  }
 }
 
 const startEditRemark = (movement: StockMovement): void => {

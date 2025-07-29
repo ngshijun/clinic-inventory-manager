@@ -72,11 +72,11 @@
               Approve Selected
             </button>
             <button
-              @click="bulkCancel"
+              @click="bulkReject"
               :disabled="stockRequestsStore.loading"
               class="bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-3 py-1 rounded text-sm font-medium transition-colors"
             >
-              Cancel Selected
+              Reject Selected
             </button>
             <button
               @click="clearSelection"
@@ -110,17 +110,17 @@
         </div>
       </div>
 
-      <!-- Cancel Modal -->
+      <!-- Reject Modal -->
       <ActionModal
-        :is-open="showCancelModal"
-        :title="`Cancel Request${cancelRequestIds.length > 1 ? 's' : ''}`"
+        :is-open="showRejectModal"
+        :title="`Reject Request${rejectRequestIds.length > 1 ? 's' : ''}`"
         variant="reject"
         :loading="stockRequestsStore.loading"
-        :confirm-text="`Cancel Request${cancelRequestIds.length > 1 ? 's' : ''}`"
-        :cancel-text="`Keep Request${cancelRequestIds.length > 1 ? 's' : ''}`"
-        @close="closeCancelModal"
-        @cancel="closeCancelModal"
-        @confirm="confirmCancel"
+        :confirm-text="`Reject Request${rejectRequestIds.length > 1 ? 's' : ''}`"
+        :cancel-text="`Keep Request${rejectRequestIds.length > 1 ? 's' : ''}`"
+        @close="closeRejectModal"
+        @cancel="closeRejectModal"
+        @confirm="confirmReject"
       >
         <div class="space-y-4">
           <!-- Confirmation Message -->
@@ -138,25 +138,25 @@
               </span>
             </div>
             <p class="text-sm text-red-700">
-              Are you sure you want to cancel
+              Are you sure you want to reject
               {{
-                cancelRequestIds.length > 1
-                  ? `${cancelRequestIds.length} requests`
+                rejectRequestIds.length > 1
+                  ? `${rejectRequestIds.length} requests`
                   : 'this request'
               }}?
             </p>
           </div>
 
-          <!-- Cancellation Reason -->
+          <!-- Rejection Reason -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">
-              Cancellation Reason (Optional)
+              Rejection Reason (Optional)
             </label>
             <textarea
-              v-model="cancelRemark"
+              v-model="rejectRemark"
               rows="3"
               class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
-              placeholder="Enter reason for cancellation..."
+              placeholder="Enter reason for rejection..."
             ></textarea>
           </div>
         </div>
@@ -272,7 +272,7 @@
                         ? 'bg-yellow-100 text-yellow-800'
                         : request.status === 'Approved'
                           ? 'bg-green-100 text-green-800'
-                          : request.status === 'Cancelled'
+                          : request.status === 'Rejected'
                             ? 'bg-red-100 text-red-800'
                             : 'bg-gray-100 text-gray-800',
                     ]"
@@ -316,29 +316,13 @@
                 </div>
 
                 <!-- Actions -->
-                <div v-if="request.status === 'Pending'" class="flex gap-2">
-                  <button
-                    @click="startEdit(request)"
-                    :disabled="stockRequestsStore.loading"
-                    class="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-3 py-2 rounded text-sm font-medium transition-colors"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    @click="approveRequest(request.id)"
-                    :disabled="stockRequestsStore.loading || !hasEnoughStock(request)"
-                    class="flex-1 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-3 py-2 rounded text-sm font-medium transition-colors"
-                  >
-                    Approve
-                  </button>
-                  <button
-                    @click="showCancelDialog(request.id)"
-                    :disabled="stockRequestsStore.loading"
-                    class="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-3 py-2 rounded text-sm font-medium transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </div>
+                <ActionButtonGroup
+                  v-if="request.status === 'Pending'"
+                  :actions="getRequestActions(request)"
+                  size="sm"
+                  :loading="stockRequestsStore.loading"
+                  @action-click="(actionKey) => handleActionClick(actionKey, request)"
+                />
               </div>
             </div>
           </div>
@@ -621,7 +605,7 @@
                           ? 'bg-yellow-100 text-yellow-800'
                           : request.status === 'Approved'
                             ? 'bg-green-100 text-green-800'
-                            : request.status === 'Cancelled'
+                            : request.status === 'Rejected'
                               ? 'bg-red-100 text-red-800'
                               : 'bg-gray-100 text-gray-800',
                       ]"
@@ -630,7 +614,7 @@
                     </span>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div v-if="editingRequestId === request.id" class="flex flex-col gap-2">
+                    <div v-if="editingRequestId === request.id" class="flex gap-2">
                       <button
                         @click="saveEdit(request.id)"
                         :disabled="stockRequestsStore.loading || !isEditFormValid"
@@ -646,35 +630,19 @@
                         Cancel
                       </button>
                     </div>
-                    <div v-else-if="request.status === 'Pending'" class="flex gap-2">
-                      <button
-                        @click="startEdit(request)"
-                        :disabled="stockRequestsStore.loading"
-                        class="text-blue-600 hover:text-blue-900 disabled:opacity-50"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        @click="approveRequest(request.id)"
-                        :disabled="stockRequestsStore.loading || !hasEnoughStock(request)"
-                        class="text-green-600 hover:text-green-900 disabled:opacity-50"
-                      >
-                        Approve
-                      </button>
-                      <button
-                        @click="showCancelDialog(request.id)"
-                        :disabled="stockRequestsStore.loading"
-                        class="text-red-600 hover:text-red-900 disabled:opacity-50"
-                      >
-                        Cancel
-                      </button>
-                    </div>
+                    <ActionButtonGroup
+                      v-else-if="request.status === 'Pending'"
+                      :actions="getRequestActions(request)"
+                      size="sm"
+                      :loading="stockRequestsStore.loading"
+                      @action-click="(actionKey) => handleActionClick(actionKey, request)"
+                    />
                     <span v-else class="text-gray-400 text-xs">
                       {{
                         request.status === 'Approved'
                           ? 'Approved'
-                          : request.status === 'Cancelled'
-                            ? 'Cancelled'
+                          : request.status === 'Rejected'
+                            ? 'Rejected'
                             : 'Completed'
                       }}
                     </span>
@@ -718,6 +686,7 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import SearchInput from '@/components/ui/SearchInput.vue'
 import ActionModal from '@/components/ui/ActionModal.vue'
+import ActionButtonGroup from '@/components/ui/ActionButtonGroup.vue'
 
 // Store
 const stockRequestsStore = useStockRequestsStore()
@@ -741,10 +710,10 @@ const editForm = ref<{
   remark: '',
 })
 
-// Cancel modal state
-const showCancelModal = ref<boolean>(false)
-const cancelRequestIds = ref<string[]>([])
-const cancelRemark = ref<string>('')
+// Reject modal state
+const showRejectModal = ref<boolean>(false)
+const rejectRequestIds = ref<string[]>([])
+const rejectRemark = ref<string>('')
 
 // Sorting configuration
 const sortConfig = ref<{
@@ -856,6 +825,45 @@ const hasEnoughStock = (request: StockRequest): boolean => {
   return getAvailableStock(request.item_id) >= request.quantity
 }
 
+// Action button configurations
+const getRequestActions = (request: StockRequest): Array<{key: string, label: string, variant: 'primary' | 'secondary' | 'danger' | 'success' | 'warning' | 'info', disabled?: boolean}> => {
+  if (request.status !== 'Pending') return []
+
+  return [
+    {
+      key: 'edit',
+      label: 'Edit',
+      variant: 'primary'
+    },
+    {
+      key: 'approve',
+      label: 'Approve',
+      variant: 'success',
+      disabled: !hasEnoughStock(request)
+    },
+    {
+      key: 'reject',
+      label: 'Reject',
+      variant: 'danger'
+    }
+  ]
+}
+
+// Handle action button clicks
+const handleActionClick = (actionKey: string, request: StockRequest) => {
+  switch (actionKey) {
+    case 'edit':
+      startEdit(request)
+      break
+    case 'approve':
+      approveRequest(request.id)
+      break
+    case 'reject':
+      showRejectDialog(request.id)
+      break
+  }
+}
+
 // Edit functions
 const startEdit = (request: StockRequest): void => {
   editingRequestId.value = request.id
@@ -883,39 +891,39 @@ const saveEdit = async (requestId: string): Promise<void> => {
   }
 }
 
-// Cancel functions
-const showCancelDialog = (requestId: string): void => {
-  cancelRequestIds.value = [requestId]
-  cancelRemark.value = ''
-  showCancelModal.value = true
+// Reject functions
+const showRejectDialog = (requestId: string): void => {
+  rejectRequestIds.value = [requestId]
+  rejectRemark.value = ''
+  showRejectModal.value = true
 }
 
-const bulkCancel = (): void => {
+const bulkReject = (): void => {
   if (selectedRequests.value.length === 0) return
-  cancelRequestIds.value = [...selectedRequests.value]
-  cancelRemark.value = ''
-  showCancelModal.value = true
+  rejectRequestIds.value = [...selectedRequests.value]
+  rejectRemark.value = ''
+  showRejectModal.value = true
 }
 
-const closeCancelModal = (): void => {
-  showCancelModal.value = false
-  cancelRequestIds.value = []
-  cancelRemark.value = ''
+const closeRejectModal = (): void => {
+  showRejectModal.value = false
+  rejectRequestIds.value = []
+  rejectRemark.value = ''
 }
 
-const confirmCancel = async (): Promise<void> => {
-  if (cancelRequestIds.value.length === 0) return
+const confirmReject = async (): Promise<void> => {
+  if (rejectRequestIds.value.length === 0) return
 
-  for (const requestId of cancelRequestIds.value) {
-    await stockRequestsStore.cancelRequest(requestId, cancelRemark.value)
+  for (const requestId of rejectRequestIds.value) {
+    await stockRequestsStore.rejectRequest(requestId, rejectRemark.value)
   }
 
-  // Remove cancelled requests from selection
+  // Remove rejected requests from selection
   selectedRequests.value = selectedRequests.value.filter(
-    (id) => !cancelRequestIds.value.includes(id),
+    (id) => !rejectRequestIds.value.includes(id),
   )
 
-  closeCancelModal()
+  closeRejectModal()
 }
 
 // Pagination functions

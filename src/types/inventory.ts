@@ -2,7 +2,7 @@ export interface InventoryItem {
   id: string
   item_name: string
   quantity: number
-  low_stock_notice_quantity: number
+  reorder_level: number
   unit: string
   remark: string
   order_date: string | null // Added order_date field
@@ -13,7 +13,7 @@ export interface InventoryItem {
 export interface NewInventoryItem {
   item_name: string
   quantity: number
-  low_stock_notice_quantity: number
+  reorder_level: number
   unit: string
   remark?: string
   order_date?: string | null // Added order_date field

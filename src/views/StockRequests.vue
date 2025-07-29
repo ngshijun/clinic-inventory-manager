@@ -250,22 +250,13 @@
                   </div>
                 </div>
                 <!-- Actions -->
-                <div v-if="request.status === 'Pending'" class="flex gap-2">
-                  <button
-                    @click="startEdit(request)"
-                    :disabled="stockRequestsStore.loading"
-                    class="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-3 py-2 rounded text-sm font-medium transition-colors"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    @click="removeRequest(request.id)"
-                    :disabled="stockRequestsStore.loading"
-                    class="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-3 py-2 rounded text-sm font-medium transition-colors"
-                  >
-                    Remove
-                  </button>
-                </div>
+                <ActionButtonGroup
+                  v-if="request.status === 'Pending'"
+                  :actions="getRequestActions(request)"
+                  size="sm"
+                  :loading="stockRequestsStore.loading"
+                  @action-click="(actionKey) => handleActionClick(actionKey, request)"
+                />
               </div>
             </div>
           </div>
@@ -362,7 +353,7 @@
                     />
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div v-if="editingRequestId === request.id" class="flex flex-col gap-2">
+                    <div v-if="editingRequestId === request.id" class="flex gap-2">
                       <button
                         @click="saveEdit(request.id)"
                         :disabled="stockRequestsStore.loading || !isEditFormValid"
@@ -378,24 +369,15 @@
                         Cancel
                       </button>
                     </div>
-                    <div v-else-if="request.status === 'Pending'" class="flex gap-2">
-                      <button
-                        @click="startEdit(request)"
-                        :disabled="stockRequestsStore.loading"
-                        class="text-blue-600 hover:text-blue-900 disabled:opacity-50"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        @click="removeRequest(request.id)"
-                        :disabled="stockRequestsStore.loading"
-                        class="text-red-600 hover:text-red-900 disabled:opacity-50"
-                      >
-                        Remove
-                      </button>
-                    </div>
+                    <ActionButtonGroup
+                      v-else-if="request.status === 'Pending'"
+                      :actions="getRequestActions(request)"
+                      size="sm"
+                      :loading="stockRequestsStore.loading"
+                      @action-click="(actionKey) => handleActionClick(actionKey, request)"
+                    />
                     <span v-else class="text-gray-400 text-xs">
-                      {{ request.status === 'Approved' ? 'Completed' : 'Cancelled' }}
+                      {{ request.status === 'Approved' ? 'Completed' : 'Rejected' }}
                     </span>
                   </td>
                 </tr>
@@ -434,6 +416,7 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import SearchInput from '@/components/ui/SearchInput.vue'
 import SortableTableHeader from '@/components/ui/SortableTableHeader.vue'
+import ActionButtonGroup from '@/components/ui/ActionButtonGroup.vue'
 
 // Component imports
 import TablePagination from '@/components/TablePagination.vue'
@@ -617,6 +600,36 @@ const toggleSort = (key: string): void => {
     sortConfig.value.direction = 'asc'
   }
   pagination.resetToFirstPage()
+}
+
+// Action button configurations
+const getRequestActions = (request: StockRequest): Array<{key: string, label: string, variant: 'primary' | 'secondary' | 'danger' | 'success' | 'warning' | 'info'}> => {
+  if (request.status !== 'Pending') return []
+  
+  return [
+    {
+      key: 'edit',
+      label: 'Edit',
+      variant: 'info'
+    },
+    {
+      key: 'delete',
+      label: 'Remove',
+      variant: 'danger'
+    }
+  ]
+}
+
+// Handle action button clicks
+const handleActionClick = (actionKey: string, request: StockRequest) => {
+  switch (actionKey) {
+    case 'edit':
+      startEdit(request)
+      break
+    case 'delete':
+      removeRequest(request.id)
+      break
+  }
 }
 
 // Clear all filters
