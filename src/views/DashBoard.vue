@@ -286,7 +286,7 @@
                           <button
                             @click="openOrderModal(item)"
                             :disabled="inventoryStore.loading"
-                            class="text-xs bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded disabled:opacity-50 transition-colors"
+                            class="text-xs bg-green-100 hover:bg-green-200 text-green-800 px-2 py-1 rounded disabled:opacity-50 transition-colors"
                           >
                             {{ inventoryStore.loading ? 'Marking...' : 'Mark Ordered' }}
                           </button>
@@ -316,7 +316,7 @@
                             v-else
                             @click="openOrderModal(item)"
                             :disabled="inventoryStore.loading"
-                            class="text-xs bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded disabled:opacity-50 transition-colors"
+                            class="text-xs bg-green-100 hover:bg-green-200 text-green-800 px-2 py-1 rounded disabled:opacity-50 transition-colors"
                           >
                             {{ inventoryStore.loading ? 'Marking...' : 'Mark Ordered' }}
                           </button>
@@ -386,7 +386,7 @@
                           <button
                             @click="openOrderModal(item)"
                             :disabled="inventoryStore.loading"
-                            class="text-xs bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded disabled:opacity-50 transition-colors"
+                            class="text-xs bg-green-100 hover:bg-green-200 text-green-800 px-2 py-1 rounded disabled:opacity-50 transition-colors"
                           >
                             {{ inventoryStore.loading ? 'Marking...' : 'Mark Ordered' }}
                           </button>
@@ -416,7 +416,7 @@
                             v-else
                             @click="openOrderModal(item)"
                             :disabled="inventoryStore.loading"
-                            class="text-xs bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded disabled:opacity-50 transition-colors"
+                            class="text-xs bg-green-100 hover:bg-green-200 text-green-800 px-2 py-1 rounded disabled:opacity-50 transition-colors"
                           >
                             {{ inventoryStore.loading ? 'Marking...' : 'Mark Ordered' }}
                           </button>
