@@ -98,7 +98,7 @@ const getVariantClasses = (variant: string): string => {
     case 'success':
       return 'bg-green-600 hover:bg-green-700 text-white'
     case 'warning':
-      return 'bg-orange-600 hover:bg-orange-700 text-white'
+      return 'bg-yellow-600 hover:bg-yellow-700 text-white'
     case 'danger':
       return 'bg-red-600 hover:bg-red-700 text-white'
     case 'info':

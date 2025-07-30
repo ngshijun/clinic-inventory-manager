@@ -18,13 +18,71 @@
         @confirm="confirmMarkAsOrdered"
       >
         <div class="space-y-4">
+          <div class="bg-green-50 border border-green-200 rounded-md p-3">
+            <div class="flex items-center gap-2 mb-2">
+              <svg class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                <path
+                  fill-rule="evenodd"
+                  d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
+                  clip-rule="evenodd"
+                />
+              </svg>
+              <span class="text-sm font-medium text-green-800"> Set Order Date </span>
+            </div>
+            <p class="text-sm text-green-700">
+              This will mark the item as ordered and track its pending status.
+            </p>
+          </div>
+
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Order Date</label>
             <input
               v-model="orderDate"
               type="date"
               required
+              class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+            />
+          </div>
+        </div>
+      </ActionModal>
+
+      <!-- Edit Remark Modal -->
+      <ActionModal
+        :is-open="showEditRemarkModal"
+        :title="`Edit Remark: ${editingItem?.item_name}`"
+        variant="approve"
+        :loading="inventoryStore.loading"
+        confirm-text="Save Remark"
+        :disabled="!isRemarkChanged"
+        @close="closeEditRemarkModal"
+        @cancel="closeEditRemarkModal"
+        @confirm="confirmSaveRemark"
+      >
+        <div class="space-y-4">
+          <div class="bg-blue-50 border border-blue-200 rounded-md p-3">
+            <div class="flex items-center gap-2 mb-2">
+              <svg class="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                <path
+                  fill-rule="evenodd"
+                  d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z"
+                  clip-rule="evenodd"
+                />
+              </svg>
+              <span class="text-sm font-medium text-blue-800"> Update Item Information </span>
+            </div>
+            <p class="text-sm text-blue-700">
+              Add notes such as last purchase price, supplier information, or other relevant
+              details.
+            </p>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Remark</label>
+            <textarea
+              v-model="newRemark"
+              rows="3"
               class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Enter remark (e.g., last purchase price, supplier info)..."
             />
           </div>
         </div>
@@ -93,36 +151,8 @@
                   </span>
                 </div>
 
-                <!-- Remark Form -->
-                <div v-if="editingRemark === item.id" class="space-y-3 p-3 bg-gray-50 rounded-md">
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Remark</label>
-                    <textarea
-                      v-model="newRemark"
-                      rows="3"
-                      class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Enter remark (e.g., last purchase price, supplier info)..."
-                    ></textarea>
-                  </div>
-                  <div class="flex gap-2">
-                    <button
-                      @click="saveRemark(item.id)"
-                      :disabled="inventoryStore.loading"
-                      class="flex-1 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-3 py-2 rounded text-sm font-medium transition-colors"
-                    >
-                      {{ inventoryStore.loading ? 'Saving...' : 'Save' }}
-                    </button>
-                    <button
-                      @click="cancelEditRemark"
-                      class="flex-1 bg-gray-600 hover:bg-gray-700 disabled:opacity-50 text-white px-3 py-2 rounded text-sm font-medium transition-colors"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-
                 <!-- Remark Display and Actions -->
-                <div v-else>
+                <div>
                   <div class="text-sm">
                     <span class="text-gray-500">Remark:</span>
                     <div class="font-medium text-gray-900 mt-1 whitespace-pre-wrap">
@@ -212,16 +242,7 @@
                     {{ item.quantity }} {{ item.unit }}
                   </td>
                   <td class="px-6 py-4 text-sm text-gray-900 max-w-md">
-                    <div v-if="editingRemark === item.id" class="space-y-2">
-                      <textarea
-                        v-model="newRemark"
-                        rows="3"
-                        class="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Enter remark (e.g., last purchase price, supplier info)..."
-                      ></textarea>
-                    </div>
                     <div
-                      v-else
                       class="break-words whitespace-pre-wrap"
                       :title="item.remark || 'No remark'"
                     >
@@ -229,24 +250,7 @@
                     </div>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div v-if="editingRemark === item.id" class="flex flex-row gap-x-2">
-                      <button
-                        @click="saveRemark(item.id)"
-                        :disabled="inventoryStore.loading"
-                        class="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
-                      >
-                        {{ inventoryStore.loading ? 'Saving...' : 'Save' }}
-                      </button>
-                      <button
-                        @click="cancelEditRemark"
-                        :disabled="inventoryStore.loading"
-                        class="bg-gray-600 hover:bg-gray-700 disabled:opacity-50 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
-                      >
-                        Cancel
-                      </button>
-                    </div>
                     <ActionButtonGroup
-                      v-else
                       :actions="getItemActions(item)"
                       size="sm"
                       :loading="inventoryStore.loading"
@@ -294,13 +298,16 @@ import ActionButtonGroup from '@/components/ui/ActionButtonGroup.vue'
 const inventoryStore = useInventoryStore()
 
 const searchQuery = ref<string>('')
-const editingRemark = ref<string | null>(null)
 const newRemark = ref<string>('')
 
 // Order modal variables
 const showOrderModal = ref<boolean>(false)
 const orderItem = ref<InventoryItem | null>(null)
 const orderDate = ref<string>('')
+
+// Edit remark modal variables
+const showEditRemarkModal = ref<boolean>(false)
+const editingItem = ref<InventoryItem | null>(null)
 
 // Sorting configuration
 const sortConfig = ref<{
@@ -320,6 +327,12 @@ const formatDate = (dateString: string): string => {
     year: 'numeric',
   })
 }
+
+// Computed property for remark validation
+const isRemarkChanged = computed(() => {
+  if (!editingItem.value) return false
+  return newRemark.value.trim() !== (editingItem.value.remark || '').trim()
+})
 
 // Order modal functions
 const openOrderModal = (item: InventoryItem): void => {
@@ -347,6 +360,28 @@ const confirmMarkAsOrdered = async (): Promise<void> => {
 
 const clearOrderDate = async (itemId: string): Promise<void> => {
   await inventoryStore.clearOrderDate(itemId)
+}
+
+// Edit remark modal functions
+const openEditRemarkModal = (item: InventoryItem): void => {
+  editingItem.value = item
+  newRemark.value = item.remark || ''
+  showEditRemarkModal.value = true
+}
+
+const closeEditRemarkModal = (): void => {
+  showEditRemarkModal.value = false
+  editingItem.value = null
+  newRemark.value = ''
+}
+
+const confirmSaveRemark = async (): Promise<void> => {
+  if (!editingItem.value || !isRemarkChanged.value) return
+
+  await saveRemark(editingItem.value.id)
+  if (!inventoryStore.error) {
+    closeEditRemarkModal()
+  }
 }
 
 // Sorting and filtering logic
@@ -457,7 +492,7 @@ const getItemActions = (
 const handleActionClick = (actionKey: string, item: InventoryItem) => {
   switch (actionKey) {
     case 'edit-remark':
-      startEditRemark(item)
+      openEditRemarkModal(item)
       break
     case 'mark-ordered':
       openOrderModal(item)
@@ -469,16 +504,6 @@ const handleActionClick = (actionKey: string, item: InventoryItem) => {
 }
 
 // Remark editing functions
-const startEditRemark = (item: InventoryItem): void => {
-  editingRemark.value = item.id
-  newRemark.value = item.remark || ''
-}
-
-const cancelEditRemark = (): void => {
-  editingRemark.value = null
-  newRemark.value = ''
-}
-
 const saveRemark = async (itemId: string): Promise<void> => {
   const item = inventoryStore.items.find((item) => item.id === itemId)
   if (!item) return
@@ -490,11 +515,6 @@ const saveRemark = async (itemId: string): Promise<void> => {
   }
 
   await inventoryStore.updateItem(itemId, updatedItem)
-
-  if (!inventoryStore.error) {
-    editingRemark.value = null
-    newRemark.value = ''
-  }
 }
 
 onMounted(() => {})

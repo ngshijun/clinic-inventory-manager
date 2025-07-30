@@ -4,48 +4,44 @@
       <h2 class="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">Inventory Dashboard</h2>
 
       <!-- Mark as Ordered Modal -->
-      <div
-        v-if="showOrderModal"
-        class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"
+      <ActionModal
+        :is-open="showOrderModal"
+        :title="`Mark Ordered: ${orderItem?.item_name}`"
+        variant="approve"
+        :loading="inventoryStore.loading"
+        confirm-text="Mark Ordered"
+        @close="closeOrderModal"
+        @cancel="closeOrderModal"
+        @confirm="confirmMarkAsOrdered"
       >
-        <div class="p-5 border w-96 shadow-lg rounded-md bg-white" @click.stop>
-          <div class="mt-3">
-            <h3 class="text-lg font-medium text-gray-900 mb-4">
-              Mark Ordered: {{ orderItem?.item_name }}
-            </h3>
-            <form @submit.prevent="confirmMarkAsOrdered">
-              <div class="space-y-4">
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1"> Order Date </label>
-                  <input
-                    v-model="orderDate"
-                    type="date"
-                    required
-                    class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-              </div>
+        <div class="space-y-4">
+          <div class="bg-green-50 border border-green-200 rounded-md p-3">
+            <div class="flex items-center gap-2 mb-2">
+              <svg class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                <path
+                  fill-rule="evenodd"
+                  d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
+                  clip-rule="evenodd"
+                />
+              </svg>
+              <span class="text-sm font-medium text-green-800"> Set Order Date </span>
+            </div>
+            <p class="text-sm text-green-700">
+              This will mark the item as ordered and track its pending status.
+            </p>
+          </div>
 
-              <div class="flex justify-end gap-3 mt-6">
-                <button
-                  type="button"
-                  @click="closeOrderModal"
-                  class="px-4 py-2 bg-gray-600 rounded-md text-sm font-medium text-white hover:bg-gray-700 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  :disabled="inventoryStore.loading"
-                  class="px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700 transition-colors disabled:opacity-50"
-                >
-                  {{ inventoryStore.loading ? 'Marking as Ordered...' : 'Mark Ordered' }}
-                </button>
-              </div>
-            </form>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Order Date</label>
+            <input
+              v-model="orderDate"
+              type="date"
+              required
+              class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+            />
           </div>
         </div>
-      </div>
+      </ActionModal>
 
       <!-- Loading State -->
       <LoadingSpinner v-if="inventoryStore.loading" message="Loading inventory data..." size="lg" />
@@ -498,6 +494,7 @@ import { computed, onMounted, ref } from 'vue'
 import type { InventoryItem } from '@/types/inventory'
 import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
 import ErrorAlert from '@/components/ui/ErrorAlert.vue'
+import ActionModal from '@/components/ui/ActionModal.vue'
 
 const inventoryStore = useInventoryStore()
 

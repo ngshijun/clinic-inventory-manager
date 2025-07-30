@@ -209,30 +209,7 @@
                 <!-- Remark Section -->
                 <div>
                   <span class="text-gray-500 text-sm">Remark:</span>
-                  <div v-if="editingRemark === movement.id" class="mt-1 space-y-2">
-                    <textarea
-                      v-model="newRemark"
-                      rows="2"
-                      class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Enter remark..."
-                    ></textarea>
-                    <div class="flex gap-2">
-                      <button
-                        @click="saveRemark(movement.id)"
-                        :disabled="stockMovementsStore.loading"
-                        class="flex-1 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-3 py-2 rounded text-sm font-medium transition-colors"
-                      >
-                        {{ stockMovementsStore.loading ? 'Saving...' : 'Save' }}
-                      </button>
-                      <button
-                        @click="cancelEditRemark"
-                        class="flex-1 bg-gray-600 hover:bg-gray-700 disabled:opacity-50 text-white px-3 py-2 rounded text-sm font-medium transition-colors"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                  <div v-else class="mt-1 flex items-center justify-between">
+                  <div class="mt-1 flex items-center justify-between">
                     <span class="text-gray-900 text-sm flex-1 whitespace-pre-wrap">{{
                       movement.remark || 'No remark'
                     }}</span>
@@ -320,37 +297,12 @@
                     {{ formatDateTime(movement.created_at) }}
                   </td>
                   <td class="px-6 py-4 text-sm text-gray-900">
-                    <div v-if="editingRemark === movement.id" class="space-y-2">
-                      <textarea
-                        v-model="newRemark"
-                        rows="2"
-                        class="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Enter remark..."
-                      ></textarea>
-                    </div>
-                    <div v-else class="max-w-xs whitespace-pre-wrap">
+                    <div class="max-w-xs whitespace-pre-wrap">
                       <p>{{ movement.remark || 'No remark' }}</p>
                     </div>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div v-if="editingRemark === movement.id" class="flex gap-2">
-                      <button
-                        @click="saveRemark(movement.id)"
-                        :disabled="stockMovementsStore.loading"
-                        class="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
-                      >
-                        {{ stockMovementsStore.loading ? 'Saving...' : 'Save' }}
-                      </button>
-                      <button
-                        @click="cancelEditRemark"
-                        :disabled="stockMovementsStore.loading"
-                        class="bg-gray-600 hover:bg-gray-700 disabled:opacity-50 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
-                      >
-                        Cancel
-                      </button>
-                    </div>
                     <ActionButtonGroup
-                      v-else
                       :actions="getMovementActions()"
                       size="sm"
                       :loading="stockMovementsStore.loading"
@@ -378,6 +330,47 @@
         </div>
       </div>
     </div>
+
+    <!-- Edit Remark Modal -->
+    <ActionModal
+      :is-open="showEditRemarkModal"
+      :title="`Edit Remark: ${editingMovement?.item_name}`"
+      variant="approve"
+      :loading="stockMovementsStore.loading"
+      confirm-text="Save Remark"
+      :disabled="!isRemarkChanged"
+      @close="closeEditRemarkModal"
+      @cancel="closeEditRemarkModal"
+      @confirm="confirmSaveRemark"
+    >
+      <div class="space-y-4">
+        <div class="bg-blue-50 border border-blue-200 rounded-md p-3">
+          <div class="flex items-center gap-2 mb-2">
+            <svg class="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+              <path
+                fill-rule="evenodd"
+                d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z"
+                clip-rule="evenodd"
+              />
+            </svg>
+            <span class="text-sm font-medium text-blue-800"> Update Movement Information </span>
+          </div>
+          <p class="text-sm text-blue-700">
+            Add notes or comments about this stock movement for future reference.
+          </p>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Remark</label>
+          <textarea
+            v-model="newRemark"
+            rows="3"
+            class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            placeholder="Enter remark..."
+          />
+        </div>
+      </div>
+    </ActionModal>
   </div>
 </template>
 
@@ -393,13 +386,23 @@ import StatusBadge from '@/components/ui/StatusBadge.vue'
 import SearchInput from '@/components/ui/SearchInput.vue'
 import SortableTableHeader from '@/components/ui/SortableTableHeader.vue'
 import ActionButtonGroup from '@/components/ui/ActionButtonGroup.vue'
+import ActionModal from '@/components/ui/ActionModal.vue'
 
 const stockMovementsStore = useStockMovementsStore()
 
 const searchQuery = ref<string>('')
-const editingRemark = ref<string | null>(null)
 const newRemark = ref<string>('')
 const showAdvancedSearch = ref<boolean>(false)
+
+// Edit remark modal variables
+const showEditRemarkModal = ref<boolean>(false)
+const editingMovement = ref<StockMovement | null>(null)
+
+// Computed property for remark validation
+const isRemarkChanged = computed(() => {
+  if (!editingMovement.value) return false
+  return newRemark.value.trim() !== (editingMovement.value.remark || '').trim()
+})
 
 // Advanced search filters
 const advancedFilters = ref({
@@ -632,21 +635,33 @@ const handleActionClick = (actionKey: string, movement: StockMovement) => {
 }
 
 const startEditRemark = (movement: StockMovement): void => {
-  editingRemark.value = movement.id
-  newRemark.value = movement.remark
+  openEditRemarkModal(movement)
 }
 
-const cancelEditRemark = (): void => {
-  editingRemark.value = null
+// Edit remark modal functions
+const openEditRemarkModal = (movement: StockMovement): void => {
+  editingMovement.value = movement
+  newRemark.value = movement.remark || ''
+  showEditRemarkModal.value = true
+}
+
+const closeEditRemarkModal = (): void => {
+  showEditRemarkModal.value = false
+  editingMovement.value = null
   newRemark.value = ''
+}
+
+const confirmSaveRemark = async (): Promise<void> => {
+  if (!editingMovement.value || !isRemarkChanged.value) return
+
+  await saveRemark(editingMovement.value.id)
+  if (!stockMovementsStore.error) {
+    closeEditRemarkModal()
+  }
 }
 
 const saveRemark = async (movementId: string): Promise<void> => {
   await stockMovementsStore.updateRemark(movementId, newRemark.value)
-  if (!stockMovementsStore.error) {
-    editingRemark.value = null
-    newRemark.value = ''
-  }
 }
 
 const formatDateTime = (datetime: string): string => {

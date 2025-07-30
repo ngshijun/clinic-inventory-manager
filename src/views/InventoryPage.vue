@@ -100,46 +100,166 @@
         @confirm="confirmStockIn"
       >
         <div class="space-y-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1"> Quantity to Add </label>
-            <div
-              class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-50 text-gray-900 font-medium"
-            >
-              {{ stockQuantity }}
+          <div class="bg-blue-50 border border-blue-200 rounded-md p-3">
+            <div class="flex items-center gap-2 mb-2">
+              <svg class="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                <path
+                  fill-rule="evenodd"
+                  d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
+                  clip-rule="evenodd"
+                />
+              </svg>
+              <span class="text-sm font-medium text-blue-800">
+                Current Stock: {{ stockInItem?.quantity || 0 }} {{ stockInItem?.unit }}
+              </span>
             </div>
-            <p class="mt-1 text-xs text-gray-500">Unit: {{ stockInItem?.unit }}</p>
+            <p class="text-sm text-blue-700">
+              Add stock to increase the inventory quantity for this item.
+            </p>
           </div>
 
-          <!-- Clear Order Date Option -->
-          <div v-if="stockInItem?.order_date" class="space-y-2">
-            <div class="bg-blue-50 border border-blue-200 rounded-md p-3">
-              <div class="flex items-center gap-2 mb-2">
-                <svg class="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
-                  <path
-                    fill-rule="evenodd"
-                    d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
-                    clip-rule="evenodd"
-                  />
-                </svg>
-                <span class="text-sm font-medium text-blue-800">
-                  This item was ordered on {{ formatDate(stockInItem.order_date) }}
-                </span>
-              </div>
-              <div class="flex items-center">
-                <input
-                  id="clearOrderDate"
-                  v-model="clearOrderDate"
-                  type="checkbox"
-                  class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Quantity to Add</label>
+            <input
+              v-model.number="stockQuantity"
+              type="number"
+              min="1"
+              class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+              placeholder="Enter quantity to add"
+            />
+            <p class="mt-1 text-xs text-gray-500">
+              Enter the quantity you want to add to inventory
+            </p>
+          </div>
+
+          <!-- Order Date Handling -->
+          <div
+            v-if="stockInItem?.order_date"
+            class="bg-blue-50 border border-blue-200 rounded-md p-3"
+          >
+            <div class="flex items-center gap-2 mb-2">
+              <svg class="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                <path
+                  fill-rule="evenodd"
+                  d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
+                  clip-rule="evenodd"
                 />
-                <label for="clearOrderDate" class="ml-2 text-sm text-gray-700">
-                  Clear order date (mark as received)
-                </label>
-              </div>
-              <p class="mt-1 text-xs text-gray-500">
-                If unchecked, the order date will remain to track pending orders.
-              </p>
+              </svg>
+              <span class="text-sm font-medium text-blue-800">
+                Order Date: {{ formatDate(stockInItem.order_date) }}
+              </span>
             </div>
+            <div class="flex items-start gap-3">
+              <input
+                id="clearOrderDate"
+                v-model="clearOrderDate"
+                type="checkbox"
+                class="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <div class="flex-1">
+                <label for="clearOrderDate" class="text-sm font-medium text-gray-700">
+                  Mark as received and clear order date
+                </label>
+                <p class="text-xs text-gray-500 mt-1">
+                  Check this to mark the item as received and remove the order date tracking.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </ActionModal>
+
+      <!-- Delete Confirmation Modal -->
+      <ActionModal
+        :is-open="showDeleteModal"
+        :title="`Delete Item: ${deleteItem?.item_name || ''}`"
+        variant="reject"
+        confirm-text="Delete"
+        :loading="deleteLoading"
+        :disabled="!deleteConfirmation"
+        @confirm="confirmDelete"
+        @cancel="cancelDelete"
+        @close="cancelDelete"
+      >
+        <div class="space-y-4">
+          <!-- Confirmation Message -->
+          <div class="bg-red-50 border border-red-200 rounded-md p-3">
+            <div class="flex items-center gap-2 mb-2">
+              <svg class="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                <path
+                  fill-rule="evenodd"
+                  d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                  clip-rule="evenodd"
+                />
+              </svg>
+              <span class="text-sm font-medium text-red-800">
+                Warning: This action cannot be undone
+              </span>
+            </div>
+            <p class="text-sm text-red-700">
+              Are you sure you want to delete this item? This action cannot be undone.
+            </p>
+          </div>
+
+          <div class="flex items-start gap-3">
+            <input
+              id="delete-confirmation"
+              v-model="deleteConfirmation"
+              type="checkbox"
+              class="mt-1 h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
+            />
+            <label for="delete-confirmation" class="text-sm text-gray-700">
+              I understand that this action cannot be undone and I want to permanently delete this
+              item.
+            </label>
+          </div>
+        </div>
+      </ActionModal>
+
+      <!-- Stock Out Modal -->
+      <ActionModal
+        :is-open="showStockOutModal"
+        :title="`Stock Out: ${stockManageItem?.item_name}`"
+        variant="approve"
+        :loading="inventoryStore.loading"
+        confirm-text="Stock Out"
+        @close="closeStockOutModal"
+        @cancel="closeStockOutModal"
+        @confirm="confirmStockOut"
+      >
+        <div class="space-y-4">
+          <div class="bg-yellow-50 border border-yellow-200 rounded-md p-3">
+            <div class="flex items-center gap-2 mb-2">
+              <svg class="w-4 h-4 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                <path
+                  fill-rule="evenodd"
+                  d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 11-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z"
+                  clip-rule="evenodd"
+                />
+              </svg>
+              <span class="text-sm font-medium text-yellow-800">
+                Current Stock: {{ stockManageItem?.quantity || 0 }} {{ stockManageItem?.unit }}
+              </span>
+            </div>
+            <p class="text-sm text-yellow-700">
+              Stock out to decrease the inventory quantity for this item.
+            </p>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Quantity to Remove</label>
+            <input
+              v-model.number="stockQuantity"
+              type="number"
+              min="1"
+              :max="getItemMaxQuantity(stockManageItem?.id || '')"
+              class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
+              placeholder="Enter quantity to remove"
+            />
+            <p class="mt-1 text-xs text-gray-500">
+              Maximum available for stock out: {{ getItemMaxQuantity(stockManageItem?.id || '') }}
+              {{ stockManageItem?.unit }}
+            </p>
           </div>
         </div>
       </ActionModal>
@@ -195,14 +315,20 @@
             <button
               type="button"
               @click="showAddForm = false"
-              class="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+              class="w-full sm:w-auto px-4 py-2 bg-gray-600 hover:bg-gray-700 disabled:opacity-50 text-white rounded-md text-sm font-medium transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
-              :disabled="inventoryStore.loading"
-              class="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
+              :disabled="
+                inventoryStore.loading ||
+                newItem.item_name === '' ||
+                newItem.quantity === 0 ||
+                newItem.reorder_level === 0 ||
+                newItem.unit === ''
+              "
+              class="w-full sm:w-auto px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700 transition-colors disabled:opacity-50"
             >
               {{ inventoryStore.loading ? 'Adding...' : 'Add Item' }}
             </button>
@@ -284,48 +410,8 @@
                   </span>
                 </div>
 
-                <!-- Stock In/Out Form -->
-                <div v-if="editingItem === item.id" class="space-y-3 p-3 bg-gray-50 rounded-md">
-                  <div class="flex items-center gap-2">
-                    <input
-                      v-model.number="stockQuantity"
-                      type="number"
-                      min="1"
-                      :max="getItemMaxQuantity(item.id)"
-                      class="flex-1 border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <p class="text-xs text-gray-500">
-                    Max: {{ getItemMaxQuantity(item.id) }}
-                    {{ item.unit }}
-                  </p>
-                  <div class="flex gap-2">
-                    <button
-                      @click="handleStockIn(item.id)"
-                      :disabled="inventoryStore.loading || !stockQuantity || stockQuantity <= 0"
-                      class="flex-1 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-3 py-2 rounded text-sm font-medium transition-colors"
-                    >
-                      Stock In (+)
-                    </button>
-                    <button
-                      @click="handleStockOut(item.id)"
-                      :disabled="inventoryStore.loading || !stockQuantity || stockQuantity <= 0"
-                      class="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-3 py-2 rounded text-sm font-medium transition-colors"
-                    >
-                      Stock Out (-)
-                    </button>
-                  </div>
-                  <button
-                    @click="cancelEdit"
-                    class="w-full bg-gray-600 hover:bg-gray-700 disabled:opacity-50 text-white px-3 py-2 rounded text-sm font-medium transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </div>
-
                 <!-- Actions -->
                 <ActionButtonGroup
-                  v-else
                   :actions="getItemActions()"
                   size="sm"
                   :loading="inventoryStore.loading"
@@ -406,21 +492,7 @@
                     </div>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    <div v-if="editingItem === item.id" class="space-y-2">
-                      <div class="flex items-center space-x-2">
-                        <input
-                          v-model.number="stockQuantity"
-                          type="number"
-                          min="1"
-                          :max="getItemMaxQuantity(item.id)"
-                          class="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                      </div>
-                      <p class="text-xs text-gray-500">
-                        Max: {{ getItemMaxQuantity(item.id) }} {{ item.unit }}
-                      </p>
-                    </div>
-                    <div v-else>{{ item.quantity }} {{ item.unit }}</div>
+                    {{ item.quantity }} {{ item.unit }}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {{ item.reorder_level }} {{ item.unit }}
@@ -432,30 +504,7 @@
                     />
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div v-if="editingItem === item.id" class="flex gap-2">
-                      <button
-                        @click="handleStockIn(item.id)"
-                        :disabled="inventoryStore.loading || !stockQuantity || stockQuantity <= 0"
-                        class="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
-                      >
-                        Stock In (+)
-                      </button>
-                      <button
-                        @click="handleStockOut(item.id)"
-                        :disabled="inventoryStore.loading || !stockQuantity || stockQuantity <= 0"
-                        class="bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
-                      >
-                        Stock Out (-)
-                      </button>
-                      <button
-                        @click="cancelEdit"
-                        class="bg-gray-600 hover:bg-gray-700 disabled:opacity-50 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
-                      >
-                        Cancel
-                      </button>
-                    </div>
                     <ActionButtonGroup
-                      v-else
                       :actions="getItemActions()"
                       size="sm"
                       :loading="inventoryStore.loading"
@@ -506,7 +555,6 @@ const inventoryStore = useInventoryStore()
 
 const searchQuery = ref<string>('')
 const showAddForm = ref<boolean>(false)
-const editingItem = ref<string | null>(null)
 const stockQuantity = ref<number>(1)
 const fileInput = ref<HTMLInputElement | null>(null)
 const itemNameInputRef = ref<HTMLInputElement | null>(null)
@@ -515,6 +563,16 @@ const itemNameInputRef = ref<HTMLInputElement | null>(null)
 const showStockInModal = ref<boolean>(false)
 const stockInItem = ref<InventoryItem | null>(null)
 const clearOrderDate = ref<boolean>(true) // Default to clearing order date
+
+// Delete confirmation modal variables
+const showDeleteModal = ref<boolean>(false)
+const deleteItem = ref<InventoryItem | null>(null)
+const deleteLoading = ref<boolean>(false)
+const deleteConfirmation = ref<boolean>(false)
+
+// Stock management modal variables
+const showStockOutModal = ref<boolean>(false)
+const stockManageItem = ref<InventoryItem | null>(null)
 
 // Sorting configuration
 const sortConfig = ref<{
@@ -606,13 +664,6 @@ const formatDate = (dateString: string): string => {
   })
 }
 
-// Open stock in modal
-const openStockInModal = (item: InventoryItem): void => {
-  stockInItem.value = item
-  clearOrderDate.value = true // Default to clearing order date
-  showStockInModal.value = true
-}
-
 // Close stock in modal
 const closeStockInModal = (): void => {
   showStockInModal.value = false
@@ -634,7 +685,6 @@ const confirmStockIn = async (): Promise<void> => {
 
   if (!inventoryStore.error) {
     closeStockInModal()
-    cancelEdit()
   }
 }
 
@@ -673,9 +723,14 @@ const getItemActions = (): Array<{
 }> => {
   return [
     {
-      key: 'manage-stock',
-      label: 'Manage Stock',
+      key: 'stock-in',
+      label: 'Stock In',
       variant: 'primary',
+    },
+    {
+      key: 'stock-out',
+      label: 'Stock Out',
+      variant: 'warning',
     },
     {
       key: 'delete',
@@ -688,52 +743,53 @@ const getItemActions = (): Array<{
 // Handle action button clicks
 const handleActionClick = (actionKey: string, item: InventoryItem) => {
   switch (actionKey) {
-    case 'manage-stock':
-      startEdit(item)
+    case 'stock-in':
+      openStockInFromButton(item)
+      break
+    case 'stock-out':
+      openStockOutModal(item)
       break
     case 'delete':
-      deleteItem(item.id)
+      showDeleteConfirmation(item)
       break
   }
 }
 
-const startEdit = (item: InventoryItem): void => {
-  editingItem.value = item.id
-  stockQuantity.value = 1 // Default to 1
+// Stock In Button handler - uses existing stock in modal
+const openStockInFromButton = (item: InventoryItem): void => {
+  stockInItem.value = item
+  clearOrderDate.value = !!item.order_date // Set based on whether item has order date
+  showStockInModal.value = true
 }
 
-const cancelEdit = (): void => {
-  editingItem.value = null
+// Stock Out Modal functions
+const openStockOutModal = (item: InventoryItem): void => {
+  stockManageItem.value = item
+  stockQuantity.value = 1
+  showStockOutModal.value = true
+}
+
+const closeStockOutModal = (): void => {
+  showStockOutModal.value = false
+  stockManageItem.value = null
   stockQuantity.value = 1
 }
 
-// Modified handleStockIn method
-const handleStockIn = async (itemId: string): Promise<void> => {
-  const item = inventoryStore.items.find((item) => item.id === itemId)
-  if (!item) return
+const confirmStockOut = async (): Promise<void> => {
+  if (!stockManageItem.value) return
 
-  // If item has an order date, show modal for confirmation
-  if (item.order_date) {
-    openStockInModal(item)
-  } else {
-    // If no order date, proceed with simple stock in
-    if (stockQuantity.value > 0) {
-      await inventoryStore.stockIn(itemId, stockQuantity.value, true)
-      if (!inventoryStore.error) {
-        editingItem.value = null
-        stockQuantity.value = 1
-      }
-    }
+  const itemId = stockManageItem.value.id
+  const maxQuantity = getItemMaxQuantity(itemId)
+
+  if (stockQuantity.value > maxQuantity) {
+    stockQuantity.value = maxQuantity
+    return
   }
-}
 
-const handleStockOut = async (itemId: string): Promise<void> => {
-  if (stockQuantity.value > 0) {
-    await inventoryStore.stockOut(itemId, stockQuantity.value)
-    if (!inventoryStore.error) {
-      editingItem.value = null
-      stockQuantity.value = 1
-    }
+  await inventoryStore.stockOut(itemId, stockQuantity.value)
+
+  if (!inventoryStore.error) {
+    closeStockOutModal()
   }
 }
 
@@ -758,10 +814,31 @@ const addNewItem = async (): Promise<void> => {
   }
 }
 
-const deleteItem = async (itemId: string): Promise<void> => {
-  if (confirm('Are you sure you want to delete this item?')) {
-    await inventoryStore.deleteItem(itemId)
+const showDeleteConfirmation = (item: InventoryItem): void => {
+  deleteItem.value = item
+  deleteConfirmation.value = false
+  showDeleteModal.value = true
+}
+
+const confirmDelete = async (): Promise<void> => {
+  if (!deleteItem.value || !deleteConfirmation.value) return
+
+  deleteLoading.value = true
+  try {
+    await inventoryStore.deleteItem(deleteItem.value.id)
+    showDeleteModal.value = false
+    deleteItem.value = null
+    deleteConfirmation.value = false
+  } finally {
+    deleteLoading.value = false
   }
+}
+
+const cancelDelete = (): void => {
+  showDeleteModal.value = false
+  deleteItem.value = null
+  deleteConfirmation.value = false
+  deleteLoading.value = false
 }
 
 const getStockStatus = (item: InventoryItem): StockStatus => {

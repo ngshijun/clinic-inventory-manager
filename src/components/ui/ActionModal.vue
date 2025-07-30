@@ -37,7 +37,7 @@
             type="button"
             @click="handleConfirm"
             :class="confirmButtonClasses"
-            :disabled="loading"
+            :disabled="loading || disabled"
           >
             {{ loading ? loadingText : confirmText }}
           </button>
@@ -55,6 +55,7 @@ interface ActionModalProps {
   title: string
   variant?: 'create' | 'edit' | 'delete' | 'approve' | 'reject'
   loading?: boolean
+  disabled?: boolean
   confirmText?: string
   cancelText?: string
 }
@@ -62,6 +63,7 @@ interface ActionModalProps {
 const props = withDefaults(defineProps<ActionModalProps>(), {
   variant: 'create',
   loading: false,
+  disabled: false,
   confirmText: 'Confirm',
   cancelText: 'Cancel',
 })
@@ -99,7 +101,6 @@ const confirmButtonClasses = computed(() => {
     'px-4 py-2 rounded-md text-sm font-medium text-white transition-colors disabled:opacity-50'
 
   switch (props.variant) {
-    case 'delete':
     case 'reject':
       return `${baseClasses} bg-red-600 hover:bg-red-700`
     case 'approve':
@@ -107,7 +108,7 @@ const confirmButtonClasses = computed(() => {
     case 'create':
       return `${baseClasses} bg-blue-600 hover:bg-blue-700`
     case 'edit':
-      return `${baseClasses} bg-orange-600 hover:bg-orange-700`
+      return `${baseClasses} bg-yellow-600 hover:bg-yellow-700`
     default:
       return `${baseClasses} bg-blue-600 hover:bg-blue-700`
   }
@@ -115,7 +116,7 @@ const confirmButtonClasses = computed(() => {
 
 // Modal event handlers
 const handleConfirm = () => {
-  if (!props.loading) {
+  if (!props.loading && !props.disabled) {
     emit('confirm')
   }
 }

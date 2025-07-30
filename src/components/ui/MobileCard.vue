@@ -87,7 +87,7 @@ const getActionButtonClasses = (variant: string): string => {
     case 'success':
       return 'text-green-600 hover:text-green-900 bg-green-50 hover:bg-green-100'
     case 'warning':
-      return 'text-orange-600 hover:text-orange-900 bg-orange-50 hover:bg-orange-100'
+      return 'text-yellow-600 hover:text-yellow-900 bg-yellow-50 hover:bg-yellow-100'
     case 'danger':
       return 'text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100'
     case 'info':

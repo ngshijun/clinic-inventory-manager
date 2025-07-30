@@ -179,59 +179,8 @@
               :key="request.id"
               class="px-4 py-4"
             >
-              <!-- Edit Mode -->
-              <div v-if="editingRequestId === request.id" class="space-y-4">
-                <div class="flex items-center justify-between">
-                  <h4 class="text-sm font-medium text-gray-900">
-                    {{ request.item_name }}
-                  </h4>
-                  <StatusBadge :variant="getStatusVariant(request.status)" :text="request.status" />
-                </div>
-                <div class="space-y-3">
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
-                    <input
-                      v-model.number="editForm.quantity"
-                      type="number"
-                      min="1"
-                      :max="getItemMaxQuantity(request.item_id)"
-                      class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                    <p class="mt-1 text-xs text-gray-500">
-                      Maximum available: {{ getItemMaxQuantity(request.item_id) }}
-                      {{ request.unit }}
-                    </p>
-                  </div>
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Remark</label>
-                    <textarea
-                      v-model="editForm.remark"
-                      rows="3"
-                      class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="Enter reason for request..."
-                    ></textarea>
-                  </div>
-                </div>
-                <div class="flex gap-2">
-                  <button
-                    @click="saveEdit(request.id)"
-                    :disabled="stockRequestsStore.loading || !isEditFormValid"
-                    class="flex-1 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-3 py-2 rounded text-sm font-medium transition-colors"
-                  >
-                    {{ stockRequestsStore.loading ? 'Saving...' : 'Save' }}
-                  </button>
-                  <button
-                    @click="cancelEdit"
-                    :disabled="stockRequestsStore.loading"
-                    class="flex-1 bg-gray-600 hover:bg-gray-700 disabled:opacity-50 text-white px-3 py-2 rounded text-sm font-medium transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-
               <!-- View Mode -->
-              <div v-else class="space-y-3">
+              <div class="space-y-3">
                 <!-- Request Header -->
                 <div class="flex items-center justify-between">
                   <h4 class="text-sm font-medium text-gray-900 truncate flex-1 mr-2">
@@ -320,31 +269,10 @@
                     {{ request.item_name }}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    <div v-if="editingRequestId === request.id" class="space-y-2">
-                      <input
-                        v-model.number="editForm.quantity"
-                        type="number"
-                        min="1"
-                        :max="getItemMaxQuantity(request.item_id)"
-                        class="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                      <p class="text-xs text-gray-500">
-                        Max: {{ getItemMaxQuantity(request.item_id) }} {{ request.unit }}
-                      </p>
-                    </div>
-                    <div v-else>{{ request.quantity }} {{ request.unit }}</div>
+                    {{ request.quantity }} {{ request.unit }}
                   </td>
                   <td class="px-6 py-4 text-sm text-gray-900 max-w-xs">
-                    <div v-if="editingRequestId === request.id">
-                      <textarea
-                        v-model="editForm.remark"
-                        rows="2"
-                        class="w-full max-w-xs border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Enter reason for request..."
-                      ></textarea>
-                    </div>
                     <div
-                      v-else
                       class="break-words whitespace-pre-wrap"
                       :title="request.remark || 'No Remark'"
                     >
@@ -358,24 +286,8 @@
                     />
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div v-if="editingRequestId === request.id" class="flex gap-2">
-                      <button
-                        @click="saveEdit(request.id)"
-                        :disabled="stockRequestsStore.loading || !isEditFormValid"
-                        class="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
-                      >
-                        {{ stockRequestsStore.loading ? 'Saving...' : 'Save' }}
-                      </button>
-                      <button
-                        @click="cancelEdit"
-                        :disabled="stockRequestsStore.loading"
-                        class="bg-gray-600 hover:bg-gray-700 disabled:opacity-50 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
-                      >
-                        Cancel
-                      </button>
-                    </div>
                     <ActionButtonGroup
-                      v-else-if="request.status === 'Pending'"
+                      v-if="request.status === 'Pending'"
                       :actions="getRequestActions(request)"
                       size="sm"
                       :loading="stockRequestsStore.loading"
@@ -406,6 +318,93 @@
         </div>
       </div>
     </div>
+
+    <!-- Remove Request Confirmation Modal -->
+    <ActionModal
+      :is-open="showRemoveModal"
+      title="Remove Request"
+      variant="reject"
+      confirm-text="Remove"
+      :loading="removeLoading"
+      @confirm="confirmRemove"
+      @cancel="cancelRemove"
+      @close="cancelRemove"
+    >
+      <div class="bg-red-50 border border-red-200 rounded-md p-3">
+        <div class="flex items-center gap-2 mb-2">
+          <svg class="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+            <path
+              fill-rule="evenodd"
+              d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+              clip-rule="evenodd"
+            />
+          </svg>
+          <span class="text-sm font-medium text-red-800">
+            Warning: This action cannot be undone
+          </span>
+        </div>
+        <p class="text-sm text-red-700">
+          Are you sure you want to remove this request? This action cannot be undone.
+        </p>
+      </div>
+    </ActionModal>
+
+    <!-- Edit Request Modal -->
+    <ActionModal
+      :is-open="showEditModal"
+      :title="`Edit Request: ${editingRequest?.item_name}`"
+      variant="approve"
+      :loading="stockRequestsStore.loading"
+      confirm-text="Save Changes"
+      :disabled="!isEditFormValid"
+      @close="closeEditModal"
+      @cancel="closeEditModal"
+      @confirm="confirmEdit"
+    >
+      <div class="space-y-4">
+        <div class="bg-blue-50 border border-blue-200 rounded-md p-3">
+          <div class="flex items-center gap-2 mb-2">
+            <svg class="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+              <path
+                fill-rule="evenodd"
+                d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z"
+                clip-rule="evenodd"
+              />
+            </svg>
+            <span class="text-sm font-medium text-blue-800"> Modify Request Details </span>
+          </div>
+          <p class="text-sm text-blue-700">
+            Update the quantity and add remarks for this stock request.
+          </p>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
+          <input
+            v-model.number="editForm.quantity"
+            type="number"
+            min="1"
+            :max="editingRequest ? getItemMaxQuantity(editingRequest.item_id) : undefined"
+            class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            placeholder="Enter quantity"
+          />
+          <p v-if="editingRequest" class="mt-1 text-xs text-gray-500">
+            Max available: {{ getItemMaxQuantity(editingRequest.item_id) }}
+            {{ editingRequest.unit }}
+          </p>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Remark (Optional)</label>
+          <textarea
+            v-model="editForm.remark"
+            rows="3"
+            class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            placeholder="Add any notes or comments..."
+          />
+        </div>
+      </div>
+    </ActionModal>
   </div>
 </template>
 
@@ -420,6 +419,7 @@ import StatusBadge from '@/components/ui/StatusBadge.vue'
 import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import SearchInput from '@/components/ui/SearchInput.vue'
+import ActionModal from '@/components/ui/ActionModal.vue'
 import SortableTableHeader from '@/components/ui/SortableTableHeader.vue'
 import ActionButtonGroup from '@/components/ui/ActionButtonGroup.vue'
 
@@ -448,7 +448,6 @@ const showItemDropdown = ref<boolean>(false)
 const selectedItemIndex = ref<number>(-1)
 
 // Edit state
-const editingRequestId = ref<string>('')
 const editForm = ref<{
   quantity: number
   remark: string
@@ -460,6 +459,15 @@ const editForm = ref<{
 // Template refs
 const itemInputRef = ref<HTMLInputElement | null>(null)
 const dropdownRef = ref<HTMLDivElement | null>(null)
+
+// Remove confirmation modal
+const showRemoveModal = ref<boolean>(false)
+const removeRequestId = ref<string | null>(null)
+const removeLoading = ref<boolean>(false)
+
+// Edit modal
+const showEditModal = ref<boolean>(false)
+const editingRequest = ref<StockRequest | null>(null)
 
 // New request form
 const newRequest = ref<NewStockRequest & { quantity: number }>({
@@ -510,12 +518,15 @@ const isFormValid = computed(() => {
 
 // Edit form validation
 const isEditFormValid = computed(() => {
-  if (!editingRequestId.value) return false
-  const request = stockRequestsStore.requests.find((r) => r.id === editingRequestId.value)
-  if (!request) return false
+  if (!editingRequest.value) return false
 
-  const maxQuantity = getItemMaxQuantity(request.item_id)
-  return !!(editForm.value.quantity > 0 && editForm.value.quantity <= maxQuantity)
+  const maxQuantity = getItemMaxQuantity(editingRequest.value.item_id)
+  return (
+    editForm.value.quantity > 0 &&
+    editForm.value.quantity <= maxQuantity &&
+    (editForm.value.quantity !== editingRequest.value.quantity ||
+      editForm.value.remark !== (editingRequest.value.remark || ''))
+  )
 })
 
 // Helper function to get item max quantity
@@ -654,18 +665,29 @@ const clearFilters = (): void => {
 
 // Edit functions
 const startEdit = (request: StockRequest): void => {
-  editingRequestId.value = request.id
+  editingRequest.value = request
   editForm.value = {
     quantity: request.quantity,
     remark: request.remark || '',
   }
+  showEditModal.value = true
 }
 
-const cancelEdit = (): void => {
-  editingRequestId.value = ''
+const closeEditModal = (): void => {
+  showEditModal.value = false
+  editingRequest.value = null
   editForm.value = {
     quantity: 1,
     remark: '',
+  }
+}
+
+const confirmEdit = async (): Promise<void> => {
+  if (!editingRequest.value || !isEditFormValid.value) return
+
+  await saveEdit(editingRequest.value.id)
+  if (!stockRequestsStore.error) {
+    closeEditModal()
   }
 }
 
@@ -674,9 +696,7 @@ const saveEdit = async (requestId: string): Promise<void> => {
 
   await stockRequestsStore.updateRequest(requestId, editForm.value.quantity, editForm.value.remark)
 
-  if (!stockRequestsStore.error) {
-    cancelEdit()
-  }
+  // Modal cleanup is handled by confirmEdit function
 }
 
 // New request form functions
@@ -785,9 +805,28 @@ const cancelCreateForm = (): void => {
 }
 
 // Action functions
-const removeRequest = async (requestId: string): Promise<void> => {
-  if (!confirm('Are you sure you want to remove this request?')) return
-  await stockRequestsStore.removeRequest(requestId)
+const removeRequest = (requestId: string): void => {
+  removeRequestId.value = requestId
+  showRemoveModal.value = true
+}
+
+const confirmRemove = async (): Promise<void> => {
+  if (!removeRequestId.value) return
+
+  removeLoading.value = true
+  try {
+    await stockRequestsStore.removeRequest(removeRequestId.value)
+    showRemoveModal.value = false
+    removeRequestId.value = null
+  } finally {
+    removeLoading.value = false
+  }
+}
+
+const cancelRemove = (): void => {
+  showRemoveModal.value = false
+  removeRequestId.value = null
+  removeLoading.value = false
 }
 
 onMounted(() => {
