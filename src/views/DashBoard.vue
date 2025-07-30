@@ -7,7 +7,7 @@
       <ActionModal
         :is-open="showOrderModal"
         :title="`Mark Ordered: ${orderItem?.item_name}`"
-        variant="approve"
+        variant="green"
         :loading="inventoryStore.loading"
         confirm-text="Mark Ordered"
         @close="closeOrderModal"

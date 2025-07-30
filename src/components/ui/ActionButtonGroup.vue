@@ -38,7 +38,7 @@ import { computed } from 'vue'
 interface ActionButtonGroupAction {
   key: string
   label: string
-  variant: 'primary' | 'secondary' | 'danger' | 'success' | 'warning' | 'info'
+  variant: 'blue' | 'gray' | 'red' | 'green' | 'yellow' | 'cyan'
   icon?: string
   disabled?: boolean
 }
@@ -91,18 +91,18 @@ const getSizeClasses = (): string => {
 
 const getVariantClasses = (variant: string): string => {
   switch (variant) {
-    case 'primary':
+    case 'blue':
       return 'bg-blue-600 hover:bg-blue-700 text-white'
-    case 'secondary':
+    case 'gray':
       return 'text-gray-600 hover:text-gray-900 bg-gray-50 hover:bg-gray-100'
-    case 'success':
+    case 'green':
       return 'bg-green-600 hover:bg-green-700 text-white'
-    case 'warning':
+    case 'yellow':
       return 'bg-yellow-600 hover:bg-yellow-700 text-white'
-    case 'danger':
+    case 'red':
       return 'bg-red-600 hover:bg-red-700 text-white'
-    case 'info':
-      return 'text-blue-600 hover:text-blue-900'
+    case 'cyan':
+      return 'text-cyan-600 hover:text-cyan-900'
     default:
       return 'text-gray-600 hover:text-gray-900'
   }

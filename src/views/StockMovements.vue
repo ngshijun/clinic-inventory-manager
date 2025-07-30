@@ -335,7 +335,7 @@
     <ActionModal
       :is-open="showEditRemarkModal"
       :title="`Edit Remark: ${editingMovement?.item_name}`"
-      variant="approve"
+      variant="green"
       :loading="stockMovementsStore.loading"
       confirm-text="Save Remark"
       :disabled="!isRemarkChanged"
@@ -614,13 +614,13 @@ const toggleSort = (key: string): void => {
 const getMovementActions = (): Array<{
   key: string
   label: string
-  variant: 'primary' | 'secondary' | 'danger' | 'success' | 'warning' | 'info'
+  variant: 'blue' | 'gray' | 'red' | 'green' | 'yellow' | 'cyan'
 }> => {
   return [
     {
       key: 'edit-remark',
       label: 'Edit Remark',
-      variant: 'primary',
+      variant: 'blue',
     },
   ]
 }

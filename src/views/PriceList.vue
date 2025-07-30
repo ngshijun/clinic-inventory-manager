@@ -10,7 +10,7 @@
       <ActionModal
         :is-open="showOrderModal"
         :title="`Mark Ordered: ${orderItem?.item_name}`"
-        variant="approve"
+        variant="green"
         :loading="inventoryStore.loading"
         confirm-text="Mark Ordered"
         @close="closeOrderModal"
@@ -50,7 +50,7 @@
       <ActionModal
         :is-open="showEditRemarkModal"
         :title="`Edit Remark: ${editingItem?.item_name}`"
-        variant="approve"
+        variant="green"
         :loading="inventoryStore.loading"
         confirm-text="Save Remark"
         :disabled="!isRemarkChanged"
@@ -457,17 +457,17 @@ const getItemActions = (
 ): Array<{
   key: string
   label: string
-  variant: 'primary' | 'secondary' | 'danger' | 'success' | 'warning' | 'info'
+  variant: 'blue' | 'gray' | 'red' | 'green' | 'yellow' | 'cyan'
 }> => {
   const actions: Array<{
     key: string
     label: string
-    variant: 'primary' | 'secondary' | 'danger' | 'success' | 'warning' | 'info'
+    variant: 'blue' | 'gray' | 'red' | 'green' | 'yellow' | 'cyan'
   }> = [
     {
       key: 'edit-remark',
       label: 'Edit Remark',
-      variant: 'primary',
+      variant: 'blue',
     },
   ]
 
@@ -475,13 +475,13 @@ const getItemActions = (
     actions.push({
       key: 'mark-ordered',
       label: 'Mark Ordered',
-      variant: 'success',
+      variant: 'green',
     })
   } else {
     actions.push({
       key: 'clear-date',
       label: 'Clear Date',
-      variant: 'warning',
+      variant: 'yellow',
     })
   }
 

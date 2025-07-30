@@ -323,7 +323,7 @@
     <ActionModal
       :is-open="showRemoveModal"
       title="Remove Request"
-      variant="reject"
+      variant="red"
       confirm-text="Remove"
       :loading="removeLoading"
       @confirm="confirmRemove"
@@ -353,7 +353,7 @@
     <ActionModal
       :is-open="showEditModal"
       :title="`Edit Request: ${editingRequest?.item_name}`"
-      variant="approve"
+      variant="green"
       :loading="stockRequestsStore.loading"
       confirm-text="Save Changes"
       :disabled="!isEditFormValid"
@@ -626,7 +626,7 @@ const getRequestActions = (
 ): Array<{
   key: string
   label: string
-  variant: 'primary' | 'secondary' | 'danger' | 'success' | 'warning' | 'info'
+  variant: 'blue' | 'gray' | 'red' | 'green' | 'yellow' | 'cyan'
 }> => {
   if (request.status !== 'Pending') return []
 
@@ -634,12 +634,12 @@ const getRequestActions = (
     {
       key: 'edit',
       label: 'Edit',
-      variant: 'primary',
+      variant: 'blue',
     },
     {
       key: 'delete',
       label: 'Remove',
-      variant: 'danger',
+      variant: 'red',
     },
   ]
 }

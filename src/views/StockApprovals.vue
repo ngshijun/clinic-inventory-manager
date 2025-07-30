@@ -111,7 +111,7 @@
       <ActionModal
         :is-open="showRejectModal"
         :title="`Reject Request${rejectRequestIds.length > 1 ? 's' : ''}: ${rejectRequestItemNames.join(', ')}`"
-        variant="reject"
+        variant="red"
         :loading="stockRequestsStore.loading"
         :confirm-text="`Reject Request${rejectRequestIds.length > 1 ? 's' : ''}`"
         :cancel-text="`Keep Request${rejectRequestIds.length > 1 ? 's' : ''}`"
@@ -163,7 +163,7 @@
       <ActionModal
         :is-open="showBulkApprovalModal"
         title="Approve Requests"
-        variant="approve"
+        variant="green"
         :loading="stockRequestsStore.loading"
         confirm-text="Approve Requests"
         cancel-text="Cancel"
@@ -194,7 +194,7 @@
       <ActionModal
         :is-open="showEditModal"
         :title="`Edit Request: ${editingRequest?.item_name}`"
-        variant="approve"
+        variant="green"
         :loading="stockRequestsStore.loading"
         confirm-text="Save Changes"
         :disabled="!isEditFormValid"
@@ -841,7 +841,7 @@ const getRequestActions = (
 ): Array<{
   key: string
   label: string
-  variant: 'primary' | 'secondary' | 'danger' | 'success' | 'warning' | 'info'
+  variant: 'blue' | 'gray' | 'red' | 'green' | 'yellow' | 'cyan'
   disabled?: boolean
 }> => {
   if (request.status !== 'Pending') return []
@@ -850,18 +850,18 @@ const getRequestActions = (
     {
       key: 'edit',
       label: 'Edit',
-      variant: 'primary',
+      variant: 'blue',
     },
     {
       key: 'approve',
       label: 'Approve',
-      variant: 'success',
+      variant: 'green',
       disabled: !hasEnoughStock(request),
     },
     {
       key: 'reject',
       label: 'Reject',
-      variant: 'danger',
+      variant: 'red',
     },
   ]
 }

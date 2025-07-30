@@ -92,7 +92,7 @@
       <ActionModal
         :is-open="showStockInModal"
         :title="`Stock In: ${stockInItem?.item_name}`"
-        variant="approve"
+        variant="green"
         :loading="inventoryStore.loading"
         confirm-text="Add Stock"
         @close="closeStockInModal"
@@ -173,7 +173,7 @@
       <ActionModal
         :is-open="showDeleteModal"
         :title="`Delete Item: ${deleteItem?.item_name || ''}`"
-        variant="reject"
+        variant="red"
         confirm-text="Delete"
         :loading="deleteLoading"
         :disabled="!deleteConfirmation"
@@ -220,7 +220,7 @@
       <ActionModal
         :is-open="showStockOutModal"
         :title="`Stock Out: ${stockManageItem?.item_name}`"
-        variant="approve"
+        variant="green"
         :loading="inventoryStore.loading"
         confirm-text="Stock Out"
         @close="closeStockOutModal"
@@ -719,23 +719,23 @@ const toggleSort = (key: string): void => {
 const getItemActions = (): Array<{
   key: string
   label: string
-  variant: 'primary' | 'secondary' | 'danger' | 'success' | 'warning' | 'info'
+  variant: 'blue' | 'gray' | 'red' | 'green' | 'yellow' | 'cyan'
 }> => {
   return [
     {
       key: 'stock-in',
       label: 'Stock In',
-      variant: 'primary',
+      variant: 'blue',
     },
     {
       key: 'stock-out',
       label: 'Stock Out',
-      variant: 'warning',
+      variant: 'yellow',
     },
     {
       key: 'delete',
       label: 'Delete',
-      variant: 'danger',
+      variant: 'red',
     },
   ]
 }

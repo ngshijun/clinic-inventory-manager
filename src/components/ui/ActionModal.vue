@@ -53,7 +53,7 @@ import { computed, onMounted, onUnmounted } from 'vue'
 interface ActionModalProps {
   isOpen: boolean
   title: string
-  variant?: 'create' | 'edit' | 'delete' | 'approve' | 'reject'
+  variant?: 'blue' | 'green' | 'red' | 'yellow' | 'cyan'
   loading?: boolean
   disabled?: boolean
   confirmText?: string
@@ -61,7 +61,7 @@ interface ActionModalProps {
 }
 
 const props = withDefaults(defineProps<ActionModalProps>(), {
-  variant: 'create',
+  variant: 'blue',
   loading: false,
   disabled: false,
   confirmText: 'Confirm',
@@ -80,16 +80,16 @@ const titleId = computed(() => `modal-title-${Math.random().toString(36).substr(
 // Compute loading text based on variant
 const loadingText = computed(() => {
   switch (props.variant) {
-    case 'create':
-      return 'Creating...'
-    case 'edit':
-      return 'Updating...'
-    case 'delete':
-      return 'Deleting...'
-    case 'approve':
-      return 'Approving...'
-    case 'reject':
-      return 'Rejecting...'
+    case 'blue':
+      return 'Processing...'
+    case 'green':
+      return 'Processing...'
+    case 'red':
+      return 'Processing...'
+    case 'yellow':
+      return 'Processing...'
+    case 'cyan':
+      return 'Processing...'
     default:
       return 'Processing...'
   }
@@ -101,14 +101,16 @@ const confirmButtonClasses = computed(() => {
     'px-4 py-2 rounded-md text-sm font-medium text-white transition-colors disabled:opacity-50'
 
   switch (props.variant) {
-    case 'reject':
+    case 'red':
       return `${baseClasses} bg-red-600 hover:bg-red-700`
-    case 'approve':
+    case 'green':
       return `${baseClasses} bg-green-600 hover:bg-green-700`
-    case 'create':
+    case 'blue':
       return `${baseClasses} bg-blue-600 hover:bg-blue-700`
-    case 'edit':
+    case 'yellow':
       return `${baseClasses} bg-yellow-600 hover:bg-yellow-700`
+    case 'cyan':
+      return `${baseClasses} bg-cyan-600 hover:bg-cyan-700`
     default:
       return `${baseClasses} bg-blue-600 hover:bg-blue-700`
   }
