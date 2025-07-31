@@ -27,7 +27,7 @@
             <input
               v-model="filterDate"
               type="date"
-              class="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              class="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 max-w-full box-border"
               placeholder="Filter by date"
             />
           </div>
@@ -282,21 +282,21 @@
               <div class="space-y-3">
                 <!-- Request Header -->
                 <div class="flex items-center justify-between">
-                  <div class="flex items-center gap-3">
+                  <div class="flex items-center gap-3 flex-1 min-w-0">
                     <input
                       v-if="request.status === 'Pending'"
                       type="checkbox"
                       :checked="selectedRequests.includes(request.id)"
                       @change="toggleSelection(request.id)"
-                      class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded flex-shrink-0"
                     />
-                    <h4 class="text-sm font-medium text-gray-900 truncate flex-1">
+                    <h4 class="text-sm font-medium text-gray-900 truncate flex-1 mr-2">
                       {{ request.item_name }}
                     </h4>
                   </div>
                   <span
                     :class="[
-                      'inline-flex px-2 py-1 text-xs font-semibold rounded-full',
+                      'inline-flex px-2 py-1 text-xs font-semibold rounded-full flex-shrink-0',
                       request.status === 'Pending'
                         ? 'bg-yellow-100 text-yellow-800'
                         : request.status === 'Approved'
@@ -311,19 +311,18 @@
                 </div>
 
                 <!-- Request Details -->
-                <div class="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span class="text-gray-500">Quantity:</span>
-                    <div class="font-medium text-gray-900 mt-1">
+                <div class="text-sm space-y-1">
+                  <div class="flex items-baseline gap-2">
+                    <span class="text-gray-500 flex-shrink-0">Quantity:</span>
+                    <span class="font-medium text-gray-900">
                       {{ request.quantity }} {{ request.unit }}
-                    </div>
+                    </span>
                   </div>
-                </div>
-
-                <div class="text-sm">
-                  <span class="text-gray-500">Remark:</span>
-                  <div class="font-medium text-gray-900 mt-1 whitespace-pre-wrap">
-                    {{ request.remark || 'No Remark' }}
+                  <div class="flex items-start gap-2">
+                    <span class="text-gray-500 flex-shrink-0">Remark:</span>
+                    <span class="font-medium text-gray-900 whitespace-pre-wrap">
+                      {{ request.remark || 'No Remark' }}
+                    </span>
                   </div>
                 </div>
 
@@ -345,13 +344,15 @@
                 </div>
 
                 <!-- Actions -->
-                <ActionButtonGroup
-                  v-if="request.status === 'Pending'"
-                  :actions="getRequestActions(request)"
-                  size="sm"
-                  :loading="stockRequestsStore.loading"
-                  @action-click="(actionKey) => handleActionClick(actionKey, request)"
-                />
+                <div v-if="request.status === 'Pending'" class="pt-2 border-t border-gray-100">
+                  <ActionButtonGroup
+                    :actions="getRequestActions(request)"
+                    size="sm"
+                    :loading="stockRequestsStore.loading"
+                    @action-click="(actionKey) => handleActionClick(actionKey, request)"
+                    class="w-full"
+                  />
+                </div>
               </div>
             </div>
           </div>

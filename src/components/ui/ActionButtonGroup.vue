@@ -63,7 +63,7 @@ const emit = defineEmits<{
 // Container classes based on layout and size
 const containerClasses = computed(() => {
   const baseClasses = 'flex'
-  const layoutClasses = props.layout === 'horizontal' ? 'flex-row gap-x-2' : 'flex-col gap-y-2'
+  const layoutClasses = props.layout === 'horizontal' ? 'flex-row gap-x-2 flex-wrap' : 'flex-col gap-y-2'
 
   return `${baseClasses} ${layoutClasses}`
 })
@@ -81,11 +81,11 @@ const getButtonClasses = (variant: string): string => {
 const getSizeClasses = (): string => {
   switch (props.size) {
     case 'sm':
-      return 'px-2 py-1 text-xs rounded'
+      return 'px-3 py-2 text-xs rounded flex-1 sm:flex-none sm:px-2 sm:py-1'
     case 'lg':
-      return 'px-4 py-2 text-base rounded-md'
+      return 'px-4 py-2 text-base rounded-md flex-1 sm:flex-none'
     default:
-      return 'px-3 py-1 text-sm rounded'
+      return 'px-3 py-2 text-sm rounded flex-1 sm:flex-none sm:py-1'
   }
 }
 

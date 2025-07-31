@@ -396,18 +396,18 @@
                 </div>
 
                 <!-- Item Details -->
-                <div class="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span class="text-gray-500">Current Stock:</span>
-                    <div class="font-medium text-gray-900 mt-1">
+                <div class="text-sm space-y-1">
+                  <div class="flex items-baseline gap-2">
+                    <span class="text-gray-500 flex-shrink-0">Current Stock:</span>
+                    <span class="font-medium text-gray-900">
                       {{ item.quantity }} {{ item.unit }}
-                    </div>
+                    </span>
                   </div>
-                  <div>
-                    <span class="text-gray-500">Reorder Level:</span>
-                    <div class="font-medium text-gray-900 mt-1">
+                  <div class="flex items-baseline gap-2">
+                    <span class="text-gray-500 flex-shrink-0">Reorder Level:</span>
+                    <span class="font-medium text-gray-900">
                       {{ item.reorder_level }} {{ item.unit }}
-                    </div>
+                    </span>
                   </div>
                 </div>
 
@@ -426,12 +426,15 @@
                 </div>
 
                 <!-- Actions -->
-                <ActionButtonGroup
-                  :actions="getItemActions()"
-                  size="sm"
-                  :loading="inventoryStore.loading"
-                  @action-click="(actionKey) => handleActionClick(actionKey, item)"
-                />
+                <div class="pt-2 border-t border-gray-100">
+                  <ActionButtonGroup
+                    :actions="getItemActions()"
+                    size="sm"
+                    :loading="inventoryStore.loading"
+                    @action-click="(actionKey) => handleActionClick(actionKey, item)"
+                    class="w-full"
+                  />
+                </div>
               </div>
             </div>
           </div>

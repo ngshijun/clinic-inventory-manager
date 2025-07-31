@@ -191,35 +191,36 @@
                 </div>
 
                 <!-- Movement Details -->
-                <div class="flex flex-row text-sm items-center justify-between">
-                  <div>
-                    <span class="text-gray-500">Quantity:</span>
-                    <div class="font-medium text-gray-900 mt-1">
+                <div class="text-sm space-y-1">
+                  <div class="flex items-baseline gap-2">
+                    <span class="text-gray-500 flex-shrink-0">Quantity:</span>
+                    <span class="font-medium text-gray-900">
                       {{ movement.quantity }} {{ movement.unit }}
-                    </div>
+                    </span>
                   </div>
-                  <div>
-                    <span class="text-gray-500">Date/Time:</span>
-                    <div class="font-medium text-gray-900 mt-1">
+                  <div class="flex items-baseline gap-2">
+                    <span class="text-gray-500 flex-shrink-0">Date/Time:</span>
+                    <span class="font-medium text-gray-900">
                       {{ formatDateTime(movement.created_at) }}
-                    </div>
+                    </span>
+                  </div>
+                  <div class="flex items-start gap-2">
+                    <span class="text-gray-500 flex-shrink-0">Remark:</span>
+                    <span class="font-medium text-gray-900 whitespace-pre-wrap">
+                      {{ movement.remark || 'No remark' }}
+                    </span>
                   </div>
                 </div>
 
-                <!-- Remark Section -->
-                <div>
-                  <span class="text-gray-500 text-sm">Remark:</span>
-                  <div class="mt-1 flex items-center justify-between">
-                    <span class="text-gray-900 text-sm flex-1 whitespace-pre-wrap">{{
-                      movement.remark || 'No remark'
-                    }}</span>
-                    <ActionButtonGroup
-                      :actions="getMovementActions()"
-                      size="sm"
-                      :loading="stockMovementsStore.loading"
-                      @action-click="(actionKey) => handleActionClick(actionKey, movement)"
-                    />
-                  </div>
+                <!-- Actions -->
+                <div class="pt-2 border-t border-gray-100">
+                  <ActionButtonGroup
+                    :actions="getMovementActions()"
+                    size="sm"
+                    :loading="stockMovementsStore.loading"
+                    @action-click="(actionKey) => handleActionClick(actionKey, movement)"
+                    class="w-full"
+                  />
                 </div>
               </div>
             </div>

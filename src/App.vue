@@ -205,7 +205,7 @@
               :class="
                 $route.name === 'StockMovements'
                   ? 'border-blue-500 text-blue-700 bg-blue-50'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-300'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50 hover:border-gray-300'
               "
             >
               Stock Movements
@@ -218,7 +218,7 @@
               :class="
                 $route.name === 'StockRequests'
                   ? 'border-blue-500 text-blue-700 bg-blue-50'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-300'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50 hover:border-gray-300'
               "
             >
               Stock Requests
@@ -231,7 +231,7 @@
               :class="
                 $route.name === 'StockApprovals'
                   ? 'border-blue-500 text-blue-700 bg-blue-50'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-300'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50 hover:border-gray-300'
               "
             >
               Stock Approvals

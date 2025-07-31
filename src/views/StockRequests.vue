@@ -189,28 +189,30 @@
                   <StatusBadge :variant="getStatusVariant(request.status)" :text="request.status" />
                 </div>
                 <!-- Request Details -->
-                <div class="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span class="text-gray-500">Quantity:</span>
-                    <div class="font-medium text-gray-900 mt-1">
+                <div class="text-sm space-y-1">
+                  <div class="flex items-baseline gap-2">
+                    <span class="text-gray-500 flex-shrink-0">Quantity:</span>
+                    <span class="font-medium text-gray-900">
                       {{ request.quantity }} {{ request.unit }}
-                    </div>
+                    </span>
                   </div>
-                </div>
-                <div class="text-sm">
-                  <span class="text-gray-500">Remark:</span>
-                  <div class="font-medium text-gray-900 mt-1 whitespace-pre-wrap">
-                    {{ request.remark || 'No Remark' }}
+                  <div class="flex items-start gap-2">
+                    <span class="text-gray-500 flex-shrink-0">Remark:</span>
+                    <span class="font-medium text-gray-900 whitespace-pre-wrap">
+                      {{ request.remark || 'No Remark' }}
+                    </span>
                   </div>
                 </div>
                 <!-- Actions -->
-                <ActionButtonGroup
-                  v-if="request.status === 'Pending'"
-                  :actions="getRequestActions(request)"
-                  size="sm"
-                  :loading="stockRequestsStore.loading"
-                  @action-click="(actionKey) => handleActionClick(actionKey, request)"
-                />
+                <div v-if="request.status === 'Pending'" class="pt-2 border-t border-gray-100">
+                  <ActionButtonGroup
+                    :actions="getRequestActions(request)"
+                    size="sm"
+                    :loading="stockRequestsStore.loading"
+                    @action-click="(actionKey) => handleActionClick(actionKey, request)"
+                    class="w-full"
+                  />
+                </div>
               </div>
             </div>
           </div>

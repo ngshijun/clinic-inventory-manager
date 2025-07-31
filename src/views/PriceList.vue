@@ -145,42 +145,35 @@
                 </div>
 
                 <!-- Item Details -->
-                <div class="text-sm">
-                  <span class="text-gray-500">Current Stock:</span>
-                  <div class="font-medium text-gray-900 mt-1">
-                    {{ item.quantity }} {{ item.unit }}
+                <div class="text-sm space-y-1">
+                  <div class="flex items-baseline gap-2">
+                    <span class="text-gray-500 flex-shrink-0">Current Stock:</span>
+                    <span class="font-medium text-gray-900">
+                      {{ item.quantity }} {{ item.unit }}
+                    </span>
                   </div>
-                </div>
-
-                <!-- Order Status -->
-                <div v-if="item.order_date" class="text-xs text-blue-600 bg-blue-50 p-2 rounded">
-                  <span class="inline-flex items-center gap-1">
-                    <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                      <path
-                        fill-rule="evenodd"
-                        d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
-                        clip-rule="evenodd"
-                      />
-                    </svg>
-                    Ordered: {{ formatDate(item.order_date) }}
-                  </span>
-                </div>
-
-                <!-- Remark Display and Actions -->
-                <div>
-                  <div class="text-sm">
-                    <span class="text-gray-500">Remark:</span>
-                    <div class="font-medium text-gray-900 mt-1 whitespace-pre-wrap">
+                  <div v-if="item.order_date" class="flex items-baseline gap-2">
+                    <span class="text-gray-500 flex-shrink-0">Ordered:</span>
+                    <span class="font-medium text-blue-600">
+                      {{ formatDate(item.order_date) }}
+                    </span>
+                  </div>
+                  <div class="flex items-start gap-2">
+                    <span class="text-gray-500 flex-shrink-0">Remark:</span>
+                    <span class="font-medium text-gray-900 whitespace-pre-wrap">
                       {{ item.remark || 'No remark' }}
-                    </div>
+                    </span>
                   </div>
+                </div>
 
-                  <!-- Actions -->
+                <!-- Actions -->
+                <div class="pt-2 border-t border-gray-100">
                   <ActionButtonGroup
                     :actions="getItemActions(item)"
                     size="sm"
                     :loading="inventoryStore.loading"
                     @action-click="(actionKey) => handleActionClick(actionKey, item)"
+                    class="w-full"
                   />
                 </div>
               </div>
