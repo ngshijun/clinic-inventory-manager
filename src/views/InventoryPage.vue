@@ -94,7 +94,7 @@
         :title="`Stock In: ${stockInItem?.item_name}`"
         variant="green"
         :loading="inventoryStore.loading"
-        confirm-text="Add Stock"
+        confirm-text="Stock In"
         @close="closeStockInModal"
         @cancel="closeStockInModal"
         @confirm="confirmStockIn"
@@ -336,9 +336,24 @@
         </form>
       </div>
 
-      <!-- Search Bar -->
-      <div class="mb-4 sm:mb-6">
+      <!-- Search Bar and Filters -->
+      <div class="mb-4 sm:mb-6 space-y-4">
         <SearchInput v-model="searchQuery" placeholder="Search items..." />
+        
+        <!-- Filter Controls -->
+        <div class="flex flex-wrap gap-3">
+          <div class="flex items-center gap-2">
+            <input
+              id="filter-ordered"
+              v-model="showOrderedOnly"
+              type="checkbox"
+              class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            />
+            <label for="filter-ordered" class="text-sm font-medium text-gray-700">
+              Show only items with order date
+            </label>
+          </div>
+        </div>
       </div>
 
       <!-- Mobile Card View -->
@@ -555,6 +570,7 @@ const inventoryStore = useInventoryStore()
 
 const searchQuery = ref<string>('')
 const showAddForm = ref<boolean>(false)
+const showOrderedOnly = ref<boolean>(false)
 const stockQuantity = ref<number>(1)
 const fileInput = ref<HTMLInputElement | null>(null)
 const itemNameInputRef = ref<HTMLInputElement | null>(null)
@@ -614,6 +630,11 @@ const getStockStatusValue = (item: InventoryItem): number => {
 // Sorting and filtering logic
 const sortedAndFilteredItems = computed((): InventoryItem[] => {
   let items = inventoryStore.searchItems(searchQuery.value)
+
+  // Apply order date filter
+  if (showOrderedOnly.value) {
+    items = items.filter(item => item.order_date)
+  }
 
   if (sortConfig.value.key) {
     items = [...items].sort((a, b) => {
@@ -689,7 +710,7 @@ const confirmStockIn = async (): Promise<void> => {
 }
 
 // Reset to first page when filters change
-watch([searchQuery], () => {
+watch([searchQuery, showOrderedOnly], () => {
   pagination.resetToFirstPage()
 })
 
