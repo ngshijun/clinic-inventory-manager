@@ -164,7 +164,7 @@
             class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
           />
           <label for="show-older-pending" class="text-sm font-medium text-gray-700">
-            Show {{ nonTodayPendingCount }} older pending only
+            Show only {{ nonTodayPendingCount }} older pending
           </label>
         </div>
       </div>
