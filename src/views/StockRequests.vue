@@ -129,26 +129,28 @@
               <input
                 v-model="filterDate"
                 type="date"
-                class="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                class="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50"
+                :disabled="showOlderPending"
                 placeholder="Filter by date"
               />
             </div>
 
             <!-- Clear Filters -->
             <button
-              v-if="hasActiveFilters"
-              @click="clearFilters"
-              class="flex items-center justify-center gap-2 px-4 py-2 border border-red-300 rounded-md text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 transition-colors w-full sm:w-auto"
+              v-if="showResetButton"
+              @click="resetToToday"
+              class="flex items-center justify-center gap-2 px-4 py-2 border border-blue-300 rounded-md text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors w-full sm:w-auto disabled:opacity-50"
+              :disabled="showOlderPending"
             >
               <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   stroke-linecap="round"
                   stroke-linejoin="round"
                   stroke-width="2"
-                  d="M6 18L18 6M6 6l12 12"
+                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
                 ></path>
               </svg>
-              Clear Filters
+              Show Today
             </button>
           </div>
         </div>
@@ -162,7 +164,7 @@
             class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
           />
           <label for="show-older-pending" class="text-sm font-medium text-gray-700">
-            Show {{ nonTodayPendingCount }} older pending
+            Show {{ nonTodayPendingCount }} older pending only
           </label>
         </div>
       </div>
@@ -189,7 +191,7 @@
             icon="document"
             title="No requests found"
             :description="
-              hasActiveFilters
+              showResetButton
                 ? 'Try adjusting your search terms or filters.'
                 : 'No requests have been submitted yet.'
             "
@@ -270,7 +272,7 @@
             icon="document"
             title="No requests found"
             :description="
-              hasActiveFilters
+              showResetButton
                 ? 'Try adjusting your search terms or filters.'
                 : 'No requests have been submitted yet.'
             "
@@ -623,15 +625,15 @@ const nonTodayPendingCount = computed(() => {
   }).length
 })
 
-// Check if there are active filters
-const hasActiveFilters = computed((): boolean => {
+// Check if reset to today button should be shown
+const showResetButton = computed((): boolean => {
   const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
   const isDateToday = filterDate.value === todayString
-  return !!(searchQuery.value || (filterDate.value && !isDateToday) || showOlderPending.value)
+  return !!(filterDate.value && !isDateToday)
 })
 
 // Reset to first page when filters change
-watch([searchQuery, filterDate, showOlderPending], () => {
+watch([searchQuery, filterDate], () => {
   pagination.resetToFirstPage()
 })
 
@@ -693,12 +695,10 @@ const handleActionClick = (actionKey: string, request: StockRequest) => {
   }
 }
 
-// Clear all filters
-const clearFilters = (): void => {
-  searchQuery.value = ''
+// Reset date filter to today
+const resetToToday = (): void => {
   const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
   filterDate.value = todayString
-  showOlderPending.value = false
   pagination.resetToFirstPage()
 }
 

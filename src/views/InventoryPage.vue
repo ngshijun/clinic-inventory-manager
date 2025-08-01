@@ -13,7 +13,7 @@
             Import from Excel (xlsx)
           </button>
           <button
-            v-if="!showAddForm && sortedAndFilteredItems.length > 0"
+            v-if="!showAddForm"
             @click="exportToExcel"
             class="w-full sm:w-auto bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
           >
@@ -1070,7 +1070,7 @@ const importInventoryData = async (data: ExcelData[]): Promise<void> => {
 const exportToExcel = (): void => {
   try {
     // Prepare data for export
-    const exportData = sortedAndFilteredItems.value.map((item) => ({
+    const exportData = inventoryStore.items.map((item) => ({
       item_name: item.item_name,
       quantity: item.quantity,
       reorder_level: item.reorder_level,

@@ -13,6 +13,7 @@ dist
 dist-ssr
 coverage
 *.local
+*.local.md
 
 /cypress/videos/
 /cypress/screenshots/
@@ -28,6 +29,3 @@ coverage
 *.sw?
 
 *.tsbuildinfo
-
-# Project documentation
-COMPONENT_EXTRACTION_PHASES.md

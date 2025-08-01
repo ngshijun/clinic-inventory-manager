@@ -35,26 +35,28 @@
               <input
                 v-model="filterDate"
                 type="date"
-                class="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 max-w-full box-border"
+                class="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 max-w-full box-border disabled:opacity-50"
+                :disabled="showOlderPending"
                 placeholder="Filter by date"
               />
             </div>
 
             <!-- Clear Filters -->
             <button
-              v-if="hasActiveFilters"
-              @click="clearFilters"
-              class="flex items-center justify-center gap-2 px-4 py-2 border border-red-300 rounded-md text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 transition-colors w-full sm:w-auto"
+              v-if="showResetButton"
+              @click="resetToToday"
+              class="flex items-center justify-center gap-2 px-4 py-2 border border-blue-300 rounded-md text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors w-full sm:w-auto disabled:opacity-50"
+              :disabled="showOlderPending"
             >
               <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   stroke-linecap="round"
                   stroke-linejoin="round"
                   stroke-width="2"
-                  d="M6 18L18 6M6 6l12 12"
+                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
                 ></path>
               </svg>
-              Clear Filters
+              Show Today
             </button>
           </div>
         </div>
@@ -68,7 +70,7 @@
             class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
           />
           <label for="show-older-pending" class="text-sm font-medium text-gray-700">
-            Show {{ nonTodayPendingCount }} older pending
+            Show {{ nonTodayPendingCount }} older pending only
           </label>
         </div>
       </div>
@@ -108,26 +110,7 @@
       </div>
 
       <!-- Error Display -->
-      <div
-        v-if="stockRequestsStore.error"
-        class="mb-4 bg-red-50 border border-red-200 rounded-md p-4"
-      >
-        <div class="flex">
-          <div class="flex-shrink-0">
-            <svg class="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
-              <path
-                fill-rule="evenodd"
-                d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                clip-rule="evenodd"
-              ></path>
-            </svg>
-          </div>
-          <div class="ml-3">
-            <h3 class="text-sm font-medium text-red-800">Error</h3>
-            <p class="mt-1 text-sm text-red-700">{{ stockRequestsStore.error }}</p>
-          </div>
-        </div>
-      </div>
+      <ErrorAlert v-if="stockRequestsStore.error" :message="stockRequestsStore.error" />
 
       <!-- Reject Modal -->
       <ActionModal
@@ -288,7 +271,7 @@
             icon="document"
             title="No requests found"
             :description="
-              hasActiveFilters
+              showResetButton
                 ? 'Try adjusting your search terms or filters.'
                 : 'No requests need approval at the moment.'
             "
@@ -316,20 +299,7 @@
                       {{ request.item_name }}
                     </h4>
                   </div>
-                  <span
-                    :class="[
-                      'inline-flex px-2 py-1 text-xs font-semibold rounded-full flex-shrink-0',
-                      request.status === 'Pending'
-                        ? 'bg-yellow-100 text-yellow-800'
-                        : request.status === 'Approved'
-                          ? 'bg-green-100 text-green-800'
-                          : request.status === 'Rejected'
-                            ? 'bg-red-100 text-red-800'
-                            : 'bg-gray-100 text-gray-800',
-                    ]"
-                  >
-                    {{ request.status }}
-                  </span>
+                  <StatusBadge :variant="getStatusVariant(request.status)" :text="request.status" />
                 </div>
 
                 <!-- Request Details -->
@@ -425,7 +395,7 @@
             icon="document"
             title="No requests found"
             :description="
-              hasActiveFilters
+              showResetButton
                 ? 'Try adjusting your search terms or filters.'
                 : 'No requests need approval at the moment.'
             "
@@ -628,20 +598,10 @@
                     </div>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap">
-                    <span
-                      :class="[
-                        'inline-flex px-2 py-1 text-xs font-semibold rounded-full',
-                        request.status === 'Pending'
-                          ? 'bg-yellow-100 text-yellow-800'
-                          : request.status === 'Approved'
-                            ? 'bg-green-100 text-green-800'
-                            : request.status === 'Rejected'
-                              ? 'bg-red-100 text-red-800'
-                              : 'bg-gray-100 text-gray-800',
-                      ]"
-                    >
-                      {{ request.status }}
-                    </span>
+                    <StatusBadge
+                      :variant="getStatusVariant(request.status)"
+                      :text="request.status"
+                    />
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <ActionButtonGroup
@@ -694,8 +654,8 @@ import { computed, onMounted, ref, watch } from 'vue'
 // Component imports
 import TablePagination from '@/components/TablePagination.vue'
 import { usePagination } from '@/composables/usePagination'
-// import ErrorAlert from '@/components/ui/ErrorAlert.vue' // Available for error displays
-// import StatusBadge from '@/components/ui/StatusBadge.vue' // Available for status badges
+import ErrorAlert from '@/components/ui/ErrorAlert.vue'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
 import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import SearchInput from '@/components/ui/SearchInput.vue'
@@ -871,11 +831,11 @@ const sortedAndFilteredRequests = computed((): StockRequest[] => {
 
 const pagination = usePagination(sortedAndFilteredRequests)
 
-// Check if there are active filters
-const hasActiveFilters = computed((): boolean => {
+// Check if reset to today button should be shown
+const showResetButton = computed((): boolean => {
   const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
   const isDateToday = filterDate.value === todayString
-  return !!(searchQuery.value || (filterDate.value && !isDateToday) || showOlderPending.value)
+  return !!(filterDate.value && !isDateToday)
 })
 
 // Helper functions
@@ -886,6 +846,20 @@ const getAvailableStock = (itemId: string): number => {
 
 const hasEnoughStock = (request: StockRequest): boolean => {
   return getAvailableStock(request.item_id) >= request.quantity
+}
+
+// Helper function to get status badge variant
+const getStatusVariant = (status: string): 'pending' | 'approved' | 'cancelled' => {
+  switch (status) {
+    case 'Pending':
+      return 'pending'
+    case 'Approved':
+      return 'approved'
+    case 'Rejected':
+      return 'cancelled'
+    default:
+      return 'pending'
+  }
 }
 
 // Action button configurations
@@ -1016,7 +990,7 @@ const updateItemsPerPage = (newItemsPerPage: number): void => {
 }
 
 // Reset to first page when filters change
-watch([searchQuery, filterDate, showOlderPending, pagination.itemsPerPage.value], () => {
+watch([searchQuery, filterDate, pagination.itemsPerPage.value], () => {
   pagination.currentPage.value = 1
 })
 
@@ -1033,12 +1007,10 @@ const toggleSort = (key: keyof StockRequest): void => {
   pagination.resetToFirstPage() // Reset to first page when sorting changes
 }
 
-// Clear all filters
-const clearFilters = (): void => {
-  searchQuery.value = ''
+// Reset date filter to today
+const resetToToday = (): void => {
   const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
   filterDate.value = todayString
-  showOlderPending.value = false
   pagination.resetToFirstPage()
 }
 

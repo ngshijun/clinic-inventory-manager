@@ -7,8 +7,12 @@
         :value="modelValue"
         @input="updateValue"
         type="text"
-        class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm"
-        :class="{ 'pr-24': showAdvancedToggle || showClearFilters }"
+        class="block w-full pl-10 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm"
+        :class="{
+          'pr-24': showAdvancedToggle || showClearFilters,
+          'pr-10': modelValue && !showAdvancedToggle && !showClearFilters,
+          'pr-3': !modelValue && !showAdvancedToggle && !showClearFilters,
+        }"
         :placeholder="placeholder"
       />
 
@@ -30,11 +34,47 @@
         </svg>
       </div>
 
+      <!-- Clear Input Button -->
+      <button
+        v-if="modelValue && !showAdvancedToggle && !showClearFilters"
+        @click="clearInput"
+        type="button"
+        class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 transition-colors"
+        title="Clear search"
+      >
+        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M6 18L18 6M6 6l12 12"
+          />
+        </svg>
+      </button>
+
       <!-- Right side buttons -->
       <div
         v-if="showAdvancedToggle || showClearFilters"
         class="absolute inset-y-0 right-0 flex items-center pr-3"
       >
+        <!-- Clear Input Button (when other buttons are present) -->
+        <button
+          v-if="modelValue"
+          @click="clearInput"
+          type="button"
+          class="text-gray-400 hover:text-gray-600 mr-2 transition-colors"
+          title="Clear search"
+        >
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
+        </button>
+
         <!-- Clear Filters Button -->
         <button
           v-if="showClearFilters && hasActiveFilters"
@@ -91,5 +131,9 @@ const inputId = computed(() => `search-input-${Math.random().toString(36).substr
 const updateValue = (event: Event) => {
   const target = event.target as HTMLInputElement
   emit('update:modelValue', target.value)
+}
+
+const clearInput = () => {
+  emit('update:modelValue', '')
 }
 </script>
