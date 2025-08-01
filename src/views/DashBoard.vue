@@ -264,8 +264,12 @@
                     <div class="flex-1">
                       <!-- Mobile: Stack vertically, Desktop: Grid layout -->
                       <div class="block sm:hidden">
-                        <div class="font-medium break-words">{{ item.item_name }}</div>
-                        <div class="text-xs text-red-600 mt-0.5">(0 {{ item.unit }} remaining)</div>
+                        <div class="font-semibold text-gray-900 break-words">
+                          {{ item.item_name }}
+                        </div>
+                        <div class="text-sm text-red-700 mt-0.5 font-medium">
+                          (0 {{ item.unit }} remaining)
+                        </div>
                         <div v-if="item.order_date" class="text-sm text-blue-600 mt-1">
                           <span class="inline-flex items-center gap-1">
                             <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
@@ -282,16 +286,31 @@
                           <button
                             @click="openOrderModal(item)"
                             :disabled="inventoryStore.loading"
-                            class="bg-green-100 hover:bg-green-200 text-green-700 px-3 py-1 rounded text-sm font-medium transition-colors disabled:opacity-50"
+                            class="inline-flex items-center gap-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-2 py-1 rounded text-xs font-medium transition-colors disabled:opacity-50"
                           >
+                            <svg
+                              class="w-3 h-3"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                              />
+                            </svg>
                             {{ inventoryStore.loading ? 'Marking...' : 'Mark Ordered' }}
                           </button>
                         </div>
                       </div>
                       <div class="hidden sm:flex sm:items-center sm:justify-between">
                         <div class="flex-1 min-w-0">
-                          <div class="font-medium break-words">{{ item.item_name }}</div>
-                          <div class="text-xs text-red-600 mt-0.5">
+                          <div class="font-semibold text-gray-900 break-words">
+                            {{ item.item_name }}
+                          </div>
+                          <div class="text-sm text-red-700 mt-0.5 font-medium">
                             (0 {{ item.unit }} remaining)
                           </div>
                         </div>
@@ -312,8 +331,21 @@
                             v-else
                             @click="openOrderModal(item)"
                             :disabled="inventoryStore.loading"
-                            class="bg-green-100 hover:bg-green-200 text-green-700 px-3 py-1 rounded text-sm font-medium transition-colors disabled:opacity-50"
+                            class="inline-flex items-center gap-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-2 py-1 rounded text-xs font-medium transition-colors disabled:opacity-50"
                           >
+                            <svg
+                              class="w-3 h-3"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                              />
+                            </svg>
                             {{ inventoryStore.loading ? 'Marking...' : 'Mark Ordered' }}
                           </button>
                         </div>
@@ -362,8 +394,10 @@
                     <div class="flex-1">
                       <!-- Mobile: Stack vertically, Desktop: Grid layout -->
                       <div class="block sm:hidden">
-                        <div class="font-medium break-words">{{ item.item_name }}</div>
-                        <div class="text-xs text-yellow-600 mt-0.5">
+                        <div class="font-semibold text-gray-900 break-words">
+                          {{ item.item_name }}
+                        </div>
+                        <div class="text-sm text-yellow-700 font-medium mt-0.5">
                           ({{ item.quantity }} {{ item.unit }} remaining)
                         </div>
                         <div v-if="item.order_date" class="text-sm text-blue-600 mt-1">
@@ -382,16 +416,31 @@
                           <button
                             @click="openOrderModal(item)"
                             :disabled="inventoryStore.loading"
-                            class="bg-green-100 hover:bg-green-200 text-green-700 px-3 py-1 rounded text-sm font-medium transition-colors disabled:opacity-50"
+                            class="inline-flex items-center gap-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-2 py-1 rounded text-xs font-medium transition-colors disabled:opacity-50"
                           >
+                            <svg
+                              class="w-3 h-3"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                              />
+                            </svg>
                             {{ inventoryStore.loading ? 'Marking...' : 'Mark Ordered' }}
                           </button>
                         </div>
                       </div>
                       <div class="hidden sm:flex sm:items-center sm:justify-between">
                         <div class="flex-1 min-w-0">
-                          <div class="font-medium break-words">{{ item.item_name }}</div>
-                          <div class="text-xs text-yellow-600 mt-0.5">
+                          <div class="font-semibold text-gray-900 break-words">
+                            {{ item.item_name }}
+                          </div>
+                          <div class="text-sm text-yellow-700 font-medium mt-0.5">
                             ({{ item.quantity }} {{ item.unit }} remaining)
                           </div>
                         </div>
@@ -412,8 +461,21 @@
                             v-else
                             @click="openOrderModal(item)"
                             :disabled="inventoryStore.loading"
-                            class="bg-green-100 hover:bg-green-200 text-green-700 px-3 py-1 rounded text-sm font-medium transition-colors disabled:opacity-50"
+                            class="inline-flex items-center gap-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-2 py-1 rounded text-xs font-medium transition-colors disabled:opacity-50"
                           >
+                            <svg
+                              class="w-3 h-3"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                              />
+                            </svg>
                             {{ inventoryStore.loading ? 'Marking...' : 'Mark Ordered' }}
                           </button>
                         </div>
@@ -462,15 +524,19 @@
                     <div class="flex-1">
                       <!-- Mobile: Stack vertically, Desktop: Grid layout -->
                       <div class="block sm:hidden">
-                        <div class="font-medium break-words">{{ item.item_name }}</div>
-                        <div class="text-xs text-purple-600 mt-0.5">
+                        <div class="font-semibold text-gray-900 break-words">
+                          {{ item.item_name }}
+                        </div>
+                        <div class="text-sm text-purple-700 font-medium mt-0.5">
                           ({{ formatDuration(item.daysSinceUpdate) }} ago)
                         </div>
                       </div>
                       <div class="hidden sm:flex sm:items-center sm:justify-between">
                         <div class="flex-1 min-w-0">
-                          <div class="font-medium break-words">{{ item.item_name }}</div>
-                          <div class="text-xs text-purple-600 mt-0.5">
+                          <div class="font-semibold text-gray-900 break-words">
+                            {{ item.item_name }}
+                          </div>
+                          <div class="text-sm text-purple-700 font-medium mt-0.5">
                             ({{ formatDuration(item.daysSinceUpdate) }} ago)
                           </div>
                         </div>
@@ -484,13 +550,32 @@
         </div>
       </div>
     </div>
+
+    <!-- Floating Back to Top Button -->
+    <transition name="fade">
+      <button
+        v-if="showBackToTop"
+        @click="scrollToTop"
+        class="fixed bottom-6 right-6 bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-full shadow-lg transition-all duration-200 z-50"
+        title="Back to top"
+      >
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M5 10l7-7m0 0l7 7m-7-7v18"
+          />
+        </svg>
+      </button>
+    </transition>
   </div>
 </template>
 
 <script setup lang="ts">
 import router from '@/router'
 import { useInventoryStore } from '@/stores/inventory'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import type { InventoryItem } from '@/types/inventory'
 import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
 import ErrorAlert from '@/components/ui/ErrorAlert.vue'
@@ -502,6 +587,9 @@ const inventoryStore = useInventoryStore()
 const showOrderModal = ref<boolean>(false)
 const orderItem = ref<InventoryItem | null>(null)
 const orderDate = ref<string>('')
+
+// Back to top button visibility
+const showBackToTop = ref<boolean>(false)
 
 // Order modal functions
 const openOrderModal = (item: InventoryItem): void => {
@@ -553,6 +641,19 @@ const scrollToSection = (sectionId: string) => {
   }
 }
 
+// Scroll to top function
+const scrollToTop = () => {
+  window.scrollTo({
+    top: 0,
+    behavior: 'smooth',
+  })
+}
+
+// Handle scroll event for back to top button
+const handleScroll = () => {
+  showBackToTop.value = window.scrollY > 300
+}
+
 // Format duration for display
 const formatDuration = (days: number): string => {
   if (days < 7) {
@@ -590,5 +691,23 @@ const confirmMarkAsOrdered = async (): Promise<void> => {
   }
 }
 
-onMounted(() => {})
+onMounted(() => {
+  window.addEventListener('scroll', handleScroll)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('scroll', handleScroll)
+})
 </script>
+
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+</style>
