@@ -91,7 +91,7 @@
       <!-- Search Bar and Filters -->
       <div class="mb-4 sm:mb-6 space-y-4">
         <SearchInput v-model="searchQuery" placeholder="Search items..." />
-        
+
         <!-- Filter Controls -->
         <div class="flex flex-wrap gap-3">
           <div class="flex items-center gap-2">
@@ -230,8 +230,8 @@
                   :key="item.id"
                   class="hover:bg-gray-50"
                 >
-                  <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {{ item.item_name }}
+                  <td class="px-6 py-4 text-sm font-medium text-gray-900 min-w-0 max-w-xs">
+                    <div class="break-words">{{ item.item_name }}</div>
                     <!-- Show order status if item has order date -->
                     <div v-if="item.order_date" class="text-xs text-blue-600 mt-1">
                       <span class="inline-flex items-center gap-1">
@@ -399,7 +399,7 @@ const sortedAndFilteredItems = computed((): InventoryItem[] => {
 
   // Apply order date filter
   if (showOrderedOnly.value) {
-    items = items.filter(item => item.order_date)
+    items = items.filter((item) => item.order_date)
   }
 
   if (sortConfig.value.key) {

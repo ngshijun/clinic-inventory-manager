@@ -280,8 +280,8 @@
                   :key="movement.id"
                   class="hover:bg-gray-50"
                 >
-                  <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {{ movement.item_name }}
+                  <td class="px-6 py-4 text-sm font-medium text-gray-900 min-w-0 max-w-xs">
+                    <div class="break-words">{{ movement.item_name }}</div>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {{ movement.quantity }} {{ movement.unit }}

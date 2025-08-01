@@ -63,7 +63,7 @@ const emit = defineEmits<{
 // Container classes based on layout and size
 const containerClasses = computed(() => {
   const baseClasses = 'flex'
-  const layoutClasses = props.layout === 'horizontal' ? 'flex-row gap-x-2 flex-wrap' : 'flex-col gap-y-2'
+  const layoutClasses = props.layout === 'horizontal' ? 'flex-row gap-x-2' : 'flex-col gap-y-2'
 
   return `${baseClasses} ${layoutClasses}`
 })
@@ -73,7 +73,7 @@ const getButtonClasses = (variant: string): string => {
   const sizeClasses = getSizeClasses()
   const variantClasses = getVariantClasses(variant)
   const baseClasses =
-    'font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
+    'font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap'
 
   return `${baseClasses} ${sizeClasses} ${variantClasses}`
 }

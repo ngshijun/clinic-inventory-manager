@@ -114,36 +114,57 @@
       </div>
 
       <!-- Search and Filter Bar -->
-      <div class="mb-4 sm:mb-6 flex flex-col sm:flex-row gap-4">
-        <!-- Search -->
-        <div class="flex-1 sm:max-w-md">
-          <SearchInput v-model="searchQuery" placeholder="Search requests..." />
+      <div class="mb-4 sm:mb-6 space-y-4">
+        <!-- Search and Date Filter -->
+        <div class="flex flex-col sm:flex-row gap-4">
+          <!-- Search -->
+          <div class="flex-1 sm:max-w-md">
+            <SearchInput v-model="searchQuery" placeholder="Search requests..." />
+          </div>
+
+          <!-- Filter Controls -->
+          <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            <!-- Date Filter -->
+            <div class="w-full sm:w-40">
+              <input
+                v-model="filterDate"
+                type="date"
+                class="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Filter by date"
+              />
+            </div>
+
+            <!-- Clear Filters -->
+            <button
+              v-if="hasActiveFilters"
+              @click="clearFilters"
+              class="flex items-center justify-center gap-2 px-4 py-2 border border-red-300 rounded-md text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 transition-colors w-full sm:w-auto"
+            >
+              <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M6 18L18 6M6 6l12 12"
+                ></path>
+              </svg>
+              Clear Filters
+            </button>
+          </div>
         </div>
-        <!-- Date Filter -->
-        <div class="w-full sm:w-40">
+
+        <!-- Show Older Pending Checkbox -->
+        <div v-if="nonTodayPendingCount > 0" class="flex items-center gap-2">
           <input
-            v-model="filterDate"
-            type="date"
-            class="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="Filter by date"
+            id="show-older-pending"
+            v-model="showOlderPending"
+            type="checkbox"
+            class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
           />
+          <label for="show-older-pending" class="text-sm font-medium text-gray-700">
+            Show {{ nonTodayPendingCount }} older pending
+          </label>
         </div>
-        <!-- Clear Filters -->
-        <button
-          v-if="hasActiveFilters"
-          @click="clearFilters"
-          class="flex items-center justify-center gap-2 px-4 py-2 border border-red-300 rounded-md text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 transition-colors w-full sm:w-auto"
-        >
-          <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M6 18L18 6M6 6l12 12"
-            ></path>
-          </svg>
-          Clear Filters
-        </button>
       </div>
 
       <!-- Error Display -->
@@ -267,8 +288,8 @@
                   :key="request.id"
                   class="hover:bg-gray-50"
                 >
-                  <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {{ request.item_name }}
+                  <td class="px-6 py-4 text-sm font-medium text-gray-900 min-w-0 max-w-xs">
+                    <div class="break-words">{{ request.item_name }}</div>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {{ request.quantity }} {{ request.unit }}
@@ -445,6 +466,7 @@ const filterDate = ref<string>(
   `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`,
 )
 const showCreateForm = ref<boolean>(false)
+const showOlderPending = ref<boolean>(false)
 const itemSearchQuery = ref<string>('')
 const showItemDropdown = ref<boolean>(false)
 const selectedItemIndex = ref<number>(-1)
@@ -546,8 +568,8 @@ const sortedAndFilteredRequests = computed((): StockRequest[] => {
     requests = stockRequestsStore.searchRequests(searchQuery.value)
   }
 
-  // Date filter
-  if (filterDate.value) {
+  // Date filter (only apply if not showing older pending)
+  if (filterDate.value && !showOlderPending.value) {
     const filterDateObj = new Date(filterDate.value)
     requests = requests.filter((request) => {
       const requestDate = new Date(request.created_at)
@@ -555,13 +577,14 @@ const sortedAndFilteredRequests = computed((): StockRequest[] => {
     })
   }
 
-  // Apply date filter on top of search filter
-  if (filterDate.value && searchQuery.value) {
-    const searchResults = stockRequestsStore.searchRequests(searchQuery.value)
-    const filterDateObj = new Date(filterDate.value)
-    requests = searchResults.filter((request) => {
+  // Show older pending filter
+  if (showOlderPending.value) {
+    const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+    requests = requests.filter((request) => {
+      if (request.status !== 'Pending') return false
       const requestDate = new Date(request.created_at)
-      return requestDate.toDateString() === filterDateObj.toDateString()
+      const requestDateString = `${requestDate.getFullYear()}-${String(requestDate.getMonth() + 1).padStart(2, '0')}-${String(requestDate.getDate()).padStart(2, '0')}`
+      return requestDateString !== todayString
     })
   }
 
@@ -590,13 +613,25 @@ const sortedAndFilteredRequests = computed((): StockRequest[] => {
 // Pagination
 const pagination = usePagination(sortedAndFilteredRequests)
 
+const nonTodayPendingCount = computed(() => {
+  const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+  return stockRequestsStore.requests.filter((request) => {
+    if (request.status !== 'Pending') return false
+    const requestDate = new Date(request.created_at)
+    const requestDateString = `${requestDate.getFullYear()}-${String(requestDate.getMonth() + 1).padStart(2, '0')}-${String(requestDate.getDate()).padStart(2, '0')}`
+    return requestDateString !== todayString
+  }).length
+})
+
 // Check if there are active filters
 const hasActiveFilters = computed((): boolean => {
-  return !!(searchQuery.value || filterDate.value)
+  const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+  const isDateToday = filterDate.value === todayString
+  return !!(searchQuery.value || (filterDate.value && !isDateToday) || showOlderPending.value)
 })
 
 // Reset to first page when filters change
-watch([searchQuery, filterDate], () => {
+watch([searchQuery, filterDate, showOlderPending], () => {
   pagination.resetToFirstPage()
 })
 
@@ -661,7 +696,9 @@ const handleActionClick = (actionKey: string, request: StockRequest) => {
 // Clear all filters
 const clearFilters = (): void => {
   searchQuery.value = ''
-  filterDate.value = ''
+  const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+  filterDate.value = todayString
+  showOlderPending.value = false
   pagination.resetToFirstPage()
 }
 
