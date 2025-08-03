@@ -31,15 +31,7 @@
             </p>
           </div>
 
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Order Date</label>
-            <input
-              v-model="orderDate"
-              type="date"
-              required
-              class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
-            />
-          </div>
+          <FormField v-model="orderDate" type="date" label="Order Date" :required="true" />
         </div>
       </ActionModal>
 
@@ -580,6 +572,7 @@ import type { InventoryItem } from '@/types/inventory'
 import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
 import ErrorAlert from '@/components/ui/ErrorAlert.vue'
 import ActionModal from '@/components/ui/ActionModal.vue'
+import FormField from '@/components/ui/FormField.vue'
 
 const inventoryStore = useInventoryStore()
 

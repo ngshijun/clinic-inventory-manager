@@ -67,15 +67,14 @@
               </div>
             </div>
             <div class="col-span-2">
-              <label class="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
-              <input
-                v-model.number="newRequest.quantity"
+              <FormField
+                v-model="newRequest.quantity"
                 type="number"
-                min="1"
+                label="Quantity"
+                :min="1"
                 :max="selectedItemMaxQuantity"
                 :disabled="!newRequest.item_id"
-                required
-                class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                :required="true"
                 :placeholder="
                   selectedItemMaxQuantity ? `Max: ${selectedItemMaxQuantity}` : 'Select item first'
                 "
@@ -86,13 +85,13 @@
             </div>
           </div>
           <div class="mt-4">
-            <label class="block text-sm font-medium text-gray-700 mb-1">Remark (Optional)</label>
-            <textarea
+            <FormField
               v-model="newRequest.remark"
-              rows="3"
-              class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              type="textarea"
+              label="Remark (Optional)"
+              :rows="3"
               placeholder="Enter reason for request..."
-            ></textarea>
+            />
           </div>
           <div class="mt-4 flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
             <button
@@ -404,14 +403,14 @@
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
-          <input
-            v-model.number="editForm.quantity"
+          <FormField
+            v-model="editForm.quantity"
             type="number"
-            min="1"
+            label="Quantity"
+            :min="1"
             :max="editingRequest ? getItemMaxQuantity(editingRequest.item_id) : undefined"
-            class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             placeholder="Enter quantity"
+            :required="true"
           />
           <p v-if="editingRequest" class="mt-1 text-xs text-gray-500">
             Max available: {{ getItemMaxQuantity(editingRequest.item_id) }}
@@ -419,15 +418,13 @@
           </p>
         </div>
 
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Remark (Optional)</label>
-          <textarea
-            v-model="editForm.remark"
-            rows="3"
-            class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="Add any notes or comments..."
-          />
-        </div>
+        <FormField
+          v-model="editForm.remark"
+          type="textarea"
+          label="Remark (Optional)"
+          :rows="3"
+          placeholder="Add any notes or comments..."
+        />
       </div>
     </ActionModal>
   </div>
@@ -438,6 +435,7 @@ import ActionButtonGroup from '@/components/ui/ActionButtonGroup.vue'
 import ActionModal from '@/components/ui/ActionModal.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import ErrorAlert from '@/components/ui/ErrorAlert.vue'
+import FormField from '@/components/ui/FormField.vue'
 import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
 import SearchInput from '@/components/ui/SearchInput.vue'
 import SortableTableHeader from '@/components/ui/SortableTableHeader.vue'

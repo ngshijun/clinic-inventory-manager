@@ -5,21 +5,14 @@
         <!-- Login Form Card -->
         <div class="px-3 py-4 sm:px-6 sm:py-5">
           <form @submit.prevent="handleLogin" class="space-y-4">
-            <div>
-              <input
-                v-model="password"
-                type="password"
-                placeholder="Enter password"
-                required
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                :class="{ 'border-red-500': error }"
-              />
-
-              <!-- Error State -->
-              <p v-if="error" class="text-sm text-red-600">
-                {{ error }}
-              </p>
-            </div>
+            <FormField
+              v-model="password"
+              type="password"
+              label="Password"
+              placeholder="Enter password"
+              :required="true"
+              :error="error"
+            />
 
             <button
               type="submit"
@@ -35,6 +28,7 @@
 </template>
 
 <script setup lang="ts">
+import FormField from '@/components/ui/FormField.vue'
 import { useAuthStore } from '@/stores/auth'
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'

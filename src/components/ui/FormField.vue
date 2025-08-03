@@ -13,14 +13,33 @@
     <input
       v-if="type === 'text'"
       :id="fieldId"
-      :value="modelValue"
+      :value="modelValue || ''"
       @input="updateValue"
       type="text"
       :placeholder="placeholder"
       :required="required"
+      :disabled="disabled"
       :class="[
         'w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500',
         error ? 'border-red-300' : 'border-gray-300',
+        disabled ? 'bg-gray-100 text-gray-500' : '',
+      ]"
+    />
+
+    <!-- Password Input -->
+    <input
+      v-else-if="type === 'password'"
+      :id="fieldId"
+      :value="modelValue || ''"
+      @input="updateValue"
+      type="password"
+      :placeholder="placeholder"
+      :required="required"
+      :disabled="disabled"
+      :class="[
+        'w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500',
+        error ? 'border-red-300' : 'border-gray-300',
+        disabled ? 'bg-gray-100 text-gray-500' : '',
       ]"
     />
 
@@ -28,14 +47,19 @@
     <input
       v-else-if="type === 'number'"
       :id="fieldId"
-      :value="modelValue"
+      :value="modelValue || ''"
       @input="updateValue"
       type="number"
       :placeholder="placeholder"
       :required="required"
+      :disabled="disabled"
+      :min="min"
+      :max="max"
+      :step="step"
       :class="[
         'w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500',
         error ? 'border-red-300' : 'border-gray-300',
+        disabled ? 'bg-gray-100 text-gray-500' : '',
       ]"
     />
 
@@ -43,13 +67,15 @@
     <input
       v-else-if="type === 'date'"
       :id="fieldId"
-      :value="modelValue"
+      :value="modelValue || ''"
       @input="updateValue"
       type="date"
       :required="required"
+      :disabled="disabled"
       :class="[
         'w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500',
         error ? 'border-red-300' : 'border-gray-300',
+        disabled ? 'bg-gray-100 text-gray-500' : '',
       ]"
     />
 
@@ -57,14 +83,16 @@
     <textarea
       v-else-if="type === 'textarea'"
       :id="fieldId"
-      :value="modelValue"
+      :value="modelValue || ''"
       @input="updateValue"
-      rows="3"
+      :rows="rows || 3"
       :placeholder="placeholder"
       :required="required"
+      :disabled="disabled"
       :class="[
         'w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-vertical',
         error ? 'border-red-300' : 'border-gray-300',
+        disabled ? 'bg-gray-100 text-gray-500' : '',
       ]"
     ></textarea>
 
@@ -72,12 +100,14 @@
     <select
       v-else-if="type === 'select'"
       :id="fieldId"
-      :value="modelValue"
+      :value="modelValue || ''"
       @change="updateValue"
       :required="required"
+      :disabled="disabled"
       :class="[
         'w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500',
         error ? 'border-red-300' : 'border-gray-300',
+        disabled ? 'bg-gray-100 text-gray-500' : '',
       ]"
     >
       <option value="" disabled>{{ placeholder || 'Select an option' }}</option>
@@ -103,12 +133,17 @@ interface FormFieldOption {
 
 interface FormFieldProps {
   label: string
-  modelValue: string | number
-  type: 'text' | 'number' | 'select' | 'textarea' | 'date'
+  modelValue: string | number | undefined
+  type: 'text' | 'number' | 'select' | 'textarea' | 'date' | 'password'
   required?: boolean
   error?: string
   options?: FormFieldOption[]
   placeholder?: string
+  disabled?: boolean
+  min?: number
+  max?: number
+  step?: number | string
+  rows?: number
 }
 
 const props = withDefaults(defineProps<FormFieldProps>(), {
@@ -116,10 +151,15 @@ const props = withDefaults(defineProps<FormFieldProps>(), {
   error: '',
   options: () => [],
   placeholder: '',
+  disabled: false,
+  min: undefined,
+  max: undefined,
+  step: undefined,
+  rows: 3,
 })
 
 const emit = defineEmits<{
-  'update:modelValue': [value: string | number]
+  'update:modelValue': [value: string | number | undefined]
 }>()
 
 // Generate unique field ID for accessibility

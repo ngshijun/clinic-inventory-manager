@@ -32,44 +32,34 @@
         <h3 class="text-base sm:text-lg font-medium text-gray-900 mb-4">Add New Employee</h3>
         <form @submit.prevent="addEmployee">
           <div class="space-y-4 sm:grid sm:grid-cols-3 sm:gap-6 sm:space-y-0">
+            <FormField
+              v-model="newEmployee.name"
+              type="text"
+              label="Employee Name"
+              placeholder="Enter employee name"
+              :required="true"
+            />
+
+            <FormField
+              v-model="newEmployee.basic_salary"
+              type="number"
+              label="Basic Salary (RM)"
+              placeholder="0.00"
+              :required="true"
+              :min="0"
+              step="0.01"
+            />
+
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Employee Name</label>
-              <input
-                v-model="newEmployee.name"
-                type="text"
-                required
-                class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Enter employee name"
-              />
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Basic Salary (RM)</label>
-              <input
-                v-model.number="newEmployee.basic_salary"
+              <FormField
+                v-model="newEmployee.epf_employer"
                 type="number"
-                min="0"
-                step="0.01"
-                required
-                class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                label="EPF Employer Contribution (RM)"
                 placeholder="0.00"
-              />
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1"
-                >EPF Employer Contribution (RM)</label
-              >
-              <input
-                v-model.number="newEmployee.epf_employer"
-                type="number"
-                min="0"
+                :required="true"
+                :min="0"
                 step="0.01"
-                required
                 :disabled="useDefaultEpf"
-                :class="[
-                  'w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500',
-                  useDefaultEpf ? 'bg-gray-100 text-gray-500' : '',
-                ]"
-                placeholder="0.00"
               />
               <div class="flex items-center gap-2 mt-2">
                 <input
@@ -126,39 +116,22 @@
         <h3 class="text-base sm:text-lg font-medium text-gray-900 mb-4">Select Payroll Period</h3>
         <div class="flex flex-col gap-4">
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <!-- Month Selection -->
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Month</label>
-              <select
-                v-model="selectedMonth"
-                class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">Select Month</option>
-                <option value="01">January</option>
-                <option value="02">February</option>
-                <option value="03">March</option>
-                <option value="04">April</option>
-                <option value="05">May</option>
-                <option value="06">June</option>
-                <option value="07">July</option>
-                <option value="08">August</option>
-                <option value="09">September</option>
-                <option value="10">October</option>
-                <option value="11">November</option>
-                <option value="12">December</option>
-              </select>
-            </div>
+            <FormField
+              v-model="selectedMonth"
+              type="select"
+              label="Month"
+              placeholder="Select Month"
+              :required="true"
+              :options="monthOptions"
+            />
 
-            <!-- Year Selection -->
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Year</label>
-              <select
-                v-model="selectedYear"
-                class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option v-for="year in availableYears" :key="year" :value="year">{{ year }}</option>
-              </select>
-            </div>
+            <FormField
+              v-model="selectedYear"
+              type="select"
+              label="Year"
+              :required="true"
+              :options="yearOptions"
+            />
           </div>
 
           <!-- Selected Period Display -->
@@ -598,45 +571,35 @@
           </div>
 
           <!-- Edit Form Fields -->
-          <div class="space-y-4">
-            <div v-if="editEmployee">
-              <label class="block text-sm font-medium text-gray-700 mb-1">Employee Name</label>
-              <input
-                v-model="editEmployee.name"
-                type="text"
-                required
-                class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Enter employee name"
-              />
-            </div>
-            <div v-if="editEmployee">
-              <label class="block text-sm font-medium text-gray-700 mb-1">Basic Salary (RM)</label>
-              <input
-                v-model.number="editEmployee.basic_salary"
+          <div v-if="editEmployee" class="space-y-4">
+            <FormField
+              v-model="editEmployee.name"
+              type="text"
+              label="Employee Name"
+              placeholder="Enter employee name"
+              :required="true"
+            />
+
+            <FormField
+              v-model="editEmployee.basic_salary"
+              type="number"
+              label="Basic Salary (RM)"
+              placeholder="0.00"
+              :required="true"
+              :min="0"
+              step="0.01"
+            />
+
+            <div>
+              <FormField
+                v-model="editEmployee.epf_employer"
                 type="number"
-                min="0"
-                step="0.01"
-                required
-                class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                label="EPF Employer Contribution (RM)"
                 placeholder="0.00"
-              />
-            </div>
-            <div v-if="editEmployee">
-              <label class="block text-sm font-medium text-gray-700 mb-1"
-                >EPF Employer Contribution (RM)</label
-              >
-              <input
-                v-model.number="editEmployee.epf_employer"
-                type="number"
-                min="0"
+                :required="true"
+                :min="0"
                 step="0.01"
-                required
                 :disabled="useDefaultEpfEdit"
-                :class="[
-                  'w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500',
-                  useDefaultEpfEdit ? 'bg-gray-100 text-gray-500' : '',
-                ]"
-                placeholder="0.00"
               />
               <div class="flex items-center gap-2 mt-2">
                 <input
@@ -726,6 +689,7 @@ import ActionButtonGroup from '@/components/ui/ActionButtonGroup.vue'
 import ActionModal from '@/components/ui/ActionModal.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import ErrorAlert from '@/components/ui/ErrorAlert.vue'
+import FormField from '@/components/ui/FormField.vue'
 import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
 import SearchInput from '@/components/ui/SearchInput.vue'
 import { usePayrollStore, type Employee, type EmployeeInsert } from '@/stores/payroll'
@@ -781,11 +745,32 @@ const filteredEmployees = computed(() => {
   )
 })
 
+// Available months for selection
+const monthOptions = computed(() => [
+  { value: '01', label: 'January' },
+  { value: '02', label: 'February' },
+  { value: '03', label: 'March' },
+  { value: '04', label: 'April' },
+  { value: '05', label: 'May' },
+  { value: '06', label: 'June' },
+  { value: '07', label: 'July' },
+  { value: '08', label: 'August' },
+  { value: '09', label: 'September' },
+  { value: '10', label: 'October' },
+  { value: '11', label: 'November' },
+  { value: '12', label: 'December' },
+])
+
 // Available years for selection (current year + previous 2 years + next year)
 const availableYears = computed(() => {
   const currentYear = new Date().getFullYear()
   return [currentYear - 2, currentYear - 1, currentYear, currentYear + 1]
 })
+
+// Year options for FormField
+const yearOptions = computed(() =>
+  availableYears.value.map((year) => ({ value: year, label: year.toString() })),
+)
 
 // Format selected period for display
 const formatSelectedPeriod = computed(() => {

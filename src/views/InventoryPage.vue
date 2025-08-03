@@ -270,44 +270,40 @@
         <form @submit.prevent="addNewItem">
           <div class="space-y-4 sm:grid sm:grid-cols-6 sm:gap-6 sm:space-y-0">
             <div class="col-span-3">
-              <label class="block text-sm font-medium text-gray-700 mb-1">Item Name</label>
-              <input
+              <FormField
                 ref="itemNameInputRef"
                 v-model="newItem.item_name"
                 type="text"
-                required
-                class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                label="Item Name"
                 placeholder="Enter item name"
+                :required="true"
               />
             </div>
             <div class="col-span-1">
-              <label class="block text-sm font-medium text-gray-700 mb-1">Initial Quantity</label>
-              <input
-                v-model.number="newItem.quantity"
+              <FormField
+                v-model="newItem.quantity"
                 type="number"
-                min="0"
-                required
-                class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                label="Initial Quantity"
+                :required="true"
+                :min="0"
               />
             </div>
             <div class="col-span-1">
-              <label class="block text-sm font-medium text-gray-700 mb-1">Reorder Level</label>
-              <input
-                v-model.number="newItem.reorder_level"
+              <FormField
+                v-model="newItem.reorder_level"
                 type="number"
-                min="0"
-                required
-                class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                label="Reorder Level"
+                :required="true"
+                :min="0"
               />
             </div>
             <div class="col-span-1">
-              <label class="block text-sm font-medium text-gray-700 mb-1">Unit</label>
-              <input
+              <FormField
                 v-model="newItem.unit"
                 type="text"
-                required
-                class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                label="Unit"
                 placeholder="Enter unit"
+                :required="true"
               />
             </div>
           </div>
@@ -558,6 +554,7 @@ import ActionButtonGroup from '@/components/ui/ActionButtonGroup.vue'
 import ActionModal from '@/components/ui/ActionModal.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import ErrorAlert from '@/components/ui/ErrorAlert.vue'
+import FormField from '@/components/ui/FormField.vue'
 import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
 import SearchInput from '@/components/ui/SearchInput.vue'
 import SortableTableHeader from '@/components/ui/SortableTableHeader.vue'

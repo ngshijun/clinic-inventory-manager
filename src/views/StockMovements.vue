@@ -59,15 +59,12 @@
 
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <!-- Item Name Filter -->
-            <div>
-              <label class="block text-xs font-medium text-gray-700 mb-1">Item Name</label>
-              <input
-                v-model="advancedFilters.itemName"
-                type="text"
-                class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Filter by item name..."
-              />
-            </div>
+            <FormField
+              v-model="advancedFilters.itemName"
+              type="text"
+              label="Item Name"
+              placeholder="Filter by item name..."
+            />
 
             <!-- Quantity Range -->
             <div>
@@ -107,35 +104,18 @@
             </div>
 
             <!-- Start Date -->
-            <div>
-              <label class="block text-xs font-medium text-gray-700 mb-1">Start Date</label>
-              <input
-                v-model="advancedFilters.startDate"
-                type="date"
-                class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
+            <FormField v-model="advancedFilters.startDate" type="date" label="Start Date" />
 
             <!-- End Date -->
-            <div>
-              <label class="block text-xs font-medium text-gray-700 mb-1">End Date</label>
-              <input
-                v-model="advancedFilters.endDate"
-                type="date"
-                class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
+            <FormField v-model="advancedFilters.endDate" type="date" label="End Date" />
 
             <!-- Remark Filter -->
-            <div>
-              <label class="block text-xs font-medium text-gray-700 mb-1">Remark</label>
-              <input
-                v-model="advancedFilters.remark"
-                type="text"
-                class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Filter by remark..."
-              />
-            </div>
+            <FormField
+              v-model="advancedFilters.remark"
+              type="text"
+              label="Remark"
+              placeholder="Filter by remark..."
+            />
           </div>
 
           <!-- Filter Actions -->
@@ -361,15 +341,13 @@
           </p>
         </div>
 
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Remark</label>
-          <textarea
-            v-model="newRemark"
-            rows="3"
-            class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="Enter remark..."
-          />
-        </div>
+        <FormField
+          v-model="newRemark"
+          type="textarea"
+          label="Remark"
+          :rows="3"
+          placeholder="Enter remark..."
+        />
       </div>
     </ActionModal>
   </div>
@@ -379,6 +357,7 @@
 import ActionButtonGroup from '@/components/ui/ActionButtonGroup.vue'
 import ActionModal from '@/components/ui/ActionModal.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
+import FormField from '@/components/ui/FormField.vue'
 import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
 import SearchInput from '@/components/ui/SearchInput.vue'
 import SortableTableHeader from '@/components/ui/SortableTableHeader.vue'

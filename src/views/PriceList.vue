@@ -34,15 +34,7 @@
             </p>
           </div>
 
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Order Date</label>
-            <input
-              v-model="orderDate"
-              type="date"
-              required
-              class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
-            />
-          </div>
+          <FormField v-model="orderDate" type="date" label="Order Date" :required="true" />
         </div>
       </ActionModal>
 
@@ -76,15 +68,13 @@
             </p>
           </div>
 
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Remark</label>
-            <textarea
-              v-model="newRemark"
-              rows="3"
-              class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Enter remark (e.g., last purchase price, supplier info)..."
-            />
-          </div>
+          <FormField
+            v-model="newRemark"
+            type="textarea"
+            label="Remark"
+            :rows="3"
+            placeholder="Enter remark (e.g., last purchase price, supplier info)..."
+          />
         </div>
       </ActionModal>
 
@@ -294,6 +284,7 @@ import ActionButtonGroup from '@/components/ui/ActionButtonGroup.vue'
 import ActionModal from '@/components/ui/ActionModal.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import ErrorAlert from '@/components/ui/ErrorAlert.vue'
+import FormField from '@/components/ui/FormField.vue'
 import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
 import SearchInput from '@/components/ui/SearchInput.vue'
 import SortableTableHeader from '@/components/ui/SortableTableHeader.vue'
