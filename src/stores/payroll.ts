@@ -123,12 +123,30 @@ export const usePayrollStore = defineStore('payroll', () => {
   const calculateEPF = (salary: number) => {
     // EPF contribution rates: Employee 11%, Employer 12% for salary > RM5000
     // For salary <= RM5000: Employee 11%, Employer 13%
-    const employeeRate = 0.11
-    const employerRate = salary > 5000 ? 0.12 : 0.13
+    const cappedSalary = Math.min(salary, 20000)
+
+    let employeeContribution = 0
+    let employerContribution = 0
+
+    if (cappedSalary <= 10) {
+      employeeContribution = 0
+      employerContribution = 0
+    } else if (cappedSalary <= 5000) {
+      const roundedSalary = Math.ceil(cappedSalary / 20) * 20
+      employeeContribution = Math.ceil(roundedSalary * 0.11)
+      employerContribution = Math.ceil(roundedSalary * 0.13)
+    } else if (cappedSalary <= 20000) {
+      const roundedSalary = Math.ceil(cappedSalary / 100) * 100
+      employeeContribution = Math.ceil(roundedSalary * 0.11)
+      employerContribution = Math.ceil(roundedSalary * 0.12)
+    } else {
+      employeeContribution = Math.ceil(cappedSalary * 0.12)
+      employerContribution = Math.ceil(cappedSalary * 0.12)
+    }
 
     return {
-      employee: Math.round(salary * employeeRate * 100) / 100,
-      employer: Math.round(salary * employerRate * 100) / 100,
+      employee: employeeContribution,
+      employer: employerContribution,
     }
   }
 
