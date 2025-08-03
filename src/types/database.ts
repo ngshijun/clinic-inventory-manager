@@ -37,69 +37,89 @@ export interface Database {
           updated_at?: string
         }
       }
-    }
-    stock_movements: {
-      Row: {
-        id: string // uuid
-        item_id: string // uuid reference to inventory
-        item_name: string // text (for easier querying)
-        quantity: number // int8
-        movement_type: 'stock_in' | 'stock_out' // enum
-        remark: string // text
-        created_at: string // timestamp
-        updated_at: string // timestamp
+      stock_movements: {
+        Row: {
+          id: string // uuid
+          item_id: string // uuid reference to inventory
+          item_name: string // text (for easier querying)
+          quantity: number // int8
+          movement_type: 'stock_in' | 'stock_out' // enum
+          remark: string // text
+          created_at: string // timestamp
+          updated_at: string // timestamp
+        }
+        Insert: {
+          id?: string
+          item_id: string
+          item_name: string
+          quantity: number
+          movement_type: 'stock_in' | 'stock_out'
+          remark?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          item_id?: string
+          item_name?: string
+          quantity?: number
+          movement_type?: 'stock_in' | 'stock_out'
+          remark?: string
+          created_at?: string
+          updated_at?: string
+        }
       }
-      Insert: {
-        id?: string
-        item_id: string
-        item_name: string
-        quantity: number
-        movement_type: 'stock_in' | 'stock_out'
-        remark?: string
-        created_at?: string
-        updated_at?: string
+      stock_requests: {
+        Row: {
+          id: string
+          item_id: string
+          item_name: string
+          quantity: number
+          remark: string
+          status: 'Approved' | 'Pending' | 'Rejected'
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          item_id: string
+          item_name: string
+          quantity: number
+          remark?: string
+          status?: 'Approved' | 'Pending' | 'Rejected'
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          item_id?: string
+          item_name?: string
+          quantity?: number
+          remark?: string
+          status?: 'Approved' | 'Pending' | 'Rejected'
+          created_at?: string
+          updated_at?: string
+        }
       }
-      Update: {
-        id?: string
-        item_id?: string
-        item_name?: string
-        quantity?: number
-        movement_type?: 'stock_in' | 'stock_out'
-        remark?: string
-        created_at?: string
-        updated_at?: string
-      }
-    }
-    stock_requests: {
-      Row: {
-        id: string
-        item_id: string
-        item_name: string
-        quantity: number
-        remark: string
-        status: 'Approved' | 'Pending' | 'Rejected'
-        created_at: string
-        updated_at: string
-      }
-      Insert: {
-        id?: string
-        item_id: string
-        item_name: string
-        quantity: number
-        remark?: string
-        status?: 'Approved' | 'Pending' | 'Rejected'
-        created_at?: string
-        updated_at?: string
-      }
-      Update: {
-        id?: string
-        item_id?: string
-        item_name?: string
-        quantity?: number
-        remark?: string
-        status?: 'Approved' | 'Pending' | 'Rejected'
-        created_at?: string
-        updated_at?: string
+      payroll: {
+        Row: {
+          id: string // uuid
+          name: string // text
+          basic_salary: number // numeric
+          epf_employer: number // numeric
+        }
+        Insert: {
+          id?: string
+          name: string
+          basic_salary: number
+          epf_employer: number
+        }
+        Update: {
+          id?: string
+          name?: string
+          basic_salary?: number
+          epf_employer?: number
+        }
       }
     }
     Views: {

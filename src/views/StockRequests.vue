@@ -434,22 +434,22 @@
 </template>
 
 <script setup lang="ts">
+import ActionButtonGroup from '@/components/ui/ActionButtonGroup.vue'
+import ActionModal from '@/components/ui/ActionModal.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
+import ErrorAlert from '@/components/ui/ErrorAlert.vue'
+import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
+import SearchInput from '@/components/ui/SearchInput.vue'
+import SortableTableHeader from '@/components/ui/SortableTableHeader.vue'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
 import { useInventoryStore } from '@/stores/inventory'
 import { useStockRequestsStore } from '@/stores/stockRequests'
 import type { InventoryItem } from '@/types/inventory'
 import type { NewStockRequest, StockRequest } from '@/types/stockRequests'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
-import ErrorAlert from '@/components/ui/ErrorAlert.vue'
-import StatusBadge from '@/components/ui/StatusBadge.vue'
-import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
-import EmptyState from '@/components/ui/EmptyState.vue'
-import SearchInput from '@/components/ui/SearchInput.vue'
-import ActionModal from '@/components/ui/ActionModal.vue'
-import SortableTableHeader from '@/components/ui/SortableTableHeader.vue'
-import ActionButtonGroup from '@/components/ui/ActionButtonGroup.vue'
 
 // Component imports
-import TablePagination from '@/components/TablePagination.vue'
+import TablePagination from '@/components/ui/TablePagination.vue'
 import { usePagination } from '@/composables/usePagination'
 
 // Helper function to map status to StatusBadge variant

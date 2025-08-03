@@ -376,18 +376,18 @@
 </template>
 
 <script setup lang="ts">
-import TablePagination from '@/components/TablePagination.vue'
+import ActionButtonGroup from '@/components/ui/ActionButtonGroup.vue'
+import ActionModal from '@/components/ui/ActionModal.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
+import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
+import SearchInput from '@/components/ui/SearchInput.vue'
+import SortableTableHeader from '@/components/ui/SortableTableHeader.vue'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
+import TablePagination from '@/components/ui/TablePagination.vue'
 import { usePagination } from '@/composables/usePagination'
 import { useStockMovementsStore } from '@/stores/stockMovements'
 import type { StockMovement } from '@/types/stockMovements'
 import { computed, onMounted, ref, watch } from 'vue'
-import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
-import EmptyState from '@/components/ui/EmptyState.vue'
-import StatusBadge from '@/components/ui/StatusBadge.vue'
-import SearchInput from '@/components/ui/SearchInput.vue'
-import SortableTableHeader from '@/components/ui/SortableTableHeader.vue'
-import ActionButtonGroup from '@/components/ui/ActionButtonGroup.vue'
-import ActionModal from '@/components/ui/ActionModal.vue'
 
 const stockMovementsStore = useStockMovementsStore()
 
