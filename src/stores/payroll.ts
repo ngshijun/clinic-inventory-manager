@@ -295,6 +295,7 @@ export const usePayrollStore = defineStore('payroll', () => {
     getEmployeeById,
     searchEmployees,
     generatePayrollData,
+    calculateEPF,
     calculateNetSalary,
     initializeStore,
   }

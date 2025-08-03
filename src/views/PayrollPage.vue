@@ -830,29 +830,12 @@ const getEmployeeAccountInfo = (employeeName: string) => {
   }
 }
 
-// Calculate default EPF employer contribution
-const calculateDefaultEpfEmployer = (salary: number): number => {
-  const employerRate = salary > 5000 ? 0.12 : 0.13
-  return Math.round(salary * employerRate * 100) / 100
-}
-
-// Watch for changes in salary or default EPF checkbox (add employee)
-watch(
-  [() => newEmployee.value.basic_salary, useDefaultEpf],
-  ([salary, useDefault]) => {
-    if (useDefault && salary > 0) {
-      newEmployee.value.epf_employer = calculateDefaultEpfEmployer(salary)
-    }
-  },
-  { immediate: true },
-)
-
 // Watch for changes in salary or default EPF checkbox (edit employee)
 watch(
   [() => editEmployee.value?.basic_salary, useDefaultEpfEdit],
   ([salary, useDefault]) => {
     if (useDefault && salary && salary > 0 && editEmployee.value) {
-      editEmployee.value.epf_employer = calculateDefaultEpfEmployer(salary)
+      editEmployee.value.epf_employer = payrollStore.calculateEPF(salary).employer
     }
   },
   { immediate: true },
@@ -911,7 +894,7 @@ const openEditModal = (employee: Employee) => {
   editEmployee.value = { ...employee }
 
   // Check if current EPF value matches the calculated default value
-  const calculatedEpf = calculateDefaultEpfEmployer(employee.basic_salary)
+  const calculatedEpf = payrollStore.calculateEPF(employee.basic_salary).employer
   const currentEpf = employee.epf_employer
 
   // If the current EPF matches the calculated value (within a small tolerance for rounding)
@@ -1020,14 +1003,15 @@ const generateExcel = () => {
 
   // Helper to add section
   const addSection = (
-    title: string,
+    title: string | null = null,
     rows: (string | number)[][],
     accrualEntry: (string | number)[] | null = null,
+    spacing: boolean = true,
   ) => {
-    excelData.push([title, '', '', '', ''])
+    if (title) excelData.push([title, '', '', '', ''])
     rows.forEach((row: (string | number)[]) => excelData.push(row))
-    if (accrualEntry) excelData.push(accrualEntry)
-    excelData.push(['', '', '', '', ''])
+    if (accrualEntry && rows.length > 0) excelData.push(accrualEntry)
+    if (spacing) excelData.push(['', '', '', '', ''])
   }
 
   // Helper to create employee rows
@@ -1109,25 +1093,30 @@ const generateExcel = () => {
     0,
   )
 
-  // Add SOCSO & EIS section manually to avoid extra spacing
-  excelData.push([`BEING ACCRUAL SOCSO & EIS FOR ${monthName} ${year}`, '', '', '', ''])
-  excelData.push(...socsoEmployerRows, ...socsoEmployeeRows)
-  excelData.push([
-    '410-080',
-    'ACCRUALS - KWSP & SOCSO',
-    `SOCSO CONTRIBUTION - ${monthName} ${year} PERKESO`,
-    '0.00',
-    totalSocso.toFixed(2),
-  ])
-  excelData.push(...eisEmployerRows, ...eisEmployeeRows)
-  excelData.push([
-    '410-080',
-    'ACCRUALS - KWSP & SOCSO',
-    `EIS CONTRIBUTION - ${monthName} ${year} PERKESO`,
-    '0.00',
-    totalEis.toFixed(2),
-  ])
-  excelData.push(['', '', '', '', ''])
+  addSection(
+    `BEING ACCRUAL SOCSO & EIS FOR ${monthName} ${year}`,
+    [...socsoEmployerRows, ...socsoEmployeeRows],
+    [
+      '410-080',
+      'ACCRUALS - KWSP & SOCSO',
+      `SOCSO CONTRIBUTION - ${monthName} ${year} PERKESO`,
+      '0.00',
+      totalSocso.toFixed(2),
+    ],
+    false,
+  )
+
+  addSection(
+    null,
+    [...eisEmployerRows, ...eisEmployeeRows],
+    [
+      '410-080',
+      'ACCRUALS - KWSP & SOCSO',
+      `EIS CONTRIBUTION - ${monthName} ${year} PERKESO`,
+      '0.00',
+      totalEis.toFixed(2),
+    ],
+  )
 
   // PCB section
   const pcbRows = payrollData.value
@@ -1157,23 +1146,18 @@ const generateExcel = () => {
   const totalPcb = payrollData.value.reduce((sum, emp) => sum + (emp.pcb || 0), 0)
   const totalCp38 = payrollData.value.reduce((sum, emp) => sum + (emp.cp38 || 0), 0)
 
-  // Add PCB section manually to control spacing
-  excelData.push([`BEING ACCRUAL PCB FOR ${monthName} ${year}`, '', '', '', ''])
-  excelData.push(...pcbRows, ...cp38Rows)
-  excelData.push([
-    '410-010',
-    'ACCRUALS - SALARY',
-    `CP38 - ${monthName} ${year}`,
-    '0.00',
-    totalCp38.toFixed(2),
-  ])
-  excelData.push([
-    '410-010',
-    'ACCRUALS - SALARY',
-    `PCB CONTRIBUTION - ${monthName} ${year}`,
-    '0.00',
-    totalPcb.toFixed(2),
-  ])
+  addSection(
+    `BEING ACCRUAL PCB FOR ${monthName} ${year}`,
+    [...pcbRows],
+    ['410-010', 'ACCRUALS - SALARY', `PCB - ${monthName} ${year}`, '0.00', totalPcb.toFixed(2)],
+    false,
+  )
+
+  addSection(
+    null,
+    [...cp38Rows],
+    ['410-010', 'ACCRUALS - SALARY', `CP38 - ${monthName} ${year}`, '0.00', totalCp38.toFixed(2)],
+  )
 
   // Create and style worksheet
   const ws = XLSX.utils.aoa_to_sheet(excelData)
