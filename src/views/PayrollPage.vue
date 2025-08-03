@@ -325,11 +325,11 @@
       <!-- Payroll Processing Table -->
       <div v-else-if="showPayrollTable" class="space-y-4">
         <div class="bg-white rounded-lg shadow p-4 sm:p-6">
-          <div class="flex justify-between items-center mb-4">
-            <h3 class="text-lg font-medium text-gray-900">
+          <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6">
+            <h3 class="text-lg font-medium text-gray-900 mb-4 sm:mb-0">
               Payroll for {{ formatMonth(combinedMonthYear) }}
             </h3>
-            <div class="flex gap-2">
+            <div class="flex flex-col sm:flex-row gap-2">
               <button
                 @click="backToEmployeeList"
                 class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
@@ -477,7 +477,7 @@
                 </div>
 
                 <!-- Contributions Grid -->
-                <div class="grid grid-cols-2 gap-2 text-xs">
+                <div class="grid grid-rows-3 gap-2 text-xs">
                   <div class="bg-gray-50 p-2 rounded">
                     <div class="font-medium text-gray-700 mb-1">EPF</div>
                     <div>Employer: RM {{ formatCurrency(payroll.epfEmployer) }}</div>
