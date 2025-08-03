@@ -204,7 +204,7 @@
       <!-- Employee List -->
       <div v-else-if="!showPayrollTable" class="space-y-4">
         <!-- Desktop Table -->
-        <div class="bg-white shadow overflow-hidden sm:rounded-md">
+        <div class="bg-white shadow overflow-hidden sm:rounded-md hidden lg:block">
           <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
             <h3 class="text-lg leading-6 font-medium text-gray-900">
               Employees ({{ filteredEmployees.length }})
