@@ -821,7 +821,7 @@ const getEmployeeAccountInfo = (employeeName: string) => {
     }
   } else {
     return {
-      salaryCode: ['940-000', 'SALARIES'],
+      salaryCode: ['904-000', 'SALARIES'],
       epfCode: ['908-000', 'EPF CONTRIBUTION - STAFF'],
       socsoCode: ['909-000', 'SOCSO CONTRIBUTION - STAFF'],
       eisCode: ['909-002', 'SOCSO(EIS) CONTRIBUTION - STAFF'],
