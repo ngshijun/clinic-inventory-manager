@@ -12,6 +12,7 @@
     <!-- Text Input -->
     <input
       v-if="type === 'text'"
+      ref="inputRef"
       :id="fieldId"
       :value="modelValue || ''"
       @input="updateValue"
@@ -124,7 +125,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
 interface FormFieldOption {
   value: string | number
@@ -162,6 +163,9 @@ const emit = defineEmits<{
   'update:modelValue': [value: string | number | undefined]
 }>()
 
+// Template ref for input element
+const inputRef = ref<HTMLInputElement | null>(null)
+
 // Generate unique field ID for accessibility
 const fieldId = computed(() => `form-field-${Math.random().toString(36).substring(2, 11)}`)
 
@@ -176,4 +180,15 @@ const updateValue = (event: Event) => {
     emit('update:modelValue', target.value)
   }
 }
+
+// Expose the focus method
+const focus = () => {
+  inputRef.value?.focus()
+}
+
+// Expose methods and refs to parent components
+defineExpose({
+  focus,
+  inputRef,
+})
 </script>

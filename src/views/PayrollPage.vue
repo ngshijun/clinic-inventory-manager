@@ -19,7 +19,7 @@
           </button>
           <button
             v-if="!showAddForm && !showPayrollTable && !showMonthSelection"
-            @click="showAddForm = true"
+            @click="openAddForm"
             class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
           >
             Add Employee
@@ -33,6 +33,7 @@
         <form @submit.prevent="addEmployee">
           <div class="space-y-4 sm:grid sm:grid-cols-3 sm:gap-6 sm:space-y-0">
             <FormField
+              ref="nameInputRef"
               v-model="newEmployee.name"
               type="text"
               label="Employee Name"
@@ -212,30 +213,11 @@
           </div>
           <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
-              <thead class="bg-gray-50">
-                <tr>
-                  <th
-                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                  >
-                    Employee Name
-                  </th>
-                  <th
-                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                  >
-                    Basic Salary
-                  </th>
-                  <th
-                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                  >
-                    EPF Employer
-                  </th>
-                  <th
-                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                  >
-                    Actions
-                  </th>
-                </tr>
-              </thead>
+              <SortableTableHeader
+                :columns="employeeColumns"
+                :sort-config="sortConfig"
+                @sort-change="handleSortChange"
+              />
               <tbody class="bg-white divide-y divide-gray-200">
                 <tr
                   v-for="employee in filteredEmployees"
@@ -692,13 +674,15 @@ import ErrorAlert from '@/components/ui/ErrorAlert.vue'
 import FormField from '@/components/ui/FormField.vue'
 import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
 import SearchInput from '@/components/ui/SearchInput.vue'
+import SortableTableHeader from '@/components/ui/SortableTableHeader.vue'
 import { usePayrollStore, type Employee, type EmployeeInsert } from '@/stores/payroll'
 import type { PayrollData } from '@/types/payroll'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import * as XLSX from 'xlsx'
 
 const payrollStore = usePayrollStore()
 const showAddForm = ref(false)
+const nameInputRef = ref<{ focus: () => void } | null>(null)
 const showSalaries = ref(false)
 const showPayrollTable = ref(false)
 const showMonthSelection = ref(false)
@@ -706,6 +690,20 @@ const selectedMonth = ref('')
 const selectedYear = ref(new Date().getFullYear())
 const payrollData = ref<PayrollData[]>([])
 const searchQuery = ref('')
+
+// Sort configuration
+const sortConfig = ref<{ key: string | null; direction: 'asc' | 'desc' }>({
+  key: null,
+  direction: 'asc',
+})
+
+// Employee table columns
+const employeeColumns = [
+  { key: 'name', label: 'Employee Name', sortable: true, align: 'left' as const },
+  { key: 'basic_salary', label: 'Basic Salary', sortable: true, align: 'left' as const },
+  { key: 'epf_employer', label: 'EPF Employer', sortable: true, align: 'left' as const },
+  { key: 'actions', label: 'Actions', sortable: false, align: 'left' as const },
+]
 
 // Edit modal variables
 const showEditModal = ref(false)
@@ -735,14 +733,39 @@ const canGenerateExcel = computed(() => {
   return payrollData.value.length > 0 && payrollData.value.some((p) => p.pcb > 0 || p.cp38 > 0)
 })
 
-// Filtered employees based on search query
+// Filtered and sorted employees based on search query and sort configuration
 const filteredEmployees = computed(() => {
-  if (!searchQuery.value) {
-    return payrollStore.employees
+  let employees = payrollStore.employees
+
+  // Apply search filter
+  if (searchQuery.value) {
+    employees = employees.filter((employee) =>
+      employee.name.toLowerCase().includes(searchQuery.value.toLowerCase()),
+    )
   }
-  return payrollStore.employees.filter((employee) =>
-    employee.name.toLowerCase().includes(searchQuery.value.toLowerCase()),
-  )
+
+  // Apply sorting
+  if (sortConfig.value.key) {
+    employees = [...employees].sort((a, b) => {
+      const key = sortConfig.value.key as keyof Employee
+      let aValue = a[key]
+      let bValue = b[key]
+
+      // Handle string sorting (for name)
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        aValue = aValue.toLowerCase()
+        bValue = bValue.toLowerCase()
+      }
+
+      let result = 0
+      if (aValue < bValue) result = -1
+      else if (aValue > bValue) result = 1
+
+      return sortConfig.value.direction === 'desc' ? -result : result
+    })
+  }
+
+  return employees
 })
 
 // Available months for selection
@@ -830,6 +853,17 @@ const getEmployeeAccountInfo = (employeeName: string) => {
   }
 }
 
+// Watch for changes in salary or default EPF checkbox (add employee)
+watch(
+  [() => newEmployee.value.basic_salary, useDefaultEpf],
+  ([salary, useDefault]) => {
+    if (useDefault && salary && salary > 0) {
+      newEmployee.value.epf_employer = payrollStore.calculateEPF(salary).employer
+    }
+  },
+  { immediate: true },
+)
+
 // Watch for changes in salary or default EPF checkbox (edit employee)
 watch(
   [() => editEmployee.value?.basic_salary, useDefaultEpfEdit],
@@ -849,6 +883,23 @@ const formatMonth = (monthString: string): string => {
   if (!monthString) return formatSelectedPeriod.value || ''
   const date = new Date(monthString + '-01')
   return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long' })
+}
+
+const handleSortChange = (key: string) => {
+  if (sortConfig.value.key === key) {
+    // Toggle direction if same key
+    sortConfig.value.direction = sortConfig.value.direction === 'asc' ? 'desc' : 'asc'
+  } else {
+    // Set new key with ascending direction
+    sortConfig.value.key = key
+    sortConfig.value.direction = 'asc'
+  }
+}
+
+const openAddForm = async () => {
+  showAddForm.value = true
+  await nextTick()
+  nameInputRef.value?.focus()
 }
 
 const addEmployee = async () => {

@@ -573,7 +573,7 @@ const showAddForm = ref<boolean>(false)
 const showOrderedOnly = ref<boolean>(false)
 const stockQuantity = ref<number>(1)
 const fileInput = ref<HTMLInputElement | null>(null)
-const itemNameInputRef = ref<HTMLInputElement | null>(null)
+const itemNameInputRef = ref<{ focus: () => void } | null>(null)
 
 // New stock in modal variables
 const showStockInModal = ref<boolean>(false)
