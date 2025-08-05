@@ -2,7 +2,6 @@
   <div
     v-if="isOpen"
     class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"
-    @click="handleBackdropClick"
     @keydown.esc="handleEscape"
   >
     <div
@@ -126,12 +125,6 @@ const handleConfirm = () => {
 const handleCancel = () => {
   if (!props.loading) {
     emit('cancel')
-  }
-}
-
-const handleBackdropClick = () => {
-  if (!props.loading) {
-    emit('close')
   }
 }
 

@@ -320,8 +320,7 @@
               </button>
               <button
                 @click="generateExcel"
-                :disabled="!canGenerateExcel"
-                class="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
+                class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
               >
                 Generate Excel
               </button>
@@ -339,52 +338,52 @@
                     Employee
                   </th>
                   <th
-                    class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    class="px-2 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
                   >
                     Basic Salary
                   </th>
                   <th
-                    class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    class="px-2 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
                   >
                     EPF Employer
                   </th>
                   <th
-                    class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    class="px-2 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
                   >
                     EPF Employee
                   </th>
                   <th
-                    class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    class="px-2 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
                   >
                     SOCSO Employer
                   </th>
                   <th
-                    class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    class="px-2 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
                   >
                     SOCSO Employee
                   </th>
                   <th
-                    class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    class="px-2 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
                   >
                     EIS Employer
                   </th>
                   <th
-                    class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    class="px-2 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
                   >
                     EIS Employee
                   </th>
                   <th
-                    class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    class="px-2 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
                   >
-                    PCB (RM)
+                    PCB
                   </th>
                   <th
-                    class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    class="px-2 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
                   >
-                    CP38 (RM)
+                    CP38
                   </th>
                   <th
-                    class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    class="px-2 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
                   >
                     Net Salary
                   </th>
@@ -395,52 +394,98 @@
                   <td class="px-2 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                     {{ payroll.employeeName }}
                   </td>
-                  <td class="px-2 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td class="px-2 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
                     RM {{ formatCurrency(payroll.basicSalary) }}
                   </td>
-                  <td class="px-2 py-4 whitespace-nowrap text-sm text-gray-600">
+                  <td class="px-2 py-4 whitespace-nowrap text-sm text-gray-600 text-right">
                     RM {{ formatCurrency(payroll.epfEmployer) }}
                   </td>
-                  <td class="px-2 py-4 whitespace-nowrap text-sm text-gray-600">
+                  <td class="px-2 py-4 whitespace-nowrap text-sm text-gray-600 text-right">
                     RM {{ formatCurrency(payroll.epfEmployee) }}
                   </td>
-                  <td class="px-2 py-4 whitespace-nowrap text-sm text-gray-600">
+                  <td class="px-2 py-4 whitespace-nowrap text-sm text-gray-600 text-right">
                     RM {{ formatCurrency(payroll.socsoEmployer) }}
                   </td>
-                  <td class="px-2 py-4 whitespace-nowrap text-sm text-gray-600">
+                  <td class="px-2 py-4 whitespace-nowrap text-sm text-gray-600 text-right">
                     RM {{ formatCurrency(payroll.socsoEmployee) }}
                   </td>
-                  <td class="px-2 py-4 whitespace-nowrap text-sm text-gray-600">
+                  <td class="px-2 py-4 whitespace-nowrap text-sm text-gray-600 text-right">
                     RM {{ formatCurrency(payroll.eisEmployer) }}
                   </td>
-                  <td class="px-2 py-4 whitespace-nowrap text-sm text-gray-600">
+                  <td class="px-2 py-4 whitespace-nowrap text-sm text-gray-600 text-right">
                     RM {{ formatCurrency(payroll.eisEmployee) }}
                   </td>
-                  <td class="px-2 py-4 whitespace-nowrap">
+                  <td class="px-2 py-4 whitespace-nowrap text-right">
                     <input
                       v-model.number="payroll.pcb"
                       type="number"
                       min="0"
                       step="0.01"
-                      class="w-20 border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      class="w-20 border border-gray-300 rounded-md px-2 py-1 text-sm text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       placeholder="0.00"
                     />
                   </td>
-                  <td class="px-2 py-4 whitespace-nowrap">
+                  <td class="px-2 py-4 whitespace-nowrap text-right">
                     <input
                       v-model.number="payroll.cp38"
                       type="number"
                       min="0"
                       step="0.01"
-                      class="w-20 border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      class="w-20 border border-gray-300 rounded-md px-2 py-1 text-sm text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       placeholder="0.00"
                     />
                   </td>
-                  <td class="px-2 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                  <td
+                    class="px-2 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-right"
+                  >
                     RM {{ formatCurrency(payrollStore.calculateNetSalary(payroll)) }}
                   </td>
                 </tr>
               </tbody>
+              <!-- Totals Row -->
+              <tfoot class="bg-gray-100">
+                <tr class="border-t-2 border-gray-300">
+                  <td class="px-2 py-4 whitespace-nowrap text-sm font-bold text-gray-700">TOTAL</td>
+                  <td
+                    class="px-2 py-4 whitespace-nowrap text-sm font-bold text-gray-700 text-right"
+                  >
+                    RM {{ formatCurrency(payrollTotals.basicSalary) }}
+                  </td>
+                  <td
+                    class="px-2 py-4 whitespace-nowrap text-sm font-bold text-gray-700 text-right"
+                    colspan="2"
+                  >
+                    RM {{ formatCurrency(totalEpf) }}
+                  </td>
+                  <td
+                    class="px-2 py-4 whitespace-nowrap text-sm font-bold text-gray-700 text-right"
+                    colspan="2"
+                  >
+                    RM {{ formatCurrency(totalSocso) }}
+                  </td>
+                  <td
+                    class="px-2 py-4 whitespace-nowrap text-sm font-bold text-gray-700 text-right"
+                    colspan="2"
+                  >
+                    RM {{ formatCurrency(totalEis) }}
+                  </td>
+                  <td
+                    class="px-2 py-4 whitespace-nowrap text-sm font-bold text-gray-700 text-right"
+                  >
+                    RM {{ formatCurrency(payrollTotals.pcb) }}
+                  </td>
+                  <td
+                    class="px-2 py-4 whitespace-nowrap text-sm font-bold text-gray-700 text-right"
+                  >
+                    RM {{ formatCurrency(payrollTotals.cp38) }}
+                  </td>
+                  <td
+                    class="px-2 py-4 whitespace-nowrap text-sm font-bold text-gray-700 text-right"
+                  >
+                    RM {{ formatCurrency(payrollTotals.netSalary) }}
+                  </td>
+                </tr>
+              </tfoot>
             </table>
           </div>
 
@@ -508,6 +553,55 @@
                   <span class="font-medium text-lg ml-2"
                     >RM {{ formatCurrency(payrollStore.calculateNetSalary(payroll)) }}</span
                   >
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Mobile Totals Summary -->
+          <div class="md:hidden">
+            <div class="border-2 border-blue-200 rounded-lg p-4 bg-blue-50">
+              <h4 class="font-bold text-blue-900 mb-3 text-center">PAYROLL TOTALS</h4>
+              <div class="space-y-3">
+                <div class="grid grid-cols-2 gap-3 text-sm">
+                  <div class="bg-white p-2 rounded border">
+                    <div class="font-medium text-gray-700">Basic Salary</div>
+                    <div class="font-bold text-gray-900">
+                      RM {{ formatCurrency(payrollTotals.basicSalary) }}
+                    </div>
+                  </div>
+                  <div class="bg-white p-2 rounded border">
+                    <div class="font-medium text-blue-700">Net Salary</div>
+                    <div class="font-bold text-blue-900">
+                      RM {{ formatCurrency(payrollTotals.netSalary) }}
+                    </div>
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-3 gap-3 text-xs">
+                  <div class="bg-white p-2 rounded border text-center">
+                    <div class="font-medium text-gray-700 mb-1">EPF Total</div>
+                    <div class="font-bold text-gray-900">RM {{ formatCurrency(totalEpf) }}</div>
+                  </div>
+                  <div class="bg-white p-2 rounded border text-center">
+                    <div class="font-medium text-gray-700 mb-1">SOCSO Total</div>
+                    <div class="font-bold text-gray-900">RM {{ formatCurrency(totalSocso) }}</div>
+                  </div>
+                  <div class="bg-white p-2 rounded border text-center">
+                    <div class="font-medium text-gray-700 mb-1">EIS Total</div>
+                    <div class="font-bold text-gray-900">RM {{ formatCurrency(totalEis) }}</div>
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                  <div class="bg-white p-2 rounded border text-center">
+                    <div class="font-medium text-gray-700">PCB</div>
+                    <div class="font-bold">RM {{ formatCurrency(payrollTotals.pcb) }}</div>
+                  </div>
+                  <div class="bg-white p-2 rounded border text-center">
+                    <div class="font-medium text-gray-700">CP38</div>
+                    <div class="font-bold">RM {{ formatCurrency(payrollTotals.cp38) }}</div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -729,10 +823,6 @@ const newEmployee = ref<EmployeeInsert>({
   epf_employer: 0,
 })
 
-const canGenerateExcel = computed(() => {
-  return payrollData.value.length > 0 && payrollData.value.some((p) => p.pcb > 0 || p.cp38 > 0)
-})
-
 // Filtered and sorted employees based on search query and sort configuration
 const filteredEmployees = computed(() => {
   let employees = payrollStore.employees
@@ -821,6 +911,60 @@ const combinedMonthYear = computed(() => {
   if (!selectedMonth.value || !selectedYear.value) return ''
   return `${selectedYear.value}-${selectedMonth.value}`
 })
+
+// Payroll totals computed properties
+const payrollTotals = computed(() => {
+  if (!payrollData.value.length) {
+    return {
+      basicSalary: 0,
+      epfEmployer: 0,
+      epfEmployee: 0,
+      socsoEmployer: 0,
+      socsoEmployee: 0,
+      eisEmployer: 0,
+      eisEmployee: 0,
+      pcb: 0,
+      cp38: 0,
+      netSalary: 0,
+    }
+  }
+
+  return payrollData.value.reduce(
+    (totals, payroll) => {
+      return {
+        basicSalary: totals.basicSalary + payroll.basicSalary,
+        epfEmployer: totals.epfEmployer + payroll.epfEmployer,
+        epfEmployee: totals.epfEmployee + payroll.epfEmployee,
+        socsoEmployer: totals.socsoEmployer + payroll.socsoEmployer,
+        socsoEmployee: totals.socsoEmployee + payroll.socsoEmployee,
+        eisEmployer: totals.eisEmployer + payroll.eisEmployer,
+        eisEmployee: totals.eisEmployee + payroll.eisEmployee,
+        pcb: totals.pcb + (payroll.pcb || 0),
+        cp38: totals.cp38 + (payroll.cp38 || 0),
+        netSalary: totals.netSalary + payrollStore.calculateNetSalary(payroll),
+      }
+    },
+    {
+      basicSalary: 0,
+      epfEmployer: 0,
+      epfEmployee: 0,
+      socsoEmployer: 0,
+      socsoEmployee: 0,
+      eisEmployer: 0,
+      eisEmployee: 0,
+      pcb: 0,
+      cp38: 0,
+      netSalary: 0,
+    },
+  )
+})
+
+// Combined contribution totals for display in totals row
+const totalEpf = computed(() => payrollTotals.value.epfEmployer + payrollTotals.value.epfEmployee)
+const totalSocso = computed(
+  () => payrollTotals.value.socsoEmployer + payrollTotals.value.socsoEmployee,
+)
+const totalEis = computed(() => payrollTotals.value.eisEmployer + payrollTotals.value.eisEmployee)
 
 // Helper function to get account code and description based on employee name
 const getEmployeeAccountInfo = (employeeName: string) => {
