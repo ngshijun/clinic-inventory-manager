@@ -15,7 +15,8 @@
       "WebFetch(domain:www.perkeso.gov.my)",
       "WebFetch(domain:www.payrollpanda.my)",
       "WebFetch(domain:www.kwsp.gov.my)",
-      "WebFetch(domain:www.ajobthing.com)"
+      "WebFetch(domain:www.ajobthing.com)",
+      "Bash(npx vue-tsc:*)"
     ],
     "deny": []
   }

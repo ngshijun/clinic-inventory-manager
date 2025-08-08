@@ -4,12 +4,22 @@
     <nav v-if="isAuthenticated" class="bg-white shadow-sm border-b border-gray-200">
       <div class="max-w-[100rem] mx-auto px-2 sm:px-6 lg:px-8">
         <div class="flex justify-between h-14 sm:h-16">
-          <div class="flex items-center">
+          <div class="flex items-center space-x-3">
             <div class="flex-shrink-0">
               <h1 class="text-lg sm:text-xl font-bold text-gray-900">
                 <span class="block sm:hidden">Inventory</span>
                 <span class="hidden sm:block">Inventory Manager</span>
               </h1>
+            </div>
+            <!-- Connection Status Indicator -->
+            <div class="flex items-center">
+              <div
+                :class="[
+                  'w-2 h-2 rounded-full',
+                  connectionMonitor.isConnected.value ? 'bg-green-500' : 'bg-red-500',
+                ]"
+                :title="connectionMonitor.isConnected.value ? 'Connected' : 'Connection Lost'"
+              ></div>
             </div>
           </div>
 
@@ -281,6 +291,7 @@ import { useInventoryStore } from './stores/inventory'
 import { useStockMovementsStore } from './stores/stockMovements'
 import { useStockRequestsStore } from './stores/stockRequests'
 import { usePayrollStore } from './stores/payroll'
+import { useConnectionMonitor } from './composables/useConnectionMonitor'
 
 const inventoryStore = useInventoryStore()
 const stockRequestsStore = useStockRequestsStore()
@@ -290,6 +301,9 @@ const payrollStore = usePayrollStore()
 const router = useRouter()
 const mobileMenuOpen = ref(false)
 const { isAuthenticated, logout, initAuth, user } = useAuthStore()
+
+// Initialize connection monitoring for authenticated users
+const connectionMonitor = useConnectionMonitor()
 
 const pendingRequestsCount = computed(() => {
   return stockRequestsStore.requests.filter((request) => request.status === 'Pending').length
