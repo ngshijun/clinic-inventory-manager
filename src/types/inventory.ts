@@ -6,6 +6,7 @@ export interface InventoryItem {
   unit: string
   remark: string
   order_date: string | null // Added order_date field
+  non_order_reason: string | null // Reason why item is not ordered yet
   created_at: string
   updated_at: string
 }
@@ -17,6 +18,7 @@ export interface NewInventoryItem {
   unit: string
   remark?: string
   order_date?: string | null // Added order_date field
+  non_order_reason?: string | null // Reason why item is not ordered yet
 }
 
 export interface StockStatus {

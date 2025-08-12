@@ -62,6 +62,7 @@ export const useInventoryStore = defineStore('inventory', () => {
             unit: newItem.unit,
             remark: newItem.remark || '',
             order_date: newItem.order_date || null,
+            non_order_reason: newItem.non_order_reason || null,
           },
         ])
         .select()
@@ -194,6 +195,7 @@ export const useInventoryStore = defineStore('inventory', () => {
         .from('inventory')
         .update({
           order_date: dateToUse,
+          non_order_reason: null,
           updated_at: new Date().toISOString(),
         })
         .eq('id', itemId)
@@ -225,6 +227,30 @@ export const useInventoryStore = defineStore('inventory', () => {
       error.value =
         err instanceof Error ? err.message : 'An error occurred while clearing order date'
       console.error('Error clearing order date:', err)
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // Set non-order reason
+  const setNonOrderReason = async (itemId: string, reason: string | null): Promise<void> => {
+    loading.value = true
+    error.value = null
+    try {
+      const { error: supabaseError } = await supabase
+        .from('inventory')
+        .update({
+          non_order_reason: reason,
+          order_date: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', itemId)
+
+      if (supabaseError) throw supabaseError
+    } catch (err) {
+      error.value =
+        err instanceof Error ? err.message : 'An error occurred while setting non-order reason'
+      console.error('Error setting non-order reason:', err)
     } finally {
       loading.value = false
     }
@@ -319,6 +345,7 @@ export const useInventoryStore = defineStore('inventory', () => {
     stockOut,
     markAsOrdered,
     clearOrderDate,
+    setNonOrderReason,
     updateItem,
     deleteItem,
     getItemById,

@@ -262,39 +262,79 @@
                         <div class="text-sm text-red-700 mt-0.5 font-medium">
                           (0 {{ item.unit }} remaining)
                         </div>
-                        <div v-if="item.order_date" class="text-sm text-blue-600 mt-1">
-                          <span class="inline-flex items-center gap-1">
-                            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                              <path
-                                fill-rule="evenodd"
-                                d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
-                                clip-rule="evenodd"
-                              />
-                            </svg>
-                            Ordered: {{ formatDate(item.order_date) }}
-                          </span>
-                        </div>
-                        <div v-else class="mt-1">
-                          <button
-                            @click="openOrderModal(item)"
-                            :disabled="inventoryStore.loading"
-                            class="inline-flex items-center gap-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-2 py-1 rounded text-xs font-medium transition-colors disabled:opacity-50"
-                          >
-                            <svg
-                              class="w-3 h-3"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
+                        <!-- Status text and ActionButtonGroup aligned horizontally -->
+                        <div class="mt-1 flex items-center justify-between gap-2">
+                          <!-- Status text -->
+                          <div class="flex items-center">
+                            <div v-if="item.order_date" class="text-sm text-blue-600">
+                              <span class="inline-flex items-center gap-1">
+                                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                  <path
+                                    fill-rule="evenodd"
+                                    d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
+                                    clip-rule="evenodd"
+                                  />
+                                </svg>
+                                Ordered: {{ formatDate(item.order_date) }}
+                              </span>
+                            </div>
+                            <div
+                              v-else-if="item.non_order_reason"
+                              :class="['text-sm', getReasonClasses(item.non_order_reason).text]"
                             >
-                              <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2"
-                                d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                              />
-                            </svg>
-                            {{ inventoryStore.loading ? 'Marking...' : 'Mark Ordered' }}
-                          </button>
+                              <span class="inline-flex items-center gap-1.5">
+                                <svg
+                                  class="w-3.5 h-3.5 flex-shrink-0"
+                                  :class="getReasonClasses(item.non_order_reason).text"
+                                  fill="currentColor"
+                                  viewBox="0 0 20 20"
+                                >
+                                  <template v-if="item.non_order_reason === 'Alternative ordered'">
+                                    <path
+                                      fill-rule="evenodd"
+                                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                      clip-rule="evenodd"
+                                    />
+                                  </template>
+                                  <template
+                                    v-else-if="item.non_order_reason === 'Planning to order later'"
+                                  >
+                                    <path
+                                      fill-rule="evenodd"
+                                      d="M10 2a8 8 0 100 16 8 8 0 000-16zm1 9V6a1 1 0 10-2 0v6a1 1 0 00.293.707l3 3a1 1 0 101.414-1.414L11 11z"
+                                      clip-rule="evenodd"
+                                    />
+                                  </template>
+                                  <template
+                                    v-else-if="item.non_order_reason === 'Supplier has no stock'"
+                                  >
+                                    <path
+                                      fill-rule="evenodd"
+                                      d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                                      clip-rule="evenodd"
+                                    />
+                                  </template>
+                                  <template v-else>
+                                    <path
+                                      fill-rule="evenodd"
+                                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                                      clip-rule="evenodd"
+                                    />
+                                  </template>
+                                </svg>
+                                {{ item.non_order_reason }}
+                              </span>
+                            </div>
+                          </div>
+                          <!-- ActionButtonGroup -->
+                          <div class="flex-shrink-0">
+                            <ActionButtonGroup
+                              :actions="getItemActions(item)"
+                              size="sm"
+                              :loading="inventoryStore.loading"
+                              @action-click="(actionKey) => handleActionClick(actionKey, item)"
+                            />
+                          </div>
                         </div>
                       </div>
                       <div class="hidden sm:flex sm:items-center sm:justify-between">
@@ -307,39 +347,84 @@
                           </div>
                         </div>
                         <div class="ml-4 flex-shrink-0">
-                          <div v-if="item.order_date" class="text-sm text-blue-600">
-                            <span class="inline-flex items-center gap-1">
-                              <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                <path
-                                  fill-rule="evenodd"
-                                  d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
-                                  clip-rule="evenodd"
-                                />
-                              </svg>
-                              Ordered: {{ formatDate(item.order_date) }}
-                            </span>
-                          </div>
-                          <button
-                            v-else
-                            @click="openOrderModal(item)"
-                            :disabled="inventoryStore.loading"
-                            class="inline-flex items-center gap-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-2 py-1 rounded text-xs font-medium transition-colors disabled:opacity-50"
-                          >
-                            <svg
-                              class="w-3 h-3"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2"
-                                d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                          <!-- Status text and ActionButtonGroup aligned horizontally -->
+                          <div class="flex items-center gap-3">
+                            <!-- Status text -->
+                            <div>
+                              <div v-if="item.order_date" class="text-sm text-blue-600">
+                                <span class="inline-flex items-center gap-1">
+                                  <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                    <path
+                                      fill-rule="evenodd"
+                                      d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
+                                      clip-rule="evenodd"
+                                    />
+                                  </svg>
+                                  Ordered: {{ formatDate(item.order_date) }}
+                                </span>
+                              </div>
+                              <div
+                                v-else-if="item.non_order_reason"
+                                :class="['text-sm', getReasonClasses(item.non_order_reason).text]"
+                              >
+                                <span class="inline-flex items-center gap-1.5">
+                                  <svg
+                                    class="w-3.5 h-3.5 flex-shrink-0"
+                                    :class="getReasonClasses(item.non_order_reason).text"
+                                    fill="currentColor"
+                                    viewBox="0 0 20 20"
+                                  >
+                                    <template
+                                      v-if="item.non_order_reason === 'Alternative ordered'"
+                                    >
+                                      <path
+                                        fill-rule="evenodd"
+                                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                        clip-rule="evenodd"
+                                      />
+                                    </template>
+                                    <template
+                                      v-else-if="
+                                        item.non_order_reason === 'Planning to order later'
+                                      "
+                                    >
+                                      <path
+                                        fill-rule="evenodd"
+                                        d="M10 2a8 8 0 100 16 8 8 0 000-16zm1 9V6a1 1 0 10-2 0v6a1 1 0 00.293.707l3 3a1 1 0 101.414-1.414L11 11z"
+                                        clip-rule="evenodd"
+                                      />
+                                    </template>
+                                    <template
+                                      v-else-if="item.non_order_reason === 'Supplier has no stock'"
+                                    >
+                                      <path
+                                        fill-rule="evenodd"
+                                        d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                                        clip-rule="evenodd"
+                                      />
+                                    </template>
+                                    <template v-else>
+                                      <path
+                                        fill-rule="evenodd"
+                                        d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 0 100-2v-3a1 1 0 00-1-1H9z"
+                                        clip-rule="evenodd"
+                                      />
+                                    </template>
+                                  </svg>
+                                  {{ item.non_order_reason }}
+                                </span>
+                              </div>
+                            </div>
+                            <!-- ActionButtonGroup -->
+                            <div>
+                              <ActionButtonGroup
+                                :actions="getItemActions(item)"
+                                size="sm"
+                                :loading="inventoryStore.loading"
+                                @action-click="(actionKey) => handleActionClick(actionKey, item)"
                               />
-                            </svg>
-                            {{ inventoryStore.loading ? 'Marking...' : 'Mark Ordered' }}
-                          </button>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -392,39 +477,79 @@
                         <div class="text-sm text-yellow-700 font-medium mt-0.5">
                           ({{ item.quantity }} {{ item.unit }} remaining)
                         </div>
-                        <div v-if="item.order_date" class="text-sm text-blue-600 mt-1">
-                          <span class="inline-flex items-center gap-1">
-                            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                              <path
-                                fill-rule="evenodd"
-                                d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
-                                clip-rule="evenodd"
-                              />
-                            </svg>
-                            Ordered: {{ formatDate(item.order_date) }}
-                          </span>
-                        </div>
-                        <div v-else class="mt-1">
-                          <button
-                            @click="openOrderModal(item)"
-                            :disabled="inventoryStore.loading"
-                            class="inline-flex items-center gap-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-2 py-1 rounded text-xs font-medium transition-colors disabled:opacity-50"
-                          >
-                            <svg
-                              class="w-3 h-3"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
+                        <!-- Status text and ActionButtonGroup aligned horizontally -->
+                        <div class="mt-1 flex items-center justify-between gap-2">
+                          <!-- Status text -->
+                          <div class="flex items-center">
+                            <div v-if="item.order_date" class="text-sm text-blue-600">
+                              <span class="inline-flex items-center gap-1">
+                                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                  <path
+                                    fill-rule="evenodd"
+                                    d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
+                                    clip-rule="evenodd"
+                                  />
+                                </svg>
+                                Ordered: {{ formatDate(item.order_date) }}
+                              </span>
+                            </div>
+                            <div
+                              v-else-if="item.non_order_reason"
+                              :class="['text-sm', getReasonClasses(item.non_order_reason).text]"
                             >
-                              <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2"
-                                d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                              />
-                            </svg>
-                            {{ inventoryStore.loading ? 'Marking...' : 'Mark Ordered' }}
-                          </button>
+                              <span class="inline-flex items-center gap-1.5">
+                                <svg
+                                  class="w-3.5 h-3.5 flex-shrink-0"
+                                  :class="getReasonClasses(item.non_order_reason).text"
+                                  fill="currentColor"
+                                  viewBox="0 0 20 20"
+                                >
+                                  <template v-if="item.non_order_reason === 'Alternative ordered'">
+                                    <path
+                                      fill-rule="evenodd"
+                                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                      clip-rule="evenodd"
+                                    />
+                                  </template>
+                                  <template
+                                    v-else-if="item.non_order_reason === 'Planning to order later'"
+                                  >
+                                    <path
+                                      fill-rule="evenodd"
+                                      d="M10 2a8 8 0 100 16 8 8 0 000-16zm1 9V6a1 1 0 10-2 0v6a1 1 0 00.293.707l3 3a1 1 0 101.414-1.414L11 11z"
+                                      clip-rule="evenodd"
+                                    />
+                                  </template>
+                                  <template
+                                    v-else-if="item.non_order_reason === 'Supplier has no stock'"
+                                  >
+                                    <path
+                                      fill-rule="evenodd"
+                                      d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                                      clip-rule="evenodd"
+                                    />
+                                  </template>
+                                  <template v-else>
+                                    <path
+                                      fill-rule="evenodd"
+                                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                                      clip-rule="evenodd"
+                                    />
+                                  </template>
+                                </svg>
+                                {{ item.non_order_reason }}
+                              </span>
+                            </div>
+                          </div>
+                          <!-- ActionButtonGroup -->
+                          <div class="flex-shrink-0">
+                            <ActionButtonGroup
+                              :actions="getItemActions(item)"
+                              size="sm"
+                              :loading="inventoryStore.loading"
+                              @action-click="(actionKey) => handleActionClick(actionKey, item)"
+                            />
+                          </div>
                         </div>
                       </div>
                       <div class="hidden sm:flex sm:items-center sm:justify-between">
@@ -437,39 +562,84 @@
                           </div>
                         </div>
                         <div class="ml-4 flex-shrink-0">
-                          <div v-if="item.order_date" class="text-sm text-blue-600">
-                            <span class="inline-flex items-center gap-1">
-                              <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                <path
-                                  fill-rule="evenodd"
-                                  d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
-                                  clip-rule="evenodd"
-                                />
-                              </svg>
-                              Ordered: {{ formatDate(item.order_date) }}
-                            </span>
-                          </div>
-                          <button
-                            v-else
-                            @click="openOrderModal(item)"
-                            :disabled="inventoryStore.loading"
-                            class="inline-flex items-center gap-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-2 py-1 rounded text-xs font-medium transition-colors disabled:opacity-50"
-                          >
-                            <svg
-                              class="w-3 h-3"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2"
-                                d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                          <!-- Status text and ActionButtonGroup aligned horizontally -->
+                          <div class="flex items-center gap-3">
+                            <!-- Status text -->
+                            <div>
+                              <div v-if="item.order_date" class="text-sm text-blue-600">
+                                <span class="inline-flex items-center gap-1">
+                                  <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                    <path
+                                      fill-rule="evenodd"
+                                      d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
+                                      clip-rule="evenodd"
+                                    />
+                                  </svg>
+                                  Ordered: {{ formatDate(item.order_date) }}
+                                </span>
+                              </div>
+                              <div
+                                v-else-if="item.non_order_reason"
+                                :class="['text-sm', getReasonClasses(item.non_order_reason).text]"
+                              >
+                                <span class="inline-flex items-center gap-1.5">
+                                  <svg
+                                    class="w-3.5 h-3.5 flex-shrink-0"
+                                    :class="getReasonClasses(item.non_order_reason).text"
+                                    fill="currentColor"
+                                    viewBox="0 0 20 20"
+                                  >
+                                    <template
+                                      v-if="item.non_order_reason === 'Alternative ordered'"
+                                    >
+                                      <path
+                                        fill-rule="evenodd"
+                                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                        clip-rule="evenodd"
+                                      />
+                                    </template>
+                                    <template
+                                      v-else-if="
+                                        item.non_order_reason === 'Planning to order later'
+                                      "
+                                    >
+                                      <path
+                                        fill-rule="evenodd"
+                                        d="M10 2a8 8 0 100 16 8 8 0 000-16zm1 9V6a1 1 0 10-2 0v6a1 1 0 00.293.707l3 3a1 1 0 101.414-1.414L11 11z"
+                                        clip-rule="evenodd"
+                                      />
+                                    </template>
+                                    <template
+                                      v-else-if="item.non_order_reason === 'Supplier has no stock'"
+                                    >
+                                      <path
+                                        fill-rule="evenodd"
+                                        d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                                        clip-rule="evenodd"
+                                      />
+                                    </template>
+                                    <template v-else>
+                                      <path
+                                        fill-rule="evenodd"
+                                        d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 0 100-2v-3a1 1 0 00-1-1H9z"
+                                        clip-rule="evenodd"
+                                      />
+                                    </template>
+                                  </svg>
+                                  {{ item.non_order_reason }}
+                                </span>
+                              </div>
+                            </div>
+                            <!-- ActionButtonGroup -->
+                            <div>
+                              <ActionButtonGroup
+                                :actions="getItemActions(item)"
+                                size="sm"
+                                :loading="inventoryStore.loading"
+                                @action-click="(actionKey) => handleActionClick(actionKey, item)"
                               />
-                            </svg>
-                            {{ inventoryStore.loading ? 'Marking...' : 'Mark Ordered' }}
-                          </button>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -565,14 +735,15 @@
 </template>
 
 <script setup lang="ts">
+import ActionButtonGroup from '@/components/ui/ActionButtonGroup.vue'
+import ActionModal from '@/components/ui/ActionModal.vue'
+import ErrorAlert from '@/components/ui/ErrorAlert.vue'
+import FormField from '@/components/ui/FormField.vue'
+import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
 import router from '@/router'
 import { useInventoryStore } from '@/stores/inventory'
-import { computed, onMounted, onUnmounted, ref } from 'vue'
 import type { InventoryItem } from '@/types/inventory'
-import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
-import ErrorAlert from '@/components/ui/ErrorAlert.vue'
-import ActionModal from '@/components/ui/ActionModal.vue'
-import FormField from '@/components/ui/FormField.vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 
 const inventoryStore = useInventoryStore()
 
@@ -583,6 +754,8 @@ const orderDate = ref<string>('')
 
 // Back to top button visibility
 const showBackToTop = ref<boolean>(false)
+
+// Removed openOrderActionDropdown as ActionButtonGroup handles this internally
 
 // Order modal functions
 const openOrderModal = (item: InventoryItem): void => {
@@ -595,6 +768,102 @@ const closeOrderModal = (): void => {
   showOrderModal.value = false
   orderItem.value = null
   orderDate.value = ''
+}
+
+// Removed toggleOrderActionDropdown as ActionButtonGroup handles this internally
+
+// Set non-order reason for an item
+const setItemNonOrderReason = async (itemId: string, reason: string): Promise<void> => {
+  await inventoryStore.setNonOrderReason(itemId, reason)
+}
+
+// Clear non-order reason for an item
+const clearItemNonOrderReason = async (itemId: string): Promise<void> => {
+  await inventoryStore.setNonOrderReason(itemId, null)
+}
+
+// Clear order date for an item
+const clearOrderDate = async (itemId: string): Promise<void> => {
+  await inventoryStore.clearOrderDate(itemId)
+}
+
+// Action button configurations for items
+const getItemActions = (
+  item: InventoryItem,
+): Array<{
+  key: string
+  label: string
+  variant: 'blue' | 'gray' | 'red' | 'green' | 'yellow' | 'cyan' | 'orange'
+  dropdown?: Array<{ key: string; label: string }>
+}> => {
+  const actions: Array<{
+    key: string
+    label: string
+    variant: 'blue' | 'gray' | 'red' | 'green' | 'yellow' | 'cyan' | 'orange'
+    dropdown?: Array<{ key: string; label: string }>
+  }> = []
+
+  if (item.order_date) {
+    // Item is already ordered - show clear date option
+    actions.push({
+      key: 'clear-date',
+      label: 'Clear Date',
+      variant: 'yellow',
+    })
+  } else if (item.non_order_reason) {
+    // Item has a reason - show change dropdown
+    actions.push({
+      key: 'change-action',
+      label: 'Change',
+      variant: 'orange',
+      dropdown: [
+        { key: 'mark-ordered', label: 'Mark Ordered' },
+        { key: 'alternative-ordered', label: 'Alternative ordered' },
+        { key: 'planning-to-order-later', label: 'Planning to order later' },
+        { key: 'supplier-no-stock', label: 'Supplier has no stock' },
+        { key: 'clear-reason', label: 'Clear reason' },
+      ],
+    })
+  } else {
+    // No status - show dropdown to select action
+    actions.push({
+      key: 'select-action',
+      label: 'Select Action',
+      variant: 'blue',
+      dropdown: [
+        { key: 'mark-ordered', label: 'Mark Ordered' },
+        { key: 'alternative-ordered', label: 'Alternative ordered' },
+        { key: 'planning-to-order-later', label: 'Planning to order later' },
+        { key: 'supplier-no-stock', label: 'Supplier has no stock' },
+      ],
+    })
+  }
+
+  return actions
+}
+
+// Handle action button clicks
+const handleActionClick = (actionKey: string, item: InventoryItem) => {
+  switch (actionKey) {
+    case 'mark-ordered':
+      openOrderModal(item)
+      break
+    case 'clear-date':
+      clearOrderDate(item.id)
+      break
+    case 'alternative-ordered':
+      setItemNonOrderReason(item.id, 'Alternative ordered')
+      break
+    case 'planning-to-order-later':
+      setItemNonOrderReason(item.id, 'Planning to order later')
+      break
+    case 'supplier-no-stock':
+      setItemNonOrderReason(item.id, 'Supplier has no stock')
+      break
+    case 'clear-reason':
+      clearItemNonOrderReason(item.id)
+      break
+  }
 }
 
 // Calculate stale items (not updated for more than 30 days)
@@ -673,6 +942,20 @@ const formatDate = (dateString: string): string => {
   })
 }
 
+// Map non-order reasons to color classes (text only)
+const getReasonClasses = (reason: string): { text: string } => {
+  switch (reason) {
+    case 'Alternative ordered':
+      return { text: 'text-green-700' }
+    case 'Planning to order later':
+      return { text: 'text-amber-700' }
+    case 'Supplier has no stock':
+      return { text: 'text-red-700' }
+    default:
+      return { text: 'text-gray-700' }
+  }
+}
+
 const confirmMarkAsOrdered = async (): Promise<void> => {
   if (!orderItem.value || !orderDate.value) return
 
@@ -683,6 +966,8 @@ const confirmMarkAsOrdered = async (): Promise<void> => {
     closeOrderModal()
   }
 }
+
+// Removed handleClickOutside as ActionButtonGroup handles this internally
 
 onMounted(() => {
   window.addEventListener('scroll', handleScroll)

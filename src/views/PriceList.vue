@@ -148,6 +148,50 @@
                       {{ formatDate(item.order_date) }}
                     </span>
                   </div>
+                  <div v-else-if="item.non_order_reason" class="flex items-baseline gap-2">
+                    <span class="text-gray-500 flex-shrink-0">Reason:</span>
+                    <span
+                      class="font-medium inline-flex items-center gap-1.5"
+                      :class="getReasonClasses(item.non_order_reason).text"
+                    >
+                      <svg
+                        class="w-3.5 h-3.5 flex-shrink-0"
+                        :class="getReasonClasses(item.non_order_reason).text"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <template v-if="item.non_order_reason === 'Alternative ordered'">
+                          <path
+                            fill-rule="evenodd"
+                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                            clip-rule="evenodd"
+                          />
+                        </template>
+                        <template v-else-if="item.non_order_reason === 'Planning to order later'">
+                          <path
+                            fill-rule="evenodd"
+                            d="M10 2a8 8 0 100 16 8 8 0 000-16zm1 9V6a1 1 0 10-2 0v6a1 1 0 00.293.707l3 3a1 1 0 101.414-1.414L11 11z"
+                            clip-rule="evenodd"
+                          />
+                        </template>
+                        <template v-else-if="item.non_order_reason === 'Supplier has no stock'">
+                          <path
+                            fill-rule="evenodd"
+                            d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                            clip-rule="evenodd"
+                          />
+                        </template>
+                        <template v-else>
+                          <path
+                            fill-rule="evenodd"
+                            d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                            clip-rule="evenodd"
+                          />
+                        </template>
+                      </svg>
+                      {{ item.non_order_reason }}
+                    </span>
+                  </div>
                   <div class="flex items-start gap-2">
                     <span class="text-gray-500 flex-shrink-0">Remark:</span>
                     <span class="font-medium text-gray-900 whitespace-pre-wrap">
@@ -235,6 +279,47 @@
                         Ordered: {{ formatDate(item.order_date) }}
                       </span>
                     </div>
+                    <!-- Show non-order reason if set -->
+                    <div v-else-if="item.non_order_reason" class="text-xs mt-1" :class="getReasonClasses(item.non_order_reason).text">
+                      <span class="inline-flex items-center gap-1.5">
+                        <svg
+                          class="w-3.5 h-3.5 flex-shrink-0"
+                          :class="getReasonClasses(item.non_order_reason).text"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <template v-if="item.non_order_reason === 'Alternative ordered'">
+                            <path
+                              fill-rule="evenodd"
+                              d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                              clip-rule="evenodd"
+                            />
+                          </template>
+                          <template v-else-if="item.non_order_reason === 'Planning to order later'">
+                            <path
+                              fill-rule="evenodd"
+                              d="M10 2a8 8 0 100 16 8 8 0 000-16zm1 9V6a1 1 0 10-2 0v6a1 1 0 00.293.707l3 3a1 1 0 101.414-1.414L11 11z"
+                              clip-rule="evenodd"
+                            />
+                          </template>
+                          <template v-else-if="item.non_order_reason === 'Supplier has no stock'">
+                            <path
+                              fill-rule="evenodd"
+                              d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                              clip-rule="evenodd"
+                            />
+                          </template>
+                          <template v-else>
+                            <path
+                              fill-rule="evenodd"
+                              d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 0 100-2v-3a1 1 0 00-1-1H9z"
+                              clip-rule="evenodd"
+                            />
+                          </template>
+                        </svg>
+                        {{ item.non_order_reason }}
+                      </span>
+                    </div>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {{ item.quantity }} {{ item.unit }}
@@ -292,7 +377,7 @@ import TablePagination from '@/components/ui/TablePagination.vue'
 import { usePagination } from '@/composables/usePagination'
 import { useInventoryStore } from '@/stores/inventory'
 import type { InventoryItem } from '@/types/inventory'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 const inventoryStore = useInventoryStore()
 
@@ -308,6 +393,8 @@ const orderDate = ref<string>('')
 // Edit remark modal variables
 const showEditRemarkModal = ref<boolean>(false)
 const editingItem = ref<InventoryItem | null>(null)
+
+// Removed openOrderActionDropdown as we use ActionButtonGroup's internal state
 
 // Sorting configuration
 const sortConfig = ref<{
@@ -360,6 +447,18 @@ const confirmMarkAsOrdered = async (): Promise<void> => {
 
 const clearOrderDate = async (itemId: string): Promise<void> => {
   await inventoryStore.clearOrderDate(itemId)
+}
+
+// Removed toggleOrderActionDropdown as ActionButtonGroup handles this internally
+
+// Set non-order reason for an item
+const setItemNonOrderReason = async (itemId: string, reason: string): Promise<void> => {
+  await inventoryStore.setNonOrderReason(itemId, reason)
+}
+
+// Clear non-order reason for an item
+const clearItemNonOrderReason = async (itemId: string): Promise<void> => {
+  await inventoryStore.setNonOrderReason(itemId, null)
 }
 
 // Edit remark modal functions
@@ -462,12 +561,14 @@ const getItemActions = (
 ): Array<{
   key: string
   label: string
-  variant: 'blue' | 'gray' | 'red' | 'green' | 'yellow' | 'cyan'
+  variant: 'blue' | 'gray' | 'red' | 'green' | 'yellow' | 'cyan' | 'orange'
+  dropdown?: Array<{ key: string; label: string }>
 }> => {
   const actions: Array<{
     key: string
     label: string
-    variant: 'blue' | 'gray' | 'red' | 'green' | 'yellow' | 'cyan'
+    variant: 'blue' | 'gray' | 'red' | 'green' | 'yellow' | 'cyan' | 'orange'
+    dropdown?: Array<{ key: string; label: string }>
   }> = [
     {
       key: 'edit-remark',
@@ -476,17 +577,39 @@ const getItemActions = (
     },
   ]
 
-  if (!item.order_date) {
-    actions.push({
-      key: 'mark-ordered',
-      label: 'Mark Ordered',
-      variant: 'green',
-    })
-  } else {
+  if (item.order_date) {
+    // Item is already ordered - show clear date option
     actions.push({
       key: 'clear-date',
       label: 'Clear Date',
       variant: 'yellow',
+    })
+  } else if (item.non_order_reason) {
+    // Item has a reason - show change dropdown
+    actions.push({
+      key: 'change-action',
+      label: 'Change',
+      variant: 'orange',
+      dropdown: [
+        { key: 'mark-ordered', label: 'Mark Ordered' },
+        { key: 'alternative-ordered', label: 'Alternative ordered' },
+        { key: 'planning-to-order-later', label: 'Planning to order later' },
+        { key: 'supplier-no-stock', label: 'Supplier has no stock' },
+        { key: 'clear-reason', label: 'Clear reason' },
+      ],
+    })
+  } else {
+    // No status - show dropdown to select action
+    actions.push({
+      key: 'select-action',
+      label: 'Select Action',
+      variant: 'green',
+      dropdown: [
+        { key: 'mark-ordered', label: 'Mark Ordered' },
+        { key: 'alternative-ordered', label: 'Alternative ordered' },
+        { key: 'planning-to-order-later', label: 'Planning to order later' },
+        { key: 'supplier-no-stock', label: 'Supplier has no stock' },
+      ],
     })
   }
 
@@ -505,6 +628,18 @@ const handleActionClick = (actionKey: string, item: InventoryItem) => {
     case 'clear-date':
       clearOrderDate(item.id)
       break
+    case 'alternative-ordered':
+      setItemNonOrderReason(item.id, 'Alternative ordered')
+      break
+    case 'planning-to-order-later':
+      setItemNonOrderReason(item.id, 'Planning to order later')
+      break
+    case 'supplier-no-stock':
+      setItemNonOrderReason(item.id, 'Supplier has no stock')
+      break
+    case 'clear-reason':
+      clearItemNonOrderReason(item.id)
+      break
   }
 }
 
@@ -522,5 +657,17 @@ const saveRemark = async (itemId: string): Promise<void> => {
   await inventoryStore.updateItem(itemId, updatedItem)
 }
 
-onMounted(() => {})
+// Map non-order reasons to color classes (text only)
+const getReasonClasses = (reason: string): { text: string } => {
+  switch (reason) {
+    case 'Alternative ordered':
+      return { text: 'text-green-700' }
+    case 'Planning to order later':
+      return { text: 'text-amber-700' }
+    case 'Supplier has no stock':
+      return { text: 'text-red-700' }
+    default:
+      return { text: 'text-gray-700' }
+  }
+}
 </script>
