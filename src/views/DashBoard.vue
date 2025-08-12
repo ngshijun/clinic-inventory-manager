@@ -17,13 +17,7 @@
         <div class="space-y-4">
           <div class="bg-green-50 border border-green-200 rounded-md p-3">
             <div class="flex items-center gap-2 mb-2">
-              <svg class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                <path
-                  fill-rule="evenodd"
-                  d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
-                  clip-rule="evenodd"
-                />
-              </svg>
+              <CalendarIcon class="w-4 h-4 text-green-500" />
               <span class="text-sm font-medium text-green-800"> Set Order Date </span>
             </div>
             <p class="text-sm text-green-700">
@@ -67,19 +61,7 @@
                   <div
                     class="w-6 h-6 sm:w-8 sm:h-8 bg-green-500 rounded-md flex items-center justify-center transition-colors duration-200 hover:bg-green-600"
                   >
-                    <svg
-                      class="w-3 h-3 sm:w-5 sm:h-5 text-white"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2v2M7 7h10"
-                      ></path>
-                    </svg>
+                    <BoxIcon class="w-3 h-3 sm:w-5 sm:h-5 text-white" />
                   </div>
                 </div>
                 <div class="ml-3 sm:ml-5 w-0 flex-1">
@@ -110,19 +92,7 @@
                   <div
                     class="w-6 h-6 sm:w-8 sm:h-8 bg-red-500 rounded-md flex items-center justify-center transition-colors duration-200 hover:bg-red-600"
                   >
-                    <svg
-                      class="w-3 h-3 sm:w-5 sm:h-5 text-white"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M6 18L18 6M6 6l12 12"
-                      ></path>
-                    </svg>
+                    <CloseIcon class="w-3 h-3 sm:w-5 sm:h-5 text-white" />
                   </div>
                 </div>
                 <div class="ml-3 sm:ml-5 w-0 flex-1">
@@ -151,19 +121,7 @@
                   <div
                     class="w-6 h-6 sm:w-8 sm:h-8 bg-yellow-500 rounded-md flex items-center justify-center transition-colors duration-200 hover:bg-yellow-600"
                   >
-                    <svg
-                      class="w-3 h-3 sm:w-5 sm:h-5 text-white"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
-                      ></path>
-                    </svg>
+                    <WarningIcon class="w-3 h-3 sm:w-5 sm:h-5 text-white" />
                   </div>
                 </div>
                 <div class="ml-3 sm:ml-5 w-0 flex-1">
@@ -190,19 +148,7 @@
                   <div
                     class="w-6 h-6 sm:w-8 sm:h-8 bg-purple-500 rounded-md flex items-center justify-center transition-colors duration-200 hover:bg-purple-600"
                   >
-                    <svg
-                      class="w-3 h-3 sm:w-5 sm:h-5 text-white"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                      ></path>
-                    </svg>
+                    <ClockIcon class="w-3 h-3 sm:w-5 sm:h-5 text-white" />
                   </div>
                 </div>
                 <div class="ml-3 sm:ml-5 w-0 flex-1">
@@ -228,17 +174,7 @@
         >
           <div class="flex">
             <div class="flex-shrink-0">
-              <svg
-                class="h-4 w-4 sm:h-5 sm:w-5 text-red-400"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-              >
-                <path
-                  fill-rule="evenodd"
-                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                  clip-rule="evenodd"
-                ></path>
-              </svg>
+              <ExclamationCircleIcon class="h-4 w-4 sm:h-5 sm:w-5 text-red-400" />
             </div>
             <div class="ml-3 w-full">
               <h3 class="text-sm font-medium text-red-800">Out of Stock Alert</h3>
@@ -268,13 +204,7 @@
                           <div class="flex items-center">
                             <div v-if="item.order_date" class="text-sm text-blue-600">
                               <span class="inline-flex items-center gap-1">
-                                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                  <path
-                                    fill-rule="evenodd"
-                                    d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
-                                    clip-rule="evenodd"
-                                  />
-                                </svg>
+                                <CalendarIcon class="w-3 h-3" />
                                 Ordered: {{ formatDate(item.order_date) }}
                               </span>
                             </div>
@@ -311,13 +241,7 @@
                             <div>
                               <div v-if="item.order_date" class="text-sm text-blue-600">
                                 <span class="inline-flex items-center gap-1">
-                                  <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                    <path
-                                      fill-rule="evenodd"
-                                      d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
-                                      clip-rule="evenodd"
-                                    />
-                                  </svg>
+                                  <CalendarIcon class="w-3 h-3" />
                                   Ordered: {{ formatDate(item.order_date) }}
                                 </span>
                               </div>
@@ -355,17 +279,7 @@
         >
           <div class="flex">
             <div class="flex-shrink-0">
-              <svg
-                class="h-4 w-4 sm:h-5 sm:w-5 text-yellow-400"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-              >
-                <path
-                  fill-rule="evenodd"
-                  d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                  clip-rule="evenodd"
-                ></path>
-              </svg>
+              <WarningTriangleIcon class="h-4 w-4 sm:h-5 sm:w-5 text-yellow-400" />
             </div>
             <div class="ml-3 w-full">
               <h3 class="text-sm font-medium text-yellow-800">Low Stock Alert</h3>
@@ -395,13 +309,7 @@
                           <div class="flex items-center">
                             <div v-if="item.order_date" class="text-sm text-blue-600">
                               <span class="inline-flex items-center gap-1">
-                                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                  <path
-                                    fill-rule="evenodd"
-                                    d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
-                                    clip-rule="evenodd"
-                                  />
-                                </svg>
+                                <CalendarIcon class="w-3 h-3" />
                                 Ordered: {{ formatDate(item.order_date) }}
                               </span>
                             </div>
@@ -438,13 +346,7 @@
                             <div>
                               <div v-if="item.order_date" class="text-sm text-blue-600">
                                 <span class="inline-flex items-center gap-1">
-                                  <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                    <path
-                                      fill-rule="evenodd"
-                                      d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
-                                      clip-rule="evenodd"
-                                    />
-                                  </svg>
+                                  <CalendarIcon class="w-3 h-3" />
                                   Ordered: {{ formatDate(item.order_date) }}
                                 </span>
                               </div>
@@ -482,17 +384,7 @@
         >
           <div class="flex">
             <div class="flex-shrink-0">
-              <svg
-                class="h-4 w-4 sm:h-5 sm:w-5 text-purple-400"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-              >
-                <path
-                  fill-rule="evenodd"
-                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z"
-                  clip-rule="evenodd"
-                ></path>
-              </svg>
+              <ClockSolidIcon class="h-4 w-4 sm:h-5 sm:w-5 text-purple-400" />
             </div>
             <div class="ml-3 w-full">
               <h3 class="text-sm font-medium text-purple-800">Stale Inventory Alert</h3>
@@ -545,14 +437,7 @@
         class="fixed bottom-6 right-6 bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-full shadow-lg transition-all duration-200 z-50"
         title="Back to top"
       >
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M5 10l7-7m0 0l7 7m-7-7v18"
-          />
-        </svg>
+        <ArrowUpIcon class="w-5 h-5" />
       </button>
     </transition>
   </div>
@@ -569,6 +454,15 @@ import router from '@/router'
 import { useInventoryStore } from '@/stores/inventory'
 import type { InventoryItem } from '@/types/inventory'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
+import ArrowUpIcon from '@/components/icons/ArrowUpIcon.vue'
+import BoxIcon from '@/components/icons/BoxIcon.vue'
+import CalendarIcon from '@/components/icons/CalendarIcon.vue'
+import ClockIcon from '@/components/icons/ClockIcon.vue'
+import ClockSolidIcon from '@/components/icons/ClockSolidIcon.vue'
+import CloseIcon from '@/components/icons/CloseIcon.vue'
+import ExclamationCircleIcon from '@/components/icons/ExclamationCircleIcon.vue'
+import WarningIcon from '@/components/icons/WarningIcon.vue'
+import WarningTriangleIcon from '@/components/icons/WarningTriangleIcon.vue'
 
 const inventoryStore = useInventoryStore()
 
@@ -785,5 +679,4 @@ onUnmounted(() => {
 })
 </script>
 
-<style scoped>
-</style>
+<style scoped></style>

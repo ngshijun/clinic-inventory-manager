@@ -16,7 +16,9 @@
       "WebFetch(domain:www.payrollpanda.my)",
       "WebFetch(domain:www.kwsp.gov.my)",
       "WebFetch(domain:www.ajobthing.com)",
-      "Bash(npx vue-tsc:*)"
+      "Bash(npx vue-tsc:*)",
+      "Bash(npm run typecheck:*)",
+      "Bash(npm run:*)"
     ],
     "deny": []
   }

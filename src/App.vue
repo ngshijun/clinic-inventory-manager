@@ -31,36 +31,15 @@
               class="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-red-500 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-red-500"
               title="Logout"
             >
-              <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                ></path>
-              </svg>
+              <LogoutIcon class="h-5 w-5" />
             </button>
 
             <button
               @click="mobileMenuOpen = !mobileMenuOpen"
               class="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
             >
-              <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  v-if="!mobileMenuOpen"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M4 6h16M4 12h16M4 18h16"
-                ></path>
-                <path
-                  v-else
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M6 18L18 6M6 6l12 12"
-                ></path>
-              </svg>
+              <MenuIcon v-if="!mobileMenuOpen" class="h-6 w-6" />
+              <CloseIcon v-else class="h-6 w-6" />
             </button>
           </div>
 
@@ -164,14 +143,7 @@
               @click="handleLogout"
               class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 hover:text-red-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
             >
-              <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                ></path>
-              </svg>
+              <LogoutIcon class="mr-2 h-4 w-4" />
               Logout
             </button>
           </div>
@@ -292,6 +264,9 @@ import { useStockMovementsStore } from './stores/stockMovements'
 import { useStockRequestsStore } from './stores/stockRequests'
 import { usePayrollStore } from './stores/payroll'
 import { useConnectionMonitor } from './composables/useConnectionMonitor'
+import CloseIcon from '@/components/icons/CloseIcon.vue'
+import LogoutIcon from '@/components/icons/LogoutIcon.vue'
+import MenuIcon from '@/components/icons/MenuIcon.vue'
 
 const inventoryStore = useInventoryStore()
 const stockRequestsStore = useStockRequestsStore()

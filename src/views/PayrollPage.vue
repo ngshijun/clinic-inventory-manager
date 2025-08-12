@@ -141,13 +141,7 @@
             class="bg-blue-50 border border-blue-200 rounded-md p-3"
           >
             <div class="flex items-center gap-2">
-              <svg class="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
-                <path
-                  fill-rule="evenodd"
-                  d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
-                  clip-rule="evenodd"
-                />
-              </svg>
+              <CalendarIcon class="w-4 h-4 text-blue-500" />
               <span class="text-sm font-medium text-blue-800">
                 Selected Period: {{ formatSelectedPeriod }}
               </span>
@@ -631,13 +625,7 @@
           <!-- Information Box -->
           <div class="bg-blue-50 border border-blue-200 rounded-md p-3">
             <div class="flex items-center gap-2 mb-2">
-              <svg class="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
-                <path
-                  fill-rule="evenodd"
-                  d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                  clip-rule="evenodd"
-                />
-              </svg>
+              <InfoCircleIcon class="w-4 h-4 text-blue-500" />
               <span class="text-sm font-medium text-blue-800">Update Employee Information</span>
             </div>
             <p class="text-sm text-blue-700">
@@ -709,13 +697,7 @@
           <!-- Confirmation Message -->
           <div class="bg-red-50 border border-red-200 rounded-md p-3">
             <div class="flex items-center gap-2 mb-2">
-              <svg class="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20">
-                <path
-                  fill-rule="evenodd"
-                  d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                  clip-rule="evenodd"
-                />
-              </svg>
+              <WarningTriangleIcon class="w-4 h-4 text-red-500" />
               <span class="text-sm font-medium text-red-800"
                 >Warning: This action cannot be undone</span
               >
@@ -769,6 +751,9 @@ import FormField from '@/components/ui/FormField.vue'
 import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
 import SearchInput from '@/components/ui/SearchInput.vue'
 import SortableTableHeader from '@/components/ui/SortableTableHeader.vue'
+import CalendarIcon from '@/components/icons/CalendarIcon.vue'
+import InfoCircleIcon from '@/components/icons/InfoCircleIcon.vue'
+import WarningTriangleIcon from '@/components/icons/WarningTriangleIcon.vue'
 import { usePayrollStore, type Employee, type EmployeeInsert } from '@/stores/payroll'
 import type { PayrollData } from '@/types/payroll'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'

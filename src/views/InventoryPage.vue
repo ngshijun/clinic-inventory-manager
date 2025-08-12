@@ -56,13 +56,7 @@
         >
           <div class="flex">
             <div class="flex-shrink-0">
-              <svg class="h-5 w-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
-                <path
-                  fill-rule="evenodd"
-                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                  clip-rule="evenodd"
-                ></path>
-              </svg>
+              <CheckCircleIcon class="h-5 w-5 text-green-400" />
             </div>
             <div class="ml-3">
               <h3 class="text-sm font-medium text-green-800">Import successful!</h3>
@@ -102,13 +96,7 @@
         <div class="space-y-4">
           <div class="bg-blue-50 border border-blue-200 rounded-md p-3">
             <div class="flex items-center gap-2 mb-2">
-              <svg class="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
-                <path
-                  fill-rule="evenodd"
-                  d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
-                  clip-rule="evenodd"
-                />
-              </svg>
+              <ArrowDownIcon class="w-4 h-4 text-blue-500" />
               <span class="text-sm font-medium text-blue-800">
                 Current Stock: {{ stockInItem?.quantity || 0 }} {{ stockInItem?.unit }}
               </span>
@@ -138,13 +126,7 @@
             class="bg-blue-50 border border-blue-200 rounded-md p-3"
           >
             <div class="flex items-center gap-2 mb-2">
-              <svg class="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
-                <path
-                  fill-rule="evenodd"
-                  d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
-                  clip-rule="evenodd"
-                />
-              </svg>
+              <CalendarIcon class="w-4 h-4 text-blue-500" />
               <span class="text-sm font-medium text-blue-800">
                 Order Date: {{ formatDate(stockInItem.order_date) }}
               </span>
@@ -185,13 +167,7 @@
           <!-- Confirmation Message -->
           <div class="bg-red-50 border border-red-200 rounded-md p-3">
             <div class="flex items-center gap-2 mb-2">
-              <svg class="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20">
-                <path
-                  fill-rule="evenodd"
-                  d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                  clip-rule="evenodd"
-                />
-              </svg>
+              <WarningTriangleIcon class="w-4 h-4 text-red-500" />
               <span class="text-sm font-medium text-red-800">
                 Warning: This action cannot be undone
               </span>
@@ -230,13 +206,7 @@
         <div class="space-y-4">
           <div class="bg-yellow-50 border border-yellow-200 rounded-md p-3">
             <div class="flex items-center gap-2 mb-2">
-              <svg class="w-4 h-4 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
-                <path
-                  fill-rule="evenodd"
-                  d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 11-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z"
-                  clip-rule="evenodd"
-                />
-              </svg>
+              <ArrowUpSolidIcon class="w-4 h-4 text-yellow-500" />
               <span class="text-sm font-medium text-yellow-800">
                 Current Stock: {{ stockManageItem?.quantity || 0 }} {{ stockManageItem?.unit }}
               </span>
@@ -410,13 +380,7 @@
                 <!-- Order Status -->
                 <div v-if="item.order_date" class="text-xs text-blue-600 bg-blue-50 p-2 rounded">
                   <span class="inline-flex items-center gap-1">
-                    <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                      <path
-                        fill-rule="evenodd"
-                        d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
-                        clip-rule="evenodd"
-                      />
-                    </svg>
+                    <CalendarIcon class="w-3 h-3" />
                     Ordered: {{ formatDate(item.order_date) }}
                   </span>
                 </div>
@@ -494,13 +458,7 @@
                     <!-- Show order status if item has order date -->
                     <div v-if="item.order_date" class="text-xs text-blue-600 mt-1">
                       <span class="inline-flex items-center gap-1">
-                        <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                          <path
-                            fill-rule="evenodd"
-                            d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
-                            clip-rule="evenodd"
-                          />
-                        </svg>
+                        <CalendarIcon class="w-3 h-3" />
                         Ordered: {{ formatDate(item.order_date) }}
                       </span>
                     </div>
@@ -560,6 +518,11 @@ import SearchInput from '@/components/ui/SearchInput.vue'
 import SortableTableHeader from '@/components/ui/SortableTableHeader.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
 import TablePagination from '@/components/ui/TablePagination.vue'
+import ArrowDownIcon from '@/components/icons/ArrowDownIcon.vue'
+import ArrowUpSolidIcon from '@/components/icons/ArrowUpSolidIcon.vue'
+import CalendarIcon from '@/components/icons/CalendarIcon.vue'
+import CheckCircleIcon from '@/components/icons/CheckCircleIcon.vue'
+import WarningTriangleIcon from '@/components/icons/WarningTriangleIcon.vue'
 import { usePagination } from '@/composables/usePagination'
 import { useInventoryStore } from '@/stores/inventory'
 import type { InventoryItem, NewInventoryItem, StockStatus } from '@/types/inventory'

@@ -141,14 +141,7 @@
               class="flex items-center justify-center gap-2 px-4 py-2 border border-blue-300 rounded-md text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors w-full sm:w-auto disabled:opacity-50"
               :disabled="showOlderPending"
             >
-              <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                ></path>
-              </svg>
+              <CalendarIcon class="h-4 w-4" />
               Show Today
             </button>
           </div>
@@ -356,13 +349,7 @@
     >
       <div class="bg-red-50 border border-red-200 rounded-md p-3">
         <div class="flex items-center gap-2 mb-2">
-          <svg class="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20">
-            <path
-              fill-rule="evenodd"
-              d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-              clip-rule="evenodd"
-            />
-          </svg>
+          <WarningTriangleIcon class="w-4 h-4 text-red-500" />
           <span class="text-sm font-medium text-red-800">
             Warning: This action cannot be undone
           </span>
@@ -388,13 +375,7 @@
       <div class="space-y-4">
         <div class="bg-blue-50 border border-blue-200 rounded-md p-3">
           <div class="flex items-center gap-2 mb-2">
-            <svg class="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
-              <path
-                fill-rule="evenodd"
-                d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z"
-                clip-rule="evenodd"
-              />
-            </svg>
+            <CogIcon class="w-4 h-4 text-blue-500" />
             <span class="text-sm font-medium text-blue-800"> Modify Request Details </span>
           </div>
           <p class="text-sm text-blue-700">
@@ -440,6 +421,9 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
 import SearchInput from '@/components/ui/SearchInput.vue'
 import SortableTableHeader from '@/components/ui/SortableTableHeader.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
+import CalendarIcon from '@/components/icons/CalendarIcon.vue'
+import CogIcon from '@/components/icons/CogIcon.vue'
+import WarningTriangleIcon from '@/components/icons/WarningTriangleIcon.vue'
 import { useInventoryStore } from '@/stores/inventory'
 import { useStockRequestsStore } from '@/stores/stockRequests'
 import type { InventoryItem } from '@/types/inventory'

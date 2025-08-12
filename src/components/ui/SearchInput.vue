@@ -18,20 +18,7 @@
 
       <!-- Search Icon -->
       <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-        <svg
-          class="h-5 w-5 text-gray-400"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-          />
-        </svg>
+        <SearchIcon class="h-5 w-5 text-gray-400" />
       </div>
 
       <!-- Clear Input Button -->
@@ -42,14 +29,7 @@
         class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 transition-colors"
         title="Clear search"
       >
-        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M6 18L18 6M6 6l12 12"
-          />
-        </svg>
+        <CloseIcon class="h-4 w-4" />
       </button>
 
       <!-- Right side buttons -->
@@ -65,14 +45,7 @@
           class="text-gray-400 hover:text-gray-600 mr-2 transition-colors"
           title="Clear search"
         >
-          <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M6 18L18 6M6 6l12 12"
-            />
-          </svg>
+          <CloseIcon class="h-4 w-4" />
         </button>
 
         <!-- Clear Filters Button -->
@@ -103,6 +76,8 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import SearchIcon from '@/components/icons/SearchIcon.vue'
+import CloseIcon from '@/components/icons/CloseIcon.vue'
 
 interface SearchInputProps {
   modelValue: string

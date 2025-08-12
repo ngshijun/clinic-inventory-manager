@@ -16,23 +16,9 @@
         :title="action.label"
       >
         <!-- Icon if provided -->
-        <svg v-if="action.icon" class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-          <!-- Add icon paths based on action.icon type if needed -->
-          <path
-            v-if="action.icon === 'edit'"
-            d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"
-          />
-          <path
-            v-else-if="action.icon === 'delete'"
-            d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z M4 5a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zm2 3a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 112 0v6a1 1 0 11-2 0V8z"
-          />
-          <path
-            v-else-if="action.icon === 'check'"
-            fill-rule="evenodd"
-            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-            clip-rule="evenodd"
-          />
-        </svg>
+        <EditIcon v-if="action.icon === 'edit'" class="w-4 h-4 mr-1" />
+        <TrashIcon v-else-if="action.icon === 'delete'" class="w-4 h-4 mr-1" />
+        <CheckIcon v-else-if="action.icon === 'check'" class="w-4 h-4 mr-1" />
 
         {{ action.label }}
       </button>
@@ -48,22 +34,12 @@
       >
         <span class="flex items-center">
           {{ action.label }}
-          <svg
+          <ChevronDownIcon
             class="w-3 h-3 ml-1 flex-shrink-0"
             :class="{
               'transform rotate-180': openDropdown === action.key,
             }"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M19 9l-7 7-7-7"
-            />
-          </svg>
+          />
         </span>
       </button>
 
@@ -96,6 +72,10 @@
 
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted } from 'vue'
+import CheckIcon from '@/components/icons/CheckIcon.vue'
+import ChevronDownIcon from '@/components/icons/ChevronDownIcon.vue'
+import EditIcon from '@/components/icons/EditIcon.vue'
+import TrashIcon from '@/components/icons/TrashIcon.vue'
 
 interface DropdownItem {
   key: string
