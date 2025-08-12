@@ -9,6 +9,7 @@
       <!-- Regular Button -->
       <button
         v-if="!action.dropdown"
+        type="button"
         @click="handleActionClick(action.key)"
         :disabled="loading || action.disabled"
         :class="getButtonClasses(action.variant) + ' flex items-center justify-center'"
@@ -39,6 +40,7 @@
       <!-- Dropdown Button -->
       <button
         v-else
+        type="button"
         @click="toggleDropdown(action.key)"
         :disabled="loading || action.disabled"
         :class="getButtonClasses(action.variant) + ' flex items-center justify-center'"
@@ -70,6 +72,7 @@
         <div class="py-1 flex flex-col">
           <template v-for="(item, idx) in action.dropdown" :key="item.key">
             <button
+              type="button"
               @click="handleDropdownItemClick(item.key)"
               :class="[
                 'w-full text-left px-3 py-2 text-xs flex items-center gap-2',

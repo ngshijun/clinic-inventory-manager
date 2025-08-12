@@ -280,7 +280,11 @@
                       </span>
                     </div>
                     <!-- Show non-order reason if set -->
-                    <div v-else-if="item.non_order_reason" class="text-xs mt-1" :class="getReasonClasses(item.non_order_reason).text">
+                    <div
+                      v-else-if="item.non_order_reason"
+                      class="text-xs mt-1"
+                      :class="getReasonClasses(item.non_order_reason).text"
+                    >
                       <span class="inline-flex items-center gap-1.5">
                         <svg
                           class="w-3.5 h-3.5 flex-shrink-0"

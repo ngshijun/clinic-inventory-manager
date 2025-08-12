@@ -35,11 +35,11 @@
         </div>
       </ActionModal>
 
-      <!-- Loading State -->
+      <!-- Loading State (non-blocking overlay/inline) -->
       <LoadingSpinner v-if="inventoryStore.loading" message="Loading inventory data..." size="lg" />
 
-      <!-- Error State -->
-      <div v-else-if="inventoryStore.error" class="mb-4 sm:mb-6">
+      <!-- Error State (independent, does not block content) -->
+      <div v-if="inventoryStore.error" class="mb-4 sm:mb-6">
         <ErrorAlert title="Error loading data" :message="inventoryStore.error" size="lg">
           <button
             @click="inventoryStore.fetchItems()"
@@ -50,8 +50,8 @@
         </ErrorAlert>
       </div>
 
-      <!-- Dashboard Content -->
-      <div v-else>
+      <!-- Dashboard Content (always rendered to preserve scroll position) -->
+      <div>
         <!-- Stats Cards - Responsive Grid -->
         <!-- Simplified Enhanced Hover Effects -->
         <div class="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4 sm:gap-5 mb-6 sm:mb-8">
@@ -222,7 +222,7 @@
 
         <!-- Out of Stock Alert (with ID for scrolling) -->
         <div
-          v-if="inventoryStore.outOfStockItems.length > 0"
+          v-show="inventoryStore.outOfStockItems.length > 0"
           id="out-of-stock"
           class="bg-red-50 border border-red-200 rounded-md p-3 sm:p-4 mb-4 sm:mb-6 scroll-mt-4"
         >
@@ -437,7 +437,7 @@
 
         <!-- Low Stock Alert (with ID for scrolling) -->
         <div
-          v-if="inventoryStore.lowStockItems.length > 0"
+          v-show="inventoryStore.lowStockItems.length > 0"
           id="low-stock"
           class="bg-yellow-50 border border-yellow-200 rounded-md p-3 sm:p-4 mb-4 sm:mb-6 scroll-mt-4"
         >
@@ -652,7 +652,7 @@
 
         <!-- Stale Inventory Alert (with ID for scrolling) -->
         <div
-          v-if="staleItems.length > 0"
+          v-show="staleItems.length > 0"
           id="stale-inventory"
           class="bg-purple-50 border border-purple-200 rounded-md p-3 sm:p-4 mb-4 sm:mb-6 scroll-mt-4"
         >
@@ -743,7 +743,7 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
 import router from '@/router'
 import { useInventoryStore } from '@/stores/inventory'
 import type { InventoryItem } from '@/types/inventory'
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, nextTick } from 'vue'
 
 const inventoryStore = useInventoryStore()
 
@@ -843,26 +843,37 @@ const getItemActions = (
 }
 
 // Handle action button clicks
-const handleActionClick = (actionKey: string, item: InventoryItem) => {
+const handleActionClick = async (actionKey: string, item: InventoryItem) => {
+  // Preserve current scroll position
+  const currentScrollPosition = window.scrollY
+
+  // Run the action; await store mutations so DOM updates can be coordinated
   switch (actionKey) {
     case 'mark-ordered':
+      // Opens modal only; no state mutation yet
       openOrderModal(item)
-      break
+      return
     case 'clear-date':
-      clearOrderDate(item.id)
+      await clearOrderDate(item.id)
       break
     case 'alternative-ordered':
-      setItemNonOrderReason(item.id, 'Alternative ordered')
+      await setItemNonOrderReason(item.id, 'Alternative ordered')
       break
     case 'planning-to-order-later':
-      setItemNonOrderReason(item.id, 'Planning to order later')
+      await setItemNonOrderReason(item.id, 'Planning to order later')
       break
     case 'supplier-no-stock':
-      setItemNonOrderReason(item.id, 'Supplier has no stock')
+      await setItemNonOrderReason(item.id, 'Supplier has no stock')
       break
     case 'clear-reason':
-      clearItemNonOrderReason(item.id)
+      await clearItemNonOrderReason(item.id)
       break
+  }
+
+  // Wait for Vue to flush DOM updates, then restore scroll
+  await nextTick()
+  if (window.scrollY !== currentScrollPosition) {
+    window.scrollTo({ top: currentScrollPosition, behavior: 'auto' })
   }
 }
 
