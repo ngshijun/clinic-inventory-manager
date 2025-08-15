@@ -268,7 +268,7 @@
                       {{ request.item_name }}
                     </h4>
                   </div>
-                  <StatusBadge :variant="getStatusVariant(request.status)" :text="request.status" />
+                  <StatusBadge :variant="getStatusColor(request.status)" :text="request.status" />
                 </div>
 
                 <!-- Request Details -->
@@ -553,10 +553,7 @@
                     </div>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap">
-                    <StatusBadge
-                      :variant="getStatusVariant(request.status)"
-                      :text="request.status"
-                    />
+                    <StatusBadge :variant="getStatusColor(request.status)" :text="request.status" />
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <ActionButtonGroup
@@ -607,7 +604,9 @@ import type { StockRequest } from '@/types/stockRequests'
 import { computed, onMounted, ref, watch } from 'vue'
 
 // Component imports
-import ActionButtonGroup from '@/components/ui/ActionButtonGroup.vue'
+import ActionButtonGroup, {
+  type ActionButtonGroupAction,
+} from '@/components/ui/ActionButtonGroup.vue'
 import ActionModal from '@/components/ui/ActionModal.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import ErrorAlert from '@/components/ui/ErrorAlert.vue'
@@ -808,29 +807,22 @@ const hasEnoughStock = (request: StockRequest): boolean => {
   return getAvailableStock(request.item_id) >= request.quantity
 }
 
-// Helper function to get status badge variant
-const getStatusVariant = (status: string): 'pending' | 'approved' | 'cancelled' => {
+// Helper function to get status badge color
+const getStatusColor = (status: string): 'yellow' | 'green' | 'red' => {
   switch (status) {
     case 'Pending':
-      return 'pending'
+      return 'yellow'
     case 'Approved':
-      return 'approved'
+      return 'green'
     case 'Rejected':
-      return 'cancelled'
+      return 'red'
     default:
-      return 'pending'
+      return 'yellow'
   }
 }
 
 // Action button configurations
-const getRequestActions = (
-  request: StockRequest,
-): Array<{
-  key: string
-  label: string
-  variant: 'blue' | 'gray' | 'red' | 'green' | 'yellow' | 'cyan'
-  disabled?: boolean
-}> => {
+const getRequestActions = (request: StockRequest): Array<ActionButtonGroupAction> => {
   if (request.status !== 'Pending') return []
 
   return [

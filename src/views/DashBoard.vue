@@ -7,7 +7,7 @@
       <ActionModal
         :is-open="showOrderModal"
         :title="`Mark Ordered: ${orderItem?.item_name}`"
-        variant="green"
+        color="green"
         :loading="inventoryStore.loading"
         confirm-text="Mark Ordered"
         @close="closeOrderModal"
@@ -444,16 +444,6 @@
 </template>
 
 <script setup lang="ts">
-import ActionButtonGroup from '@/components/ui/ActionButtonGroup.vue'
-import ActionModal from '@/components/ui/ActionModal.vue'
-import ErrorAlert from '@/components/ui/ErrorAlert.vue'
-import FormField from '@/components/ui/FormField.vue'
-import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
-import ReasonBadge from '@/components/ui/ReasonBadge.vue'
-import router from '@/router'
-import { useInventoryStore } from '@/stores/inventory'
-import type { InventoryItem } from '@/types/inventory'
-import { computed, onMounted, onUnmounted, ref } from 'vue'
 import ArrowUpIcon from '@/components/icons/ArrowUpIcon.vue'
 import BoxIcon from '@/components/icons/BoxIcon.vue'
 import CalendarIcon from '@/components/icons/CalendarIcon.vue'
@@ -463,6 +453,18 @@ import CloseIcon from '@/components/icons/CloseIcon.vue'
 import ExclamationCircleIcon from '@/components/icons/ExclamationCircleIcon.vue'
 import WarningIcon from '@/components/icons/WarningIcon.vue'
 import WarningTriangleIcon from '@/components/icons/WarningTriangleIcon.vue'
+import ActionButtonGroup, {
+  type ActionButtonGroupAction,
+} from '@/components/ui/ActionButtonGroup.vue'
+import ActionModal from '@/components/ui/ActionModal.vue'
+import ErrorAlert from '@/components/ui/ErrorAlert.vue'
+import FormField from '@/components/ui/FormField.vue'
+import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
+import ReasonBadge from '@/components/ui/ReasonBadge.vue'
+import router from '@/router'
+import { useInventoryStore } from '@/stores/inventory'
+import type { InventoryItem } from '@/types/inventory'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 
 const inventoryStore = useInventoryStore()
 
@@ -477,7 +479,9 @@ const showBackToTop = ref<boolean>(false)
 // Order modal functions
 const openOrderModal = (item: InventoryItem): void => {
   orderItem.value = item
-  orderDate.value = new Date().toISOString().split('T')[0] // Today's date
+  orderDate.value = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
+    .toISOString()
+    .slice(0, 10)
   showOrderModal.value = true
 }
 
@@ -503,20 +507,8 @@ const clearOrderDate = async (itemId: string): Promise<void> => {
 }
 
 // Action button configurations for items
-const getItemActions = (
-  item: InventoryItem,
-): Array<{
-  key: string
-  label: string
-  variant: 'blue' | 'gray' | 'red' | 'green' | 'yellow' | 'cyan' | 'orange'
-  dropdown?: Array<{ key: string; label: string }>
-}> => {
-  const actions: Array<{
-    key: string
-    label: string
-    variant: 'blue' | 'gray' | 'red' | 'green' | 'yellow' | 'cyan' | 'orange'
-    dropdown?: Array<{ key: string; label: string }>
-  }> = []
+const getItemActions = (item: InventoryItem): Array<ActionButtonGroupAction> => {
+  const actions: Array<ActionButtonGroupAction> = []
 
   if (item.order_date) {
     // Item is already ordered - show clear date option

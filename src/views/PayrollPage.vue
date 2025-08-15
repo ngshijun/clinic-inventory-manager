@@ -743,7 +743,9 @@
 </template>
 
 <script setup lang="ts">
-import ActionButtonGroup from '@/components/ui/ActionButtonGroup.vue'
+import ActionButtonGroup, {
+  type ActionButtonGroupAction,
+} from '@/components/ui/ActionButtonGroup.vue'
 import ActionModal from '@/components/ui/ActionModal.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import ErrorAlert from '@/components/ui/ErrorAlert.vue'
@@ -1039,11 +1041,7 @@ const addEmployee = async () => {
 }
 
 // Action button configurations
-const getEmployeeActions = (): Array<{
-  key: string
-  label: string
-  variant: 'blue' | 'gray' | 'red' | 'green' | 'yellow' | 'cyan'
-}> => {
+const getEmployeeActions = (): Array<ActionButtonGroupAction> => {
   return [
     {
       key: 'edit',

@@ -274,7 +274,9 @@
 </template>
 
 <script setup lang="ts">
-import ActionButtonGroup from '@/components/ui/ActionButtonGroup.vue'
+import ActionButtonGroup, {
+  type ActionButtonGroupAction,
+} from '@/components/ui/ActionButtonGroup.vue'
 import ActionModal from '@/components/ui/ActionModal.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import ErrorAlert from '@/components/ui/ErrorAlert.vue'
@@ -336,7 +338,9 @@ const isRemarkChanged = computed(() => {
 // Order modal functions
 const openOrderModal = (item: InventoryItem): void => {
   orderItem.value = item
-  orderDate.value = new Date().toISOString().split('T')[0] // Today's date
+  orderDate.value = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
+    .toISOString()
+    .slice(0, 10) // Today's date
   showOrderModal.value = true
 }
 
@@ -468,20 +472,8 @@ const toggleSort = (key: string): void => {
 }
 
 // Action button configurations
-const getItemActions = (
-  item: InventoryItem,
-): Array<{
-  key: string
-  label: string
-  variant: 'blue' | 'gray' | 'red' | 'green' | 'yellow' | 'cyan' | 'orange'
-  dropdown?: Array<{ key: string; label: string }>
-}> => {
-  const actions: Array<{
-    key: string
-    label: string
-    variant: 'blue' | 'gray' | 'red' | 'green' | 'yellow' | 'cyan' | 'orange'
-    dropdown?: Array<{ key: string; label: string }>
-  }> = [
+const getItemActions = (item: InventoryItem): Array<ActionButtonGroupAction> => {
+  const actions: Array<ActionButtonGroupAction> = [
     {
       key: 'edit-remark',
       label: 'Edit Remark',

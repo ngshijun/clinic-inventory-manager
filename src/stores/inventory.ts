@@ -25,7 +25,7 @@ export const useInventoryStore = defineStore('inventory', () => {
   })
 
   const outOfStockItems = computed((): InventoryItem[] => {
-    return items.value.filter((item) => item.quantity === 0)
+    return items.value.filter((item) => item.quantity === 0 && item.reorder_level !== -1)
   })
 
   // Actions
@@ -58,7 +58,7 @@ export const useInventoryStore = defineStore('inventory', () => {
           {
             item_name: newItem.item_name,
             quantity: Math.max(0, newItem.quantity),
-            reorder_level: Math.max(0, newItem.reorder_level),
+            reorder_level: Math.max(-1, newItem.reorder_level),
             unit: newItem.unit,
             remark: newItem.remark || '',
             order_date: newItem.order_date || null,

@@ -151,7 +151,7 @@
                     {{ movement.item_name }}
                   </h4>
                   <StatusBadge
-                    :variant="movement.movement_type === 'stock_in' ? 'stock-in' : 'stock-out'"
+                    :variant="movement.movement_type === 'stock_in' ? 'green' : 'red'"
                     :text="movement.movement_type === 'stock_in' ? 'Stock In (+)' : 'Stock Out (-)'"
                   />
                 </div>
@@ -254,7 +254,7 @@
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap">
                     <StatusBadge
-                      :variant="movement.movement_type === 'stock_in' ? 'stock-in' : 'stock-out'"
+                      :variant="movement.movement_type === 'stock_in' ? 'green' : 'red'"
                       :text="
                         movement.movement_type === 'stock_in' ? 'Stock In (+)' : 'Stock Out (-)'
                       "
@@ -334,7 +334,9 @@
 </template>
 
 <script setup lang="ts">
-import ActionButtonGroup from '@/components/ui/ActionButtonGroup.vue'
+import ActionButtonGroup, {
+  type ActionButtonGroupAction,
+} from '@/components/ui/ActionButtonGroup.vue'
 import ActionModal from '@/components/ui/ActionModal.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import FormField from '@/components/ui/FormField.vue'
@@ -574,11 +576,7 @@ const toggleSort = (key: string): void => {
 }
 
 // Action button configurations
-const getMovementActions = (): Array<{
-  key: string
-  label: string
-  variant: 'blue' | 'gray' | 'red' | 'green' | 'yellow' | 'cyan'
-}> => {
+const getMovementActions = (): Array<ActionButtonGroupAction> => {
   return [
     {
       key: 'edit-remark',

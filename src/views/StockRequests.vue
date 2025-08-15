@@ -201,7 +201,7 @@
                   <h4 class="text-sm font-medium text-gray-900 truncate flex-1 mr-2">
                     {{ request.item_name }}
                   </h4>
-                  <StatusBadge :variant="getStatusVariant(request.status)" :text="request.status" />
+                  <StatusBadge :variant="getStatusColor(request.status)" :text="request.status" />
                 </div>
                 <!-- Request Details -->
                 <div class="text-sm space-y-1">
@@ -297,10 +297,7 @@
                     </div>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap">
-                    <StatusBadge
-                      :variant="getStatusVariant(request.status)"
-                      :text="request.status"
-                    />
+                    <StatusBadge :variant="getStatusColor(request.status)" :text="request.status" />
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <ActionButtonGroup
@@ -412,7 +409,9 @@
 </template>
 
 <script setup lang="ts">
-import ActionButtonGroup from '@/components/ui/ActionButtonGroup.vue'
+import ActionButtonGroup, {
+  type ActionButtonGroupAction,
+} from '@/components/ui/ActionButtonGroup.vue'
 import ActionModal from '@/components/ui/ActionModal.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import ErrorAlert from '@/components/ui/ErrorAlert.vue'
@@ -434,9 +433,18 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import TablePagination from '@/components/ui/TablePagination.vue'
 import { usePagination } from '@/composables/usePagination'
 
-// Helper function to map status to StatusBadge variant
-const getStatusVariant = (status: string): 'pending' | 'approved' | 'cancelled' => {
-  return status.toLowerCase() as 'pending' | 'approved' | 'cancelled'
+// Helper function to map status to StatusBadge color
+const getStatusColor = (status: string): 'yellow' | 'green' | 'red' => {
+  switch (status) {
+    case 'Pending':
+      return 'yellow'
+    case 'Approved':
+      return 'green'
+    case 'Rejected':
+      return 'red'
+    default:
+      return 'yellow'
+  }
 }
 
 // Store
@@ -642,13 +650,7 @@ const toggleSort = (key: string): void => {
 }
 
 // Action button configurations
-const getRequestActions = (
-  request: StockRequest,
-): Array<{
-  key: string
-  label: string
-  variant: 'blue' | 'gray' | 'red' | 'green' | 'yellow' | 'cyan'
-}> => {
+const getRequestActions = (request: StockRequest): Array<ActionButtonGroupAction> => {
   if (request.status !== 'Pending') return []
 
   return [

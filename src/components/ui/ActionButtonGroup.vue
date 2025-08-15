@@ -82,10 +82,10 @@ interface DropdownItem {
   label: string
 }
 
-interface ActionButtonGroupAction {
+export interface ActionButtonGroupAction {
   key: string
   label: string
-  variant: 'blue' | 'gray' | 'red' | 'green' | 'yellow' | 'cyan' | 'orange'
+  variant: 'blue' | 'gray' | 'red' | 'green' | 'yellow' | 'orange'
   icon?: string
   disabled?: boolean
   dropdown?: DropdownItem[]

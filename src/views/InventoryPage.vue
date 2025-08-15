@@ -356,7 +356,7 @@
                     {{ item.item_name }}
                   </h4>
                   <StatusBadge
-                    :variant="getStockStatusVariant(item)"
+                    :variant="getStockStatusColor(item)"
                     :text="getStockStatus(item).text"
                   />
                 </div>
@@ -471,7 +471,7 @@
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap">
                     <StatusBadge
-                      :variant="getStockStatusVariant(item)"
+                      :variant="getStockStatusColor(item)"
                       :text="getStockStatus(item).text"
                     />
                   </td>
@@ -508,7 +508,14 @@
 </template>
 
 <script setup lang="ts">
-import ActionButtonGroup from '@/components/ui/ActionButtonGroup.vue'
+import ArrowDownIcon from '@/components/icons/ArrowDownIcon.vue'
+import ArrowUpSolidIcon from '@/components/icons/ArrowUpSolidIcon.vue'
+import CalendarIcon from '@/components/icons/CalendarIcon.vue'
+import CheckCircleIcon from '@/components/icons/CheckCircleIcon.vue'
+import WarningTriangleIcon from '@/components/icons/WarningTriangleIcon.vue'
+import ActionButtonGroup, {
+  type ActionButtonGroupAction,
+} from '@/components/ui/ActionButtonGroup.vue'
 import ActionModal from '@/components/ui/ActionModal.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import ErrorAlert from '@/components/ui/ErrorAlert.vue'
@@ -518,11 +525,6 @@ import SearchInput from '@/components/ui/SearchInput.vue'
 import SortableTableHeader from '@/components/ui/SortableTableHeader.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
 import TablePagination from '@/components/ui/TablePagination.vue'
-import ArrowDownIcon from '@/components/icons/ArrowDownIcon.vue'
-import ArrowUpSolidIcon from '@/components/icons/ArrowUpSolidIcon.vue'
-import CalendarIcon from '@/components/icons/CalendarIcon.vue'
-import CheckCircleIcon from '@/components/icons/CheckCircleIcon.vue'
-import WarningTriangleIcon from '@/components/icons/WarningTriangleIcon.vue'
 import { usePagination } from '@/composables/usePagination'
 import { useInventoryStore } from '@/stores/inventory'
 import type { InventoryItem, NewInventoryItem, StockStatus } from '@/types/inventory'
@@ -700,11 +702,7 @@ const toggleSort = (key: string): void => {
 }
 
 // Action button configurations
-const getItemActions = (): Array<{
-  key: string
-  label: string
-  variant: 'blue' | 'gray' | 'red' | 'green' | 'yellow' | 'cyan'
-}> => {
+const getItemActions = (): Array<ActionButtonGroupAction> => {
   return [
     {
       key: 'stock-in',
@@ -826,16 +824,18 @@ const cancelDelete = (): void => {
 }
 
 const getStockStatus = (item: InventoryItem): StockStatus => {
+  if (item.reorder_level === 0) return { text: 'Not Tracked', class: 'bg-gray-100 text-gray-800' }
   if (item.quantity === 0) return { text: 'Out of Stock', class: 'bg-red-100 text-red-800' }
   if (item.quantity <= item.reorder_level)
     return { text: 'Low Stock', class: 'bg-yellow-100 text-yellow-800' }
   return { text: 'In Stock', class: 'bg-green-100 text-green-800' }
 }
 
-const getStockStatusVariant = (item: InventoryItem): 'out-of-stock' | 'low-stock' | 'in-stock' => {
-  if (item.quantity === 0) return 'out-of-stock'
-  if (item.quantity <= item.reorder_level) return 'low-stock'
-  return 'in-stock'
+const getStockStatusColor = (item: InventoryItem): 'gray' | 'red' | 'yellow' | 'green' => {
+  if (item.reorder_level === 0) return 'gray'
+  if (item.quantity === 0) return 'red'
+  if (item.quantity <= item.reorder_level) return 'yellow'
+  return 'green'
 }
 
 // Excel Import Functions
@@ -1058,7 +1058,9 @@ const exportToExcel = (): void => {
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Inventory')
 
     // Generate filename with current date
-    const currentDate = new Date().toISOString().split('T')[0]
+    const currentDate = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
+      .toISOString()
+      .slice(0, 10)
     const filename = `inventory_export_${currentDate}.xlsx`
 
     // Write and download the file
