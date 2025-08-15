@@ -264,7 +264,7 @@
                 type="number"
                 label="Reorder Level"
                 :required="true"
-                :min="0"
+                :min="-1"
               />
             </div>
             <div class="col-span-1">
@@ -290,8 +290,8 @@
               :disabled="
                 inventoryStore.loading ||
                 newItem.item_name === '' ||
-                newItem.quantity === 0 ||
-                newItem.reorder_level === 0 ||
+                newItem.quantity < 0 ||
+                newItem.reorder_level < -1 ||
                 newItem.unit === ''
               "
               class="w-full sm:w-auto px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700 transition-colors disabled:opacity-50"
@@ -824,7 +824,7 @@ const cancelDelete = (): void => {
 }
 
 const getStockStatus = (item: InventoryItem): StockStatus => {
-  if (item.reorder_level === 0) return { text: 'Not Tracked', class: 'bg-gray-100 text-gray-800' }
+  if (item.reorder_level === -1) return { text: 'Not Tracked', class: 'bg-gray-100 text-gray-800' }
   if (item.quantity === 0) return { text: 'Out of Stock', class: 'bg-red-100 text-red-800' }
   if (item.quantity <= item.reorder_level)
     return { text: 'Low Stock', class: 'bg-yellow-100 text-yellow-800' }
@@ -832,7 +832,7 @@ const getStockStatus = (item: InventoryItem): StockStatus => {
 }
 
 const getStockStatusColor = (item: InventoryItem): 'gray' | 'red' | 'yellow' | 'green' => {
-  if (item.reorder_level === 0) return 'gray'
+  if (item.reorder_level === -1) return 'gray'
   if (item.quantity === 0) return 'red'
   if (item.quantity <= item.reorder_level) return 'yellow'
   return 'green'
