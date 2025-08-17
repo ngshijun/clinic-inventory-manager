@@ -60,7 +60,7 @@ interface ActionModalProps {
 }
 
 const props = withDefaults(defineProps<ActionModalProps>(), {
-  variant: 'blue',
+  variant: 'green',
   loading: false,
   disabled: false,
   confirmText: 'Confirm',

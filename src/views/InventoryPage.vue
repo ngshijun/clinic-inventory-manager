@@ -589,6 +589,7 @@ const newItem = ref<NewInventoryItem>({
 const getStockStatusValue = (item: InventoryItem): number => {
   if (item.quantity === 0) return 0 // Out of Stock
   if (item.quantity <= item.reorder_level) return 1 // Reorder Level Reached
+  if (item.reorder_level === -1) return 3 // Not Tracked
   return 2 // In Stock
 }
 
