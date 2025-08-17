@@ -125,7 +125,7 @@ export const useStockRequestsStore = defineStore('stockRequests', () => {
 
       if (data) {
         const inventoryStore = useInventoryStore()
-        inventoryStore.stockOut(item.item_id, item.quantity)
+        inventoryStore.stockOut(item.item_id, item.quantity, 'Stock Request')
       }
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'An error occurred while approving request'

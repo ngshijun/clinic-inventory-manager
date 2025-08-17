@@ -144,7 +144,7 @@ export const useInventoryStore = defineStore('inventory', () => {
   }
 
   // Stock Out - Subtract from existing quantity
-  const stockOut = async (itemId: string, quantity: number): Promise<void> => {
+  const stockOut = async (itemId: string, quantity: number, remark?: string): Promise<void> => {
     loading.value = true
     error.value = null
     try {
@@ -175,6 +175,7 @@ export const useInventoryStore = defineStore('inventory', () => {
           item_name: item.item_name,
           quantity: quantity,
           movement_type: 'stock_out',
+          remark: remark || '',
         })
       }
     } catch (err) {
