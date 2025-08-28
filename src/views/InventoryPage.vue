@@ -120,6 +120,21 @@
             </p>
           </div>
 
+          <!-- Reorder Level Input (only shown when current reorder level is -1) -->
+          <div v-if="stockInItem?.reorder_level === -1">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Set Reorder Level</label>
+            <input
+              v-model.number="newReorderLevel"
+              type="number"
+              min="0"
+              class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+              placeholder="Enter reorder level"
+            />
+            <p class="mt-1 text-xs text-gray-500">
+              This item is currently not tracked. Set a reorder level to enable stock monitoring.
+            </p>
+          </div>
+
           <!-- Order Date Handling -->
           <div
             v-if="stockInItem?.order_date"
@@ -352,9 +367,17 @@
               <div class="space-y-3">
                 <!-- Item Header -->
                 <div class="flex items-center justify-between">
-                  <h4 class="text-sm font-medium text-gray-900 truncate flex-1 mr-2">
-                    {{ item.item_name }}
-                  </h4>
+                  <div class="flex-1 mr-2">
+                    <h4 class="text-sm font-medium text-gray-900 truncate">
+                      {{ item.item_name }}
+                    </h4>
+                    <!-- Show non-order reason if set -->
+                    <div v-if="item.non_order_reason" class="mt-1">
+                      <ReasonBadge :reason="item.non_order_reason" size="sm">
+                        {{ item.non_order_reason }}
+                      </ReasonBadge>
+                    </div>
+                  </div>
                   <StatusBadge
                     :variant="getStockStatusColor(item)"
                     :text="getStockStatus(item).text"
@@ -497,7 +520,6 @@
             :start-index="pagination.startIndex.value"
             :end-index="pagination.endIndex.value"
             :show-items-per-page-selector="true"
-            :items-per-page-options="[10, 25, 50, 100]"
             @page-change="pagination.goToPage"
             @items-per-page-change="pagination.updateItemsPerPage"
           />
@@ -521,6 +543,7 @@ import EmptyState from '@/components/ui/EmptyState.vue'
 import ErrorAlert from '@/components/ui/ErrorAlert.vue'
 import FormField from '@/components/ui/FormField.vue'
 import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
+import ReasonBadge from '@/components/ui/ReasonBadge.vue'
 import SearchInput from '@/components/ui/SearchInput.vue'
 import SortableTableHeader from '@/components/ui/SortableTableHeader.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
@@ -544,6 +567,7 @@ const itemNameInputRef = ref<{ focus: () => void } | null>(null)
 const showStockInModal = ref<boolean>(false)
 const stockInItem = ref<InventoryItem | null>(null)
 const clearOrderDate = ref<boolean>(true) // Default to clearing order date
+const newReorderLevel = ref<number | null>(null)
 
 // Delete confirmation modal variables
 const showDeleteModal = ref<boolean>(false)
@@ -587,9 +611,9 @@ const newItem = ref<NewInventoryItem>({
 
 // Helper function to get stock status for sorting
 const getStockStatusValue = (item: InventoryItem): number => {
+  if (item.reorder_level === -1) return 3 // Not Tracked (check this first)
   if (item.quantity === 0) return 0 // Out of Stock
   if (item.quantity <= item.reorder_level) return 1 // Reorder Level Reached
-  if (item.reorder_level === -1) return 3 // Not Tracked
   return 2 // In Stock
 }
 
@@ -656,6 +680,7 @@ const closeStockInModal = (): void => {
   showStockInModal.value = false
   stockInItem.value = null
   clearOrderDate.value = true
+  newReorderLevel.value = null
 }
 
 // Helper function to get item max quantity
@@ -668,7 +693,12 @@ const getItemMaxQuantity = (itemId: string): number => {
 const confirmStockIn = async (): Promise<void> => {
   if (!stockInItem.value || stockQuantity.value <= 0) return
 
-  await inventoryStore.stockIn(stockInItem.value.id, stockQuantity.value, clearOrderDate.value)
+  await inventoryStore.stockIn(
+    stockInItem.value.id,
+    stockQuantity.value,
+    clearOrderDate.value,
+    newReorderLevel.value || undefined,
+  )
 
   if (!inventoryStore.error) {
     closeStockInModal()
@@ -742,6 +772,7 @@ const handleActionClick = (actionKey: string, item: InventoryItem) => {
 const openStockInFromButton = (item: InventoryItem): void => {
   stockInItem.value = item
   clearOrderDate.value = !!item.order_date // Set based on whether item has order date
+  newReorderLevel.value = item.reorder_level === -1 ? 0 : null // Initialize to 0 if current is -1
   showStockInModal.value = true
 }
 

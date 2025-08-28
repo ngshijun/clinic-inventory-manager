@@ -126,7 +126,7 @@ interface TablePaginationProps {
 // Define props with defaults
 const props = withDefaults(defineProps<TablePaginationProps>(), {
   showItemsPerPageSelector: true,
-  itemsPerPageOptions: () => [10, 25, 50, 100],
+  itemsPerPageOptions: () => [25, 50, 100, 500],
 })
 
 // Define emits

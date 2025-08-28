@@ -587,7 +587,6 @@
             :start-index="pagination.startIndex.value"
             :end-index="pagination.endIndex.value"
             :show-items-per-page-selector="true"
-            :items-per-page-options="[10, 25, 50, 100]"
             @page-change="goToPage"
             @items-per-page-change="updateItemsPerPage"
           />

@@ -91,11 +91,12 @@ export const useInventoryStore = defineStore('inventory', () => {
     }
   }
 
-  // Stock In - Add to existing quantity with optional order date clearing
+  // Stock In - Add to existing quantity with optional order date clearing and reorder level update
   const stockIn = async (
     itemId: string,
     quantity: number,
     clearOrderDate: boolean = true,
+    newReorderLevel?: number,
   ): Promise<void> => {
     loading.value = true
     error.value = null
@@ -113,6 +114,11 @@ export const useInventoryStore = defineStore('inventory', () => {
       // Clear order_date if requested (default behavior)
       if (clearOrderDate) {
         updateData.order_date = null
+      }
+
+      // Update reorder level if provided and current reorder level is -1
+      if (newReorderLevel !== undefined && item.reorder_level === -1) {
+        updateData.reorder_level = Math.max(-1, newReorderLevel)
       }
 
       const { data, error: supabaseError } = await supabase
@@ -247,6 +253,10 @@ export const useInventoryStore = defineStore('inventory', () => {
         })
         .eq('id', itemId)
 
+      if (reason === 'Alternative ordered') {
+        updateItem(itemId, { reorder_level: -1 })
+      }
+
       if (supabaseError) throw supabaseError
     } catch (err) {
       error.value =
@@ -257,7 +267,7 @@ export const useInventoryStore = defineStore('inventory', () => {
     }
   }
 
-  const updateItem = async (itemId: string, item: InventoryItem): Promise<void> => {
+  const updateItem = async (itemId: string, item: Partial<InventoryItem>): Promise<void> => {
     loading.value = true
     error.value = null
     try {
