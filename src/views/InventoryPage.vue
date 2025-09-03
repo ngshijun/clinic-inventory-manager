@@ -485,6 +485,12 @@
                         Ordered: {{ formatDate(item.order_date) }}
                       </span>
                     </div>
+                    <!-- Show non-order reason if set -->
+                    <div v-else-if="item.non_order_reason" class="text-xs mt-1">
+                      <ReasonBadge :reason="item.non_order_reason" size="sm">
+                        {{ item.non_order_reason }}
+                      </ReasonBadge>
+                    </div>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {{ item.quantity }} {{ item.unit }}
