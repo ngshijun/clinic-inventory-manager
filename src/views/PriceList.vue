@@ -29,6 +29,26 @@
           </div>
 
           <FormField v-model="orderDate" type="date" label="Order Date" :required="true" />
+          <div class="bg-green-50 border border-green-200 rounded-md p-3">
+            <div class="flex items-center gap-2 mb-2">
+              <ClockIcon class="w-4 h-4 text-green-500" />
+              <span class="text-sm font-medium text-green-800"> Back Order Item </span>
+            </div>
+            <div class="flex items-start gap-3">
+              <input
+                id="back-order"
+                v-model="backOrder"
+                type="checkbox"
+                class="mt-1 h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+              />
+              <div class="flex-1">
+                <label for="back-order" class="text-sm font-medium text-gray-700">
+                  Mark as back order
+                </label>
+                <p class="text-sm text-gray-500 mt-1">Check this to mark the item as back order.</p>
+              </div>
+            </div>
+          </div>
         </div>
       </ActionModal>
 
@@ -131,7 +151,10 @@
                     </span>
                   </div>
                   <div v-if="item.order_date" class="flex items-baseline gap-2">
-                    <span class="text-gray-500 flex-shrink-0">Ordered:</span>
+                    <span v-if="item.back_order" class="text-gray-500 flex-shrink-0"
+                      >Back Ordered:</span
+                    >
+                    <span v-else class="text-gray-500 flex-shrink-0">Ordered:</span>
                     <span class="font-medium text-blue-600">
                       {{ formatDate(item.order_date) }}
                     </span>
@@ -218,7 +241,11 @@
                     <div class="break-words">{{ item.item_name }}</div>
                     <!-- Show order status if item has order date -->
                     <div v-if="item.order_date" class="text-xs text-blue-600 mt-1">
-                      <span class="inline-flex items-center gap-1">
+                      <span v-if="item.back_order" class="inline-flex items-center gap-1">
+                        <ClockIcon class="w-3 h-3" />
+                        Back Ordered: {{ formatDate(item.order_date) }}
+                      </span>
+                      <span v-else class="inline-flex items-center gap-1">
                         <CalendarIcon class="w-3 h-3" />
                         Ordered: {{ formatDate(item.order_date) }}
                       </span>
@@ -273,6 +300,9 @@
 </template>
 
 <script setup lang="ts">
+import CalendarIcon from '@/components/icons/CalendarIcon.vue'
+import ClockIcon from '@/components/icons/ClockIcon.vue'
+import CogIcon from '@/components/icons/CogIcon.vue'
 import ActionButtonGroup, {
   type ActionButtonGroupAction,
 } from '@/components/ui/ActionButtonGroup.vue'
@@ -281,16 +311,14 @@ import EmptyState from '@/components/ui/EmptyState.vue'
 import ErrorAlert from '@/components/ui/ErrorAlert.vue'
 import FormField from '@/components/ui/FormField.vue'
 import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
+import ReasonBadge from '@/components/ui/ReasonBadge.vue'
 import SearchInput from '@/components/ui/SearchInput.vue'
 import SortableTableHeader from '@/components/ui/SortableTableHeader.vue'
 import TablePagination from '@/components/ui/TablePagination.vue'
-import ReasonBadge from '@/components/ui/ReasonBadge.vue'
 import { usePagination } from '@/composables/usePagination'
 import { useInventoryStore } from '@/stores/inventory'
 import type { InventoryItem } from '@/types/inventory'
 import { computed, ref, watch } from 'vue'
-import CalendarIcon from '@/components/icons/CalendarIcon.vue'
-import CogIcon from '@/components/icons/CogIcon.vue'
 
 const inventoryStore = useInventoryStore()
 
@@ -302,6 +330,7 @@ const showOrderedOnly = ref<boolean>(false)
 const showOrderModal = ref<boolean>(false)
 const orderItem = ref<InventoryItem | null>(null)
 const orderDate = ref<string>('')
+const backOrder = ref<boolean>(false)
 
 // Edit remark modal variables
 const showEditRemarkModal = ref<boolean>(false)
@@ -341,19 +370,21 @@ const openOrderModal = (item: InventoryItem): void => {
     .toISOString()
     .slice(0, 10) // Today's date
   showOrderModal.value = true
+  backOrder.value = false
 }
 
 const closeOrderModal = (): void => {
   showOrderModal.value = false
   orderItem.value = null
   orderDate.value = ''
+  backOrder.value = false
 }
 
 const confirmMarkAsOrdered = async (): Promise<void> => {
   if (!orderItem.value || !orderDate.value) return
 
   // Mark ordered using the store function with selected date
-  await inventoryStore.markAsOrdered(orderItem.value.id, orderDate.value)
+  await inventoryStore.markAsOrdered(orderItem.value.id, orderDate.value, backOrder.value)
 
   if (!inventoryStore.error) {
     closeOrderModal()

@@ -12,6 +12,8 @@ export interface Database {
           remark: string
           order_date: string | null // timestamp - Added order_date field
           non_order_reason: string | null // text - Reason why item is not ordered yet
+          back_order: boolean // boolean - Whether this is a back order
+          not_track: boolean // boolean - Whether to track this item on dashboard
           created_at: string // timestamp
           updated_at: string // timestamp
         }
@@ -24,6 +26,8 @@ export interface Database {
           remark?: string
           order_date?: string | null // Added order_date field
           non_order_reason?: string | null // Reason why item is not ordered yet
+          back_order?: boolean // boolean - Whether this is a back order
+          not_track?: boolean // boolean - Whether to track this item on dashboard
           created_at?: string
           updated_at?: string
         }
@@ -36,6 +40,8 @@ export interface Database {
           remark?: string
           order_date?: string | null // Added order_date field
           non_order_reason?: string | null // Reason why item is not ordered yet
+          back_order?: boolean // boolean - Whether this is a back order
+          not_track?: boolean // boolean - Whether to track this item on dashboard
           created_at?: string
           updated_at?: string
         }

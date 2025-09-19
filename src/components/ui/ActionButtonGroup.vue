@@ -44,7 +44,10 @@
       </button>
 
       <!-- Dropdown Menu -->
-      <div v-if="action.dropdown && openDropdown === action.key" :class="getDropdownClasses()">
+      <div
+        v-if="action.dropdown && openDropdown === action.key"
+        :class="getDropdownClasses(action.key)"
+      >
         <div class="py-1 flex flex-col">
           <template v-for="(item, idx) in action.dropdown" :key="item.key">
             <button
@@ -162,8 +165,17 @@ const getVariantClasses = (variant: string): string => {
 }
 
 // Dropdown positioning
-const getDropdownClasses = (): string => {
-  return 'absolute right-0 mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-50 min-w-max'
+const getDropdownClasses = (actionKey: string): string => {
+  // Check if this is likely a dropdown that should appear above the button
+  const shouldPositionAbove = actionKey === 'select-action' || actionKey === 'change-action'
+
+  if (shouldPositionAbove) {
+    // Position above the button for dropdowns that might be cut off by pagination
+    return 'absolute right-0 bottom-full mb-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-[9999] min-w-max'
+  }
+
+  // Default positioning below the button
+  return 'absolute right-0 mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-[9999] min-w-max'
 }
 
 // Handle action click

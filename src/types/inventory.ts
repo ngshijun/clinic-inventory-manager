@@ -7,6 +7,8 @@ export interface InventoryItem {
   remark: string
   order_date: string | null // Added order_date field
   non_order_reason: string | null // Reason why item is not ordered yet
+  back_order: boolean // Whether this is a back order
+  not_track: boolean // Whether to track this item on dashboard
   created_at: string
   updated_at: string
 }
@@ -19,6 +21,8 @@ export interface NewInventoryItem {
   remark?: string
   order_date?: string | null // Added order_date field
   non_order_reason?: string | null // Reason why item is not ordered yet
+  back_order?: boolean // Whether this is a back order
+  not_track?: boolean // Whether to track this item on dashboard
 }
 
 export interface StockStatus {

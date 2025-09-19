@@ -120,19 +120,31 @@
             </p>
           </div>
 
-          <!-- Reorder Level Input (only shown when current reorder level is -1) -->
-          <div v-if="stockInItem?.reorder_level === -1">
-            <label class="block text-sm font-medium text-gray-700 mb-1">Set Reorder Level</label>
-            <input
-              v-model.number="newReorderLevel"
-              type="number"
-              min="0"
-              class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
-              placeholder="Enter reorder level"
-            />
-            <p class="mt-1 text-xs text-gray-500">
-              This item is currently not tracked. Set a reorder level to enable stock monitoring.
-            </p>
+          <!-- Not Track Status -->
+          <div
+            v-if="stockInItem?.not_track"
+            class="bg-blue-50 border border-blue-200 rounded-md p-3"
+          >
+            <div class="flex items-center gap-2 mb-2">
+              <EyeIcon class="w-4 h-4 text-blue-500" />
+              <span class="text-sm font-medium text-blue-800">
+                Updated Tracking Status: {{ stockInItem.not_track ? 'Track' : 'Not Track' }}
+              </span>
+            </div>
+            <div class="flex items-start gap-3">
+              <input
+                id="updateNotTrackStatus"
+                v-model="notTrackStatus"
+                type="checkbox"
+                class="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-blue-300 rounded"
+              />
+              <div class="flex-1">
+                <label for="updateNotTrackStatus" class="text-sm font-medium text-gray-700">
+                  Mark as untracked
+                </label>
+                <p class="text-xs text-gray-500 mt-1">Check this to mark the item as untracked.</p>
+              </div>
+            </div>
           </div>
 
           <!-- Order Date Handling -->
@@ -306,7 +318,7 @@
                 inventoryStore.loading ||
                 newItem.item_name === '' ||
                 newItem.quantity < 0 ||
-                newItem.reorder_level < -1 ||
+                newItem.reorder_level < 0 ||
                 newItem.unit === ''
               "
               class="w-full sm:w-auto px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700 transition-colors disabled:opacity-50"
@@ -402,7 +414,11 @@
 
                 <!-- Order Status -->
                 <div v-if="item.order_date" class="text-xs text-blue-600 bg-blue-50 p-2 rounded">
-                  <span class="inline-flex items-center gap-1">
+                  <span v-if="item.back_order" class="inline-flex items-center gap-1">
+                    <CalendarIcon class="w-3 h-3" />
+                    Back-ordered: {{ formatDate(item.order_date) }}
+                  </span>
+                  <span v-else class="inline-flex items-center gap-1">
                     <CalendarIcon class="w-3 h-3" />
                     Ordered: {{ formatDate(item.order_date) }}
                   </span>
@@ -480,7 +496,11 @@
                     <div class="break-words">{{ item.item_name }}</div>
                     <!-- Show order status if item has order date -->
                     <div v-if="item.order_date" class="text-xs text-blue-600 mt-1">
-                      <span class="inline-flex items-center gap-1">
+                      <span v-if="item.back_order" class="inline-flex items-center gap-1">
+                        <ClockIcon class="w-3 h-3" />
+                        Back Ordered: {{ formatDate(item.order_date) }}
+                      </span>
+                      <span v-else class="inline-flex items-center gap-1">
                         <CalendarIcon class="w-3 h-3" />
                         Ordered: {{ formatDate(item.order_date) }}
                       </span>
@@ -538,8 +558,10 @@
 <script setup lang="ts">
 import ArrowDownIcon from '@/components/icons/ArrowDownIcon.vue'
 import ArrowUpSolidIcon from '@/components/icons/ArrowUpSolidIcon.vue'
+import ClockIcon from '@/components/icons/ClockIcon.vue'
 import CalendarIcon from '@/components/icons/CalendarIcon.vue'
 import CheckCircleIcon from '@/components/icons/CheckCircleIcon.vue'
+import EyeIcon from '@/components/icons/EyeIcon.vue'
 import WarningTriangleIcon from '@/components/icons/WarningTriangleIcon.vue'
 import ActionButtonGroup, {
   type ActionButtonGroupAction,
@@ -573,7 +595,7 @@ const itemNameInputRef = ref<{ focus: () => void } | null>(null)
 const showStockInModal = ref<boolean>(false)
 const stockInItem = ref<InventoryItem | null>(null)
 const clearOrderDate = ref<boolean>(true) // Default to clearing order date
-const newReorderLevel = ref<number | null>(null)
+const notTrackStatus = ref<boolean>(false)
 
 // Delete confirmation modal variables
 const showDeleteModal = ref<boolean>(false)
@@ -613,11 +635,13 @@ const newItem = ref<NewInventoryItem>({
   quantity: 0,
   reorder_level: 0,
   unit: '',
+  back_order: false,
+  not_track: false,
 })
 
 // Helper function to get stock status for sorting
 const getStockStatusValue = (item: InventoryItem): number => {
-  if (item.reorder_level === -1) return 3 // Not Tracked (check this first)
+  if (item.not_track) return 3 // Not Tracked (check this first)
   if (item.quantity === 0) return 0 // Out of Stock
   if (item.quantity <= item.reorder_level) return 1 // Reorder Level Reached
   return 2 // In Stock
@@ -634,8 +658,8 @@ const sortedAndFilteredItems = computed((): InventoryItem[] => {
 
   if (sortConfig.value.key) {
     items = [...items].sort((a, b) => {
-      let aValue: string | number | null
-      let bValue: string | number | null
+      let aValue: string | number | boolean | null
+      let bValue: string | number | boolean | null
 
       if (sortConfig.value.key === 'status') {
         aValue = getStockStatusValue(a)
@@ -654,6 +678,13 @@ const sortedAndFilteredItems = computed((): InventoryItem[] => {
       if (typeof aValue === 'string' && typeof bValue === 'string') {
         const comparison = aValue.toLowerCase().localeCompare(bValue.toLowerCase())
         return sortConfig.value.direction === 'asc' ? comparison : -comparison
+      }
+
+      // Handle boolean comparison
+      if (typeof aValue === 'boolean' && typeof bValue === 'boolean') {
+        const aNum = aValue ? 1 : 0
+        const bNum = bValue ? 1 : 0
+        return sortConfig.value.direction === 'asc' ? aNum - bNum : bNum - aNum
       }
 
       // Handle number comparison
@@ -686,7 +717,7 @@ const closeStockInModal = (): void => {
   showStockInModal.value = false
   stockInItem.value = null
   clearOrderDate.value = true
-  newReorderLevel.value = null
+  notTrackStatus.value = false
 }
 
 // Helper function to get item max quantity
@@ -703,7 +734,7 @@ const confirmStockIn = async (): Promise<void> => {
     stockInItem.value.id,
     stockQuantity.value,
     clearOrderDate.value,
-    newReorderLevel.value || undefined,
+    notTrackStatus.value,
   )
 
   if (!inventoryStore.error) {
@@ -778,7 +809,7 @@ const handleActionClick = (actionKey: string, item: InventoryItem) => {
 const openStockInFromButton = (item: InventoryItem): void => {
   stockInItem.value = item
   clearOrderDate.value = !!item.order_date // Set based on whether item has order date
-  newReorderLevel.value = item.reorder_level === -1 ? 0 : null // Initialize to 0 if current is -1
+  notTrackStatus.value = false // Initialize to 0 if current is -1
   showStockInModal.value = true
 }
 
@@ -828,6 +859,8 @@ const addNewItem = async (): Promise<void> => {
         quantity: 0,
         reorder_level: 0,
         unit: '',
+        back_order: false,
+        not_track: false,
       }
       showAddForm.value = false
     }
@@ -862,7 +895,7 @@ const cancelDelete = (): void => {
 }
 
 const getStockStatus = (item: InventoryItem): StockStatus => {
-  if (item.reorder_level === -1) return { text: 'Not Tracked', class: 'bg-gray-100 text-gray-800' }
+  if (item.not_track) return { text: 'Not Tracked', class: 'bg-gray-100 text-gray-800' }
   if (item.quantity === 0) return { text: 'Out of Stock', class: 'bg-red-100 text-red-800' }
   if (item.quantity <= item.reorder_level)
     return { text: 'Low Stock', class: 'bg-yellow-100 text-yellow-800' }
@@ -870,7 +903,7 @@ const getStockStatus = (item: InventoryItem): StockStatus => {
 }
 
 const getStockStatusColor = (item: InventoryItem): 'gray' | 'red' | 'yellow' | 'green' => {
-  if (item.reorder_level === -1) return 'gray'
+  if (item.not_track) return 'gray'
   if (item.quantity === 0) return 'red'
   if (item.quantity <= item.reorder_level) return 'yellow'
   return 'green'

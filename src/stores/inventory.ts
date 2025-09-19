@@ -13,19 +13,25 @@ export const useInventoryStore = defineStore('inventory', () => {
 
   // Getters (computed)
   const totalItems = computed((): number => {
-    return items.value.reduce((sum, item) => sum + item.quantity, 0)
+    return items.value
+      .filter((item) => !item.not_track)
+      .reduce((sum, item) => sum + item.quantity, 0)
   })
 
   const totalProducts = computed((): number => {
-    return items.value.length
+    return items.value.filter((item) => !item.not_track).length
   })
 
   const lowStockItems = computed((): InventoryItem[] => {
-    return items.value.filter((item) => item.quantity <= item.reorder_level && item.quantity !== 0)
+    return items.value.filter(
+      (item) => !item.not_track && item.quantity <= item.reorder_level && item.quantity !== 0,
+    )
   })
 
   const outOfStockItems = computed((): InventoryItem[] => {
-    return items.value.filter((item) => item.quantity === 0 && item.reorder_level !== -1)
+    return items.value.filter(
+      (item) => !item.not_track && item.quantity === 0 && item.reorder_level !== -1,
+    )
   })
 
   // Actions
@@ -63,6 +69,8 @@ export const useInventoryStore = defineStore('inventory', () => {
             remark: newItem.remark || '',
             order_date: newItem.order_date || null,
             non_order_reason: newItem.non_order_reason || null,
+            back_order: false,
+            not_track: newItem.not_track || false,
           },
         ])
         .select()
@@ -96,7 +104,7 @@ export const useInventoryStore = defineStore('inventory', () => {
     itemId: string,
     quantity: number,
     clearOrderDate: boolean = true,
-    newReorderLevel?: number,
+    notTrackStatus?: boolean,
   ): Promise<void> => {
     loading.value = true
     error.value = null
@@ -116,9 +124,9 @@ export const useInventoryStore = defineStore('inventory', () => {
         updateData.order_date = null
       }
 
-      // Update reorder level if provided and current reorder level is -1
-      if (newReorderLevel !== undefined && item.reorder_level === -1) {
-        updateData.reorder_level = Math.max(-1, newReorderLevel)
+      // Update not_track status if provided
+      if (notTrackStatus !== undefined) {
+        updateData.not_track = notTrackStatus
       }
 
       const { data, error: supabaseError } = await supabase
@@ -193,7 +201,11 @@ export const useInventoryStore = defineStore('inventory', () => {
   }
 
   // Mark item as ordered
-  const markAsOrdered = async (itemId: string, orderDate?: string): Promise<void> => {
+  const markAsOrdered = async (
+    itemId: string,
+    orderDate?: string,
+    backOrder?: boolean,
+  ): Promise<void> => {
     loading.value = true
     error.value = null
     try {
@@ -203,6 +215,7 @@ export const useInventoryStore = defineStore('inventory', () => {
         .update({
           order_date: dateToUse,
           non_order_reason: null,
+          back_order: backOrder ?? false,
           updated_at: new Date().toISOString(),
         })
         .eq('id', itemId)
@@ -254,7 +267,7 @@ export const useInventoryStore = defineStore('inventory', () => {
         .eq('id', itemId)
 
       if (reason === 'Alternative ordered') {
-        updateItem(itemId, { reorder_level: -1 })
+        updateItem(itemId, { not_track: true })
       }
 
       if (supabaseError) throw supabaseError

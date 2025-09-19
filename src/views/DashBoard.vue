@@ -26,6 +26,26 @@
           </div>
 
           <FormField v-model="orderDate" type="date" label="Order Date" :required="true" />
+          <div class="bg-green-50 border border-green-200 rounded-md p-3">
+            <div class="flex items-center gap-2 mb-2">
+              <ClockIcon class="w-4 h-4 text-green-500" />
+              <span class="text-sm font-medium text-green-800"> Back Order Item </span>
+            </div>
+            <div class="flex items-start gap-3">
+              <input
+                id="back-order"
+                v-model="backOrder"
+                type="checkbox"
+                class="mt-1 h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+              />
+              <div class="flex-1">
+                <label for="back-order" class="text-sm font-medium text-gray-700">
+                  Mark as back order
+                </label>
+                <p class="text-sm text-gray-500 mt-1">Check this to mark the item as back order.</p>
+              </div>
+            </div>
+          </div>
         </div>
       </ActionModal>
 
@@ -203,8 +223,12 @@
                           <!-- Status text -->
                           <div class="flex items-center">
                             <div v-if="item.order_date" class="text-sm text-blue-600">
-                              <span class="inline-flex items-center gap-1">
-                                <CalendarIcon class="w-3 h-3" />
+                              <span v-if="item.back_order" class="inline-flex items-center gap-1">
+                                <ClockIcon class="w-4 h-4" />
+                                Back Ordered: {{ formatDate(item.order_date) }}
+                              </span>
+                              <span v-else class="inline-flex items-center gap-1">
+                                <CalendarIcon class="w-4 h-4" />
                                 Ordered: {{ formatDate(item.order_date) }}
                               </span>
                             </div>
@@ -240,8 +264,12 @@
                             <!-- Status text -->
                             <div>
                               <div v-if="item.order_date" class="text-sm text-blue-600">
-                                <span class="inline-flex items-center gap-1">
-                                  <CalendarIcon class="w-3 h-3" />
+                                <span v-if="item.back_order" class="inline-flex items-center gap-1">
+                                  <ClockIcon class="w-4 h-4" />
+                                  Back Ordered: {{ formatDate(item.order_date) }}
+                                </span>
+                                <span v-else class="inline-flex items-center gap-1">
+                                  <CalendarIcon class="w-4 h-4" />
                                   Ordered: {{ formatDate(item.order_date) }}
                                 </span>
                               </div>
@@ -308,8 +336,12 @@
                           <!-- Status text -->
                           <div class="flex items-center">
                             <div v-if="item.order_date" class="text-sm text-blue-600">
-                              <span class="inline-flex items-center gap-1">
-                                <CalendarIcon class="w-3 h-3" />
+                              <span v-if="item.back_order" class="inline-flex items-center gap-1">
+                                <ClockIcon class="w-4 h-4" />
+                                Back Ordered: {{ formatDate(item.order_date) }}
+                              </span>
+                              <span v-else class="inline-flex items-center gap-1">
+                                <CalendarIcon class="w-4 h-4" />
                                 Ordered: {{ formatDate(item.order_date) }}
                               </span>
                             </div>
@@ -345,8 +377,12 @@
                             <!-- Status text -->
                             <div>
                               <div v-if="item.order_date" class="text-sm text-blue-600">
-                                <span class="inline-flex items-center gap-1">
-                                  <CalendarIcon class="w-3 h-3" />
+                                <span v-if="item.back_order" class="inline-flex items-center gap-1">
+                                  <ClockIcon class="w-4 h-4" />
+                                  Back Ordered: {{ formatDate(item.order_date) }}
+                                </span>
+                                <span v-else class="inline-flex items-center gap-1">
+                                  <CalendarIcon class="w-4 h-4" />
                                   Ordered: {{ formatDate(item.order_date) }}
                                 </span>
                               </div>
@@ -472,6 +508,7 @@ const inventoryStore = useInventoryStore()
 const showOrderModal = ref<boolean>(false)
 const orderItem = ref<InventoryItem | null>(null)
 const orderDate = ref<string>('')
+const backOrder = ref<boolean>(false)
 
 // Back to top button visibility
 const showBackToTop = ref<boolean>(false)
@@ -483,12 +520,14 @@ const openOrderModal = (item: InventoryItem): void => {
     .toISOString()
     .slice(0, 10)
   showOrderModal.value = true
+  backOrder.value = false
 }
 
 const closeOrderModal = (): void => {
   showOrderModal.value = false
   orderItem.value = null
   orderDate.value = ''
+  backOrder.value = false
 }
 
 // Set non-order reason for an item
@@ -590,7 +629,7 @@ const staleItems = computed(() => {
         isStale: updatedAt < thirtyDaysAgo,
       }
     })
-    .filter((item) => item.isStale && item.quantity !== 0)
+    .filter((item) => !item.not_track && item.isStale && item.quantity !== 0)
     .sort((a, b) => b.daysSinceUpdate - a.daysSinceUpdate) // Sort by oldest first
 })
 
@@ -655,7 +694,7 @@ const confirmMarkAsOrdered = async (): Promise<void> => {
   if (!orderItem.value || !orderDate.value) return
 
   // Mark ordered using the store function with selected date
-  await inventoryStore.markAsOrdered(orderItem.value.id, orderDate.value)
+  await inventoryStore.markAsOrdered(orderItem.value.id, orderDate.value, backOrder.value)
 
   if (!inventoryStore.error) {
     closeOrderModal()
