@@ -718,6 +718,7 @@ const closeStockInModal = (): void => {
   stockInItem.value = null
   clearOrderDate.value = true
   notTrackStatus.value = false
+  stockQuantity.value = 0
 }
 
 // Helper function to get item max quantity
