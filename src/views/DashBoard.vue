@@ -186,42 +186,90 @@
           </div>
         </div>
 
-        <!-- Out of Stock Alert (with ID for scrolling) -->
+        <!-- Out of Stock Alert -->
         <div
           v-show="inventoryStore.outOfStockItems.length > 0"
           id="out-of-stock"
           class="bg-red-50 border border-red-200 rounded-md p-3 sm:p-4 mb-4 sm:mb-6 scroll-mt-4"
         >
-          <div class="flex">
-            <div class="flex-shrink-0">
+          <div
+            class="flex items-center justify-between cursor-pointer"
+            @click="toggleSection('outOfStock')"
+          >
+            <div class="flex items-center gap-2">
               <ExclamationCircleIcon class="h-4 w-4 sm:h-5 sm:w-5 text-red-400" />
-            </div>
-            <div class="ml-3 w-full">
               <h3 class="text-sm font-medium text-red-800">Out of Stock Alert</h3>
-              <div class="mt-2 text-sm text-red-700">
-                <p>The following items are completely out of stock:</p>
-                <div class="mt-1 space-y-1">
-                  <div
-                    v-for="item in inventoryStore.outOfStockItems"
-                    :key="item.id"
-                    class="flex items-start py-2 border-b border-red-200 last:border-b-0"
-                  >
-                    <div
-                      class="flex-shrink-0 w-1.5 h-1.5 bg-red-400 rounded-full mr-3 mt-1.5"
-                    ></div>
-                    <div class="flex-1">
-                      <!-- Mobile: Stack vertically, Desktop: Grid layout -->
-                      <div class="block sm:hidden">
+            </div>
+            <ArrowUpIcon
+              class="w-4 h-4 transform transition-transform duration-200"
+              :class="{ 'rotate-180': !isOutOfStockOpen }"
+            />
+          </div>
+
+          <transition name="fade">
+            <div v-show="isOutOfStockOpen" class="mt-2 text-sm text-red-700">
+              <p>The following items are completely out of stock:</p>
+              <div class="mt-1 space-y-1">
+                <div
+                  v-for="item in inventoryStore.outOfStockItems"
+                  :key="item.id"
+                  class="flex items-start py-2 border-b border-red-200 last:border-b-0"
+                >
+                  <div class="flex-shrink-0 w-1.5 h-1.5 bg-red-400 rounded-full mr-3 mt-1.5"></div>
+                  <div class="flex-1">
+                    <!-- Mobile: Stack vertically, Desktop: Grid layout -->
+                    <div class="block sm:hidden">
+                      <div class="font-semibold text-gray-900 break-words">
+                        {{ item.item_name }}
+                      </div>
+                      <div class="text-sm text-red-700 mt-0.5 font-medium">
+                        (0 {{ item.unit }} remaining)
+                      </div>
+                      <!-- Status text and ActionButtonGroup aligned horizontally -->
+                      <div class="mt-1 flex items-center justify-between gap-2">
+                        <!-- Status text -->
+                        <div class="flex items-center">
+                          <div v-if="item.order_date" class="text-sm text-blue-600">
+                            <span v-if="item.back_order" class="inline-flex items-center gap-1">
+                              <ClockIcon class="w-4 h-4" />
+                              Back Ordered: {{ formatDate(item.order_date) }}
+                            </span>
+                            <span v-else class="inline-flex items-center gap-1">
+                              <CalendarIcon class="w-4 h-4" />
+                              Ordered: {{ formatDate(item.order_date) }}
+                            </span>
+                          </div>
+                          <div v-else-if="item.non_order_reason" class="text-sm">
+                            <ReasonBadge :reason="item.non_order_reason" size="sm">
+                              {{ item.non_order_reason }}
+                            </ReasonBadge>
+                          </div>
+                        </div>
+                        <!-- ActionButtonGroup -->
+                        <div class="flex-shrink-0">
+                          <ActionButtonGroup
+                            :actions="getItemActions(item)"
+                            size="sm"
+                            :loading="inventoryStore.loading"
+                            @action-click="(actionKey) => handleActionClick(actionKey, item)"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <div class="hidden sm:flex sm:items-center sm:justify-between">
+                      <div class="flex-1 min-w-0">
                         <div class="font-semibold text-gray-900 break-words">
                           {{ item.item_name }}
                         </div>
                         <div class="text-sm text-red-700 mt-0.5 font-medium">
                           (0 {{ item.unit }} remaining)
                         </div>
+                      </div>
+                      <div class="ml-4 flex-shrink-0">
                         <!-- Status text and ActionButtonGroup aligned horizontally -->
-                        <div class="mt-1 flex items-center justify-between gap-2">
+                        <div class="flex items-center gap-3">
                           <!-- Status text -->
-                          <div class="flex items-center">
+                          <div>
                             <div v-if="item.order_date" class="text-sm text-blue-600">
                               <span v-if="item.back_order" class="inline-flex items-center gap-1">
                                 <ClockIcon class="w-4 h-4" />
@@ -239,7 +287,7 @@
                             </div>
                           </div>
                           <!-- ActionButtonGroup -->
-                          <div class="flex-shrink-0">
+                          <div>
                             <ActionButtonGroup
                               :actions="getItemActions(item)"
                               size="sm"
@@ -249,92 +297,100 @@
                           </div>
                         </div>
                       </div>
-                      <div class="hidden sm:flex sm:items-center sm:justify-between">
-                        <div class="flex-1 min-w-0">
-                          <div class="font-semibold text-gray-900 break-words">
-                            {{ item.item_name }}
-                          </div>
-                          <div class="text-sm text-red-700 mt-0.5 font-medium">
-                            (0 {{ item.unit }} remaining)
-                          </div>
-                        </div>
-                        <div class="ml-4 flex-shrink-0">
-                          <!-- Status text and ActionButtonGroup aligned horizontally -->
-                          <div class="flex items-center gap-3">
-                            <!-- Status text -->
-                            <div>
-                              <div v-if="item.order_date" class="text-sm text-blue-600">
-                                <span v-if="item.back_order" class="inline-flex items-center gap-1">
-                                  <ClockIcon class="w-4 h-4" />
-                                  Back Ordered: {{ formatDate(item.order_date) }}
-                                </span>
-                                <span v-else class="inline-flex items-center gap-1">
-                                  <CalendarIcon class="w-4 h-4" />
-                                  Ordered: {{ formatDate(item.order_date) }}
-                                </span>
-                              </div>
-                              <div v-else-if="item.non_order_reason" class="text-sm">
-                                <ReasonBadge :reason="item.non_order_reason" size="sm">
-                                  {{ item.non_order_reason }}
-                                </ReasonBadge>
-                              </div>
-                            </div>
-                            <!-- ActionButtonGroup -->
-                            <div>
-                              <ActionButtonGroup
-                                :actions="getItemActions(item)"
-                                size="sm"
-                                :loading="inventoryStore.loading"
-                                @action-click="(actionKey) => handleActionClick(actionKey, item)"
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
+          </transition>
         </div>
 
-        <!-- Low Stock Alert (with ID for scrolling) -->
+        <!-- Low Stock Alert -->
         <div
           v-show="inventoryStore.lowStockItems.length > 0"
           id="low-stock"
           class="bg-yellow-50 border border-yellow-200 rounded-md p-3 sm:p-4 mb-4 sm:mb-6 scroll-mt-4"
         >
-          <div class="flex">
-            <div class="flex-shrink-0">
+          <div
+            class="flex items-center justify-between cursor-pointer"
+            @click="toggleSection('lowStock')"
+          >
+            <div class="flex items-center gap-2">
               <WarningTriangleIcon class="h-4 w-4 sm:h-5 sm:w-5 text-yellow-400" />
-            </div>
-            <div class="ml-3 w-full">
               <h3 class="text-sm font-medium text-yellow-800">Low Stock Alert</h3>
-              <div class="mt-2 text-sm text-yellow-700">
-                <p>The following items are running low on stock:</p>
-                <div class="mt-1 space-y-1">
+            </div>
+            <ArrowUpIcon
+              class="w-4 h-4 transform transition-transform duration-200"
+              :class="{ 'rotate-180': !isLowStockOpen }"
+            />
+          </div>
+
+          <transition name="fade">
+            <div v-show="isLowStockOpen" class="mt-2 text-sm text-yellow-700">
+              <p>The following items are running low on stock:</p>
+              <div class="mt-1 space-y-1">
+                <div
+                  v-for="item in inventoryStore.lowStockItems"
+                  :key="item.id"
+                  class="flex items-start py-2 border-b border-yellow-200 last:border-b-0"
+                >
                   <div
-                    v-for="item in inventoryStore.lowStockItems"
-                    :key="item.id"
-                    class="flex items-start py-2 border-b border-yellow-200 last:border-b-0"
-                  >
-                    <div
-                      class="flex-shrink-0 w-1.5 h-1.5 bg-yellow-400 rounded-full mr-3 mt-1.5"
-                    ></div>
-                    <div class="flex-1">
-                      <!-- Mobile: Stack vertically, Desktop: Grid layout -->
-                      <div class="block sm:hidden">
+                    class="flex-shrink-0 w-1.5 h-1.5 bg-yellow-400 rounded-full mr-3 mt-1.5"
+                  ></div>
+                  <div class="flex-1">
+                    <!-- Mobile: Stack vertically, Desktop: Grid layout -->
+                    <div class="block sm:hidden">
+                      <div class="font-semibold text-gray-900 break-words">
+                        {{ item.item_name }}
+                      </div>
+                      <div class="text-sm text-yellow-700 font-medium mt-0.5">
+                        ({{ item.quantity }} {{ item.unit }} remaining)
+                      </div>
+                      <!-- Status text and ActionButtonGroup aligned horizontally -->
+                      <div class="mt-1 flex items-center justify-between gap-2">
+                        <!-- Status text -->
+                        <div class="flex items-center">
+                          <div v-if="item.order_date" class="text-sm text-blue-600">
+                            <span v-if="item.back_order" class="inline-flex items-center gap-1">
+                              <ClockIcon class="w-4 h-4" />
+                              Back Ordered: {{ formatDate(item.order_date) }}
+                            </span>
+                            <span v-else class="inline-flex items-center gap-1">
+                              <CalendarIcon class="w-4 h-4" />
+                              Ordered: {{ formatDate(item.order_date) }}
+                            </span>
+                          </div>
+                          <div v-else-if="item.non_order_reason" class="text-sm">
+                            <ReasonBadge :reason="item.non_order_reason" size="sm">
+                              {{ item.non_order_reason }}
+                            </ReasonBadge>
+                          </div>
+                        </div>
+                        <!-- ActionButtonGroup -->
+                        <div class="flex-shrink-0">
+                          <ActionButtonGroup
+                            :actions="getItemActions(item)"
+                            size="sm"
+                            :loading="inventoryStore.loading"
+                            @action-click="(actionKey) => handleActionClick(actionKey, item)"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <div class="hidden sm:flex sm:items-center sm:justify-between">
+                      <div class="flex-1 min-w-0">
                         <div class="font-semibold text-gray-900 break-words">
                           {{ item.item_name }}
                         </div>
                         <div class="text-sm text-yellow-700 font-medium mt-0.5">
                           ({{ item.quantity }} {{ item.unit }} remaining)
                         </div>
+                      </div>
+                      <div class="ml-4 flex-shrink-0">
                         <!-- Status text and ActionButtonGroup aligned horizontally -->
-                        <div class="mt-1 flex items-center justify-between gap-2">
+                        <div class="flex items-center gap-3">
                           <!-- Status text -->
-                          <div class="flex items-center">
+                          <div>
                             <div v-if="item.order_date" class="text-sm text-blue-600">
                               <span v-if="item.back_order" class="inline-flex items-center gap-1">
                                 <ClockIcon class="w-4 h-4" />
@@ -352,7 +408,7 @@
                             </div>
                           </div>
                           <!-- ActionButtonGroup -->
-                          <div class="flex-shrink-0">
+                          <div>
                             <ActionButtonGroup
                               :actions="getItemActions(item)"
                               size="sm"
@@ -362,82 +418,58 @@
                           </div>
                         </div>
                       </div>
-                      <div class="hidden sm:flex sm:items-center sm:justify-between">
-                        <div class="flex-1 min-w-0">
-                          <div class="font-semibold text-gray-900 break-words">
-                            {{ item.item_name }}
-                          </div>
-                          <div class="text-sm text-yellow-700 font-medium mt-0.5">
-                            ({{ item.quantity }} {{ item.unit }} remaining)
-                          </div>
-                        </div>
-                        <div class="ml-4 flex-shrink-0">
-                          <!-- Status text and ActionButtonGroup aligned horizontally -->
-                          <div class="flex items-center gap-3">
-                            <!-- Status text -->
-                            <div>
-                              <div v-if="item.order_date" class="text-sm text-blue-600">
-                                <span v-if="item.back_order" class="inline-flex items-center gap-1">
-                                  <ClockIcon class="w-4 h-4" />
-                                  Back Ordered: {{ formatDate(item.order_date) }}
-                                </span>
-                                <span v-else class="inline-flex items-center gap-1">
-                                  <CalendarIcon class="w-4 h-4" />
-                                  Ordered: {{ formatDate(item.order_date) }}
-                                </span>
-                              </div>
-                              <div v-else-if="item.non_order_reason" class="text-sm">
-                                <ReasonBadge :reason="item.non_order_reason" size="sm">
-                                  {{ item.non_order_reason }}
-                                </ReasonBadge>
-                              </div>
-                            </div>
-                            <!-- ActionButtonGroup -->
-                            <div>
-                              <ActionButtonGroup
-                                :actions="getItemActions(item)"
-                                size="sm"
-                                :loading="inventoryStore.loading"
-                                @action-click="(actionKey) => handleActionClick(actionKey, item)"
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
+          </transition>
         </div>
 
-        <!-- Stale Inventory Alert (with ID for scrolling) -->
+        <!-- Stale Inventory Alert -->
         <div
           v-show="staleItems.length > 0"
           id="stale-inventory"
           class="bg-purple-50 border border-purple-200 rounded-md p-3 sm:p-4 mb-4 sm:mb-6 scroll-mt-4"
         >
-          <div class="flex">
-            <div class="flex-shrink-0">
+          <div
+            class="flex items-center justify-between cursor-pointer"
+            @click="toggleSection('staleInventory')"
+          >
+            <div class="flex items-center gap-2">
               <ClockSolidIcon class="h-4 w-4 sm:h-5 sm:w-5 text-purple-400" />
-            </div>
-            <div class="ml-3 w-full">
               <h3 class="text-sm font-medium text-purple-800">Stale Inventory Alert</h3>
-              <div class="mt-2 text-sm text-purple-700">
-                <p>The following items have not been updated for more than a month:</p>
-                <div class="mt-1 space-y-1">
+            </div>
+            <ArrowUpIcon
+              class="w-4 h-4 transform transition-transform duration-200"
+              :class="{ 'rotate-180': !isStaleInventoryOpen }"
+            />
+          </div>
+
+          <transition name="fade">
+            <div v-show="isStaleInventoryOpen" class="mt-2 text-sm text-purple-700">
+              <p>The following items have not been updated for more than a month:</p>
+              <div class="mt-1 space-y-1">
+                <div
+                  v-for="item in staleItems"
+                  :key="item.id"
+                  class="flex items-start py-2 border-b border-purple-200 last:border-b-0"
+                >
                   <div
-                    v-for="item in staleItems"
-                    :key="item.id"
-                    class="flex items-start py-2 border-b border-purple-200 last:border-b-0"
-                  >
-                    <div
-                      class="flex-shrink-0 w-1.5 h-1.5 bg-purple-400 rounded-full mr-3 mt-1.5"
-                    ></div>
-                    <div class="flex-1">
-                      <!-- Mobile: Stack vertically, Desktop: Grid layout -->
-                      <div class="block sm:hidden">
+                    class="flex-shrink-0 w-1.5 h-1.5 bg-purple-400 rounded-full mr-3 mt-1.5"
+                  ></div>
+                  <div class="flex-1">
+                    <!-- Mobile: Stack vertically, Desktop: Grid layout -->
+                    <div class="block sm:hidden">
+                      <div class="font-semibold text-gray-900 break-words">
+                        {{ item.item_name }}
+                      </div>
+                      <div class="text-sm text-purple-700 font-medium mt-0.5">
+                        ({{ formatDuration(item.daysSinceUpdate) }} ago)
+                      </div>
+                    </div>
+                    <div class="hidden sm:flex sm:items-center sm:justify-between">
+                      <div class="flex-1 min-w-0">
                         <div class="font-semibold text-gray-900 break-words">
                           {{ item.item_name }}
                         </div>
@@ -445,22 +477,12 @@
                           ({{ formatDuration(item.daysSinceUpdate) }} ago)
                         </div>
                       </div>
-                      <div class="hidden sm:flex sm:items-center sm:justify-between">
-                        <div class="flex-1 min-w-0">
-                          <div class="font-semibold text-gray-900 break-words">
-                            {{ item.item_name }}
-                          </div>
-                          <div class="text-sm text-purple-700 font-medium mt-0.5">
-                            ({{ formatDuration(item.daysSinceUpdate) }} ago)
-                          </div>
-                        </div>
-                      </div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
+          </transition>
         </div>
       </div>
     </div>
@@ -509,6 +531,25 @@ const showOrderModal = ref<boolean>(false)
 const orderItem = ref<InventoryItem | null>(null)
 const orderDate = ref<string>('')
 const backOrder = ref<boolean>(false)
+
+// Dropdown toggle states
+const isOutOfStockOpen = ref(false)
+const isLowStockOpen = ref(false)
+const isStaleInventoryOpen = ref(false)
+
+const toggleSection = (section: 'outOfStock' | 'lowStock' | 'staleInventory') => {
+  switch (section) {
+    case 'outOfStock':
+      isOutOfStockOpen.value = !isOutOfStockOpen.value
+      break
+    case 'lowStock':
+      isLowStockOpen.value = !isLowStockOpen.value
+      break
+    case 'staleInventory':
+      isStaleInventoryOpen.value = !isStaleInventoryOpen.value
+      break
+  }
+}
 
 // Back to top button visibility
 const showBackToTop = ref<boolean>(false)
