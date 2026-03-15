@@ -1,19 +1,11 @@
-export interface StockMovement {
-  id: string
-  item_id: string
-  item_name: string
-  quantity: number
-  movement_type: 'stock_in' | 'stock_out'
-  remark: string
+import type { Database } from '@/types/database.types'
+
+// Extend database types with additional fields used in the app
+export type StockMovement = Database['public']['Tables']['stock_movements']['Row'] & {
   unit: string
-  created_at: string
-  updated_at: string
 }
 
-export interface NewStockMovement {
-  item_id: string
-  item_name: string
-  quantity: number
-  movement_type: 'stock_in' | 'stock_out'
-  remark?: string
-}
+export type NewStockMovement = Omit<
+  Database['public']['Tables']['stock_movements']['Insert'],
+  'unit'
+>

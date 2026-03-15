@@ -1,15 +1,19 @@
 import { supabase } from '@/lib/supabase'
 import type { NewStockRequest, StockRequest } from '@/types/stockRequests'
+import type { RealtimeChannel } from '@supabase/supabase-js'
 import { defineStore } from 'pinia'
-import { onUnmounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useInventoryStore } from './inventory'
 
 export const useStockRequestsStore = defineStore('stockRequests', () => {
   // State
   const requests = ref<StockRequest[]>([])
-  const loading = ref<boolean>(false)
+  const loadingCount = ref(0)
+  const loading = computed(() => loadingCount.value > 0)
   const error = ref<string | null>(null)
   const unitCache = ref<Record<string, string | null>>({})
+  let channel: RealtimeChannel | null = null
+  let isInitialized = false
 
   // Helper function to get unit for an item (with caching)
   const getUnitForItem = async (itemId: string): Promise<string | null> => {
@@ -32,7 +36,7 @@ export const useStockRequestsStore = defineStore('stockRequests', () => {
 
   // Actions
   const fetchRequests = async (): Promise<void> => {
-    loading.value = true
+    loadingCount.value++
     error.value = null
     try {
       const { data, error: supabaseError } = await supabase
@@ -58,12 +62,12 @@ export const useStockRequestsStore = defineStore('stockRequests', () => {
       error.value = err instanceof Error ? err.message : 'An error occurred while fetching requests'
       console.error('Error fetching requests:', err)
     } finally {
-      loading.value = false
+      loadingCount.value--
     }
   }
 
   const addRequest = async (request: NewStockRequest): Promise<void> => {
-    loading.value = true
+    loadingCount.value++
     error.value = null
     try {
       const { error: supabaseError } = await supabase.from('stock_requests').insert([
@@ -81,12 +85,12 @@ export const useStockRequestsStore = defineStore('stockRequests', () => {
       error.value = err instanceof Error ? err.message : 'An error occurred while adding request'
       console.error('Error adding request:', err)
     } finally {
-      loading.value = false
+      loadingCount.value--
     }
   }
 
   const removeRequest = async (requestId: string): Promise<void> => {
-    loading.value = true
+    loadingCount.value++
     error.value = null
     try {
       const { error: supabaseError } = await supabase
@@ -95,22 +99,26 @@ export const useStockRequestsStore = defineStore('stockRequests', () => {
         .eq('id', requestId)
 
       if (supabaseError) throw supabaseError
+
+      // Optimistic local removal
+      const index = requests.value.findIndex((r) => r.id === requestId)
+      if (index !== -1) requests.value.splice(index, 1)
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'An error occurred while removing request'
       console.error('Error removing request:', err)
     } finally {
-      loading.value = false
+      loadingCount.value--
     }
   }
 
   const approveRequest = async (requestId: string): Promise<void> => {
-    loading.value = true
+    loadingCount.value++
     error.value = null
 
-    const item = requests.value.find((request) => request.id === requestId)
-    if (!item) throw new Error('Item not found')
-
     try {
+      const item = requests.value.find((request) => request.id === requestId)
+      if (!item) throw new Error('Item not found')
+
       const { data, error: supabaseError } = await supabase
         .from('stock_requests')
         .update({
@@ -123,24 +131,31 @@ export const useStockRequestsStore = defineStore('stockRequests', () => {
 
       if (supabaseError) throw supabaseError
 
+      // Optimistic local update
       if (data) {
-        const inventoryStore = useInventoryStore()
-        inventoryStore.stockOut(item.item_id, item.quantity, 'Stock Request')
+        const index = requests.value.findIndex((r) => r.id === requestId)
+        if (index !== -1) {
+          requests.value[index] = { ...requests.value[index], ...data }
+        }
       }
+
+      // Await stockOut to ensure inventory is deducted before continuing
+      const inventoryStore = useInventoryStore()
+      await inventoryStore.stockOut(item.item_id, item.quantity, 'Stock Request')
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'An error occurred while approving request'
       console.error('Error approving request', err)
     } finally {
-      loading.value = false
+      loadingCount.value--
     }
   }
 
   const rejectRequest = async (requestId: string, remark?: string): Promise<void> => {
-    loading.value = true
+    loadingCount.value++
     error.value = null
 
     try {
-      const { error: supabaseError } = await supabase
+      const { data, error: supabaseError } = await supabase
         .from('stock_requests')
         .update({
           status: 'Rejected',
@@ -148,13 +163,23 @@ export const useStockRequestsStore = defineStore('stockRequests', () => {
           remark: remark || '',
         })
         .eq('id', requestId)
+        .select()
+        .single()
 
       if (supabaseError) throw supabaseError
+
+      // Optimistic local update
+      if (data) {
+        const index = requests.value.findIndex((r) => r.id === requestId)
+        if (index !== -1) {
+          requests.value[index] = { ...requests.value[index], ...data }
+        }
+      }
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'An error occurred while rejecting request'
       console.error('Error rejecting request', err)
     } finally {
-      loading.value = false
+      loadingCount.value--
     }
   }
 
@@ -163,7 +188,7 @@ export const useStockRequestsStore = defineStore('stockRequests', () => {
     newQuantity?: number,
     newRemark?: string,
   ): Promise<void> => {
-    loading.value = true
+    loadingCount.value++
     error.value = null
 
     try {
@@ -174,17 +199,27 @@ export const useStockRequestsStore = defineStore('stockRequests', () => {
       if (newQuantity !== undefined) updateData.quantity = newQuantity
       if (newRemark !== undefined) updateData.remark = newRemark
 
-      const { error: supabaseError } = await supabase
+      const { data, error: supabaseError } = await supabase
         .from('stock_requests')
         .update(updateData)
         .eq('id', requestId)
+        .select()
+        .single()
 
       if (supabaseError) throw supabaseError
+
+      // Optimistic local update
+      if (data) {
+        const index = requests.value.findIndex((r) => r.id === requestId)
+        if (index !== -1) {
+          requests.value[index] = { ...requests.value[index], ...data }
+        }
+      }
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'An error occurred while updating request'
       console.error('Error updating request:', err)
     } finally {
-      loading.value = false
+      loadingCount.value--
     }
   }
 
@@ -194,7 +229,7 @@ export const useStockRequestsStore = defineStore('stockRequests', () => {
       (request) =>
         request.item_name.toLowerCase().includes(query.toLowerCase()) ||
         request.item_id.toLowerCase().includes(query.toLowerCase()) ||
-        request.remark.toLowerCase().includes(query.toLowerCase()),
+        request.remark?.toLowerCase().includes(query.toLowerCase()),
     )
   }
 
@@ -216,55 +251,74 @@ export const useStockRequestsStore = defineStore('stockRequests', () => {
     return requests.value.filter((request) => request.status === 'Pending')
   }
 
-  const initializeStore = async (): Promise<void> => {
-    await fetchRequests()
+  // Subscription lifecycle
+  const startSubscription = () => {
+    if (channel) return
+
+    channel = supabase
+      .channel('update-stock-requests')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'stock_requests' },
+        async (payload) => {
+          if (payload.eventType === 'INSERT') {
+            // Dedup: skip if already in local state
+            const exists = requests.value.some((r) => r.id === payload.new.id)
+            if (!exists) {
+              const unit = await getUnitForItem(payload.new.item_id)
+              const newRequest: StockRequest = {
+                ...payload.new,
+                unit: unit || '',
+              } as StockRequest
+              requests.value.unshift(newRequest)
+            }
+          } else if (payload.eventType === 'UPDATE') {
+            const index = requests.value.findIndex((r) => r.id === payload.new.id)
+            if (index !== -1) {
+              const data: StockRequest = {
+                id: payload.new.id,
+                item_id: payload.new.item_id,
+                item_name: payload.new.item_name,
+                quantity: payload.new.quantity,
+                remark: payload.new.remark,
+                status: payload.new.status,
+                unit: requests.value[index]?.unit || '',
+                created_at: payload.new.created_at,
+                updated_at: payload.new.updated_at,
+              }
+              requests.value[index] = data
+            }
+          } else if (payload.eventType === 'DELETE') {
+            const index = requests.value.findIndex((r) => r.id === payload.old.id)
+            if (index !== -1) requests.value.splice(index, 1)
+          }
+
+          // Sort by created_at descending
+          requests.value.sort(
+            (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+          )
+        },
+      )
+      .subscribe()
   }
 
-  // Real-time subscription
-  const channel = supabase
-    .channel('update-stock-requests')
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'stock_requests' },
-      async (payload) => {
-        if (payload.eventType === 'INSERT') {
-          // Get unit data for the new request (uses cache with fallback)
-          const unit = await getUnitForItem(payload.new.item_id)
-          const newRequest: StockRequest = {
-            ...payload.new,
-            unit: unit || '',
-          } as StockRequest
-          requests.value.unshift(newRequest)
-        } else if (payload.eventType === 'UPDATE') {
-          const index = requests.value.findIndex((r) => r.id === payload.new.id)
-          const data: StockRequest = {
-            id: payload.new.id,
-            item_id: payload.new.item_id,
-            item_name: payload.new.item_name,
-            quantity: payload.new.quantity,
-            remark: payload.new.remark,
-            status: payload.new.status,
-            unit: requests.value[index]?.unit || '',
-            created_at: payload.new.created_at,
-            updated_at: payload.new.updated_at,
-          }
-          if (index !== -1) requests.value[index] = data
-        } else if (payload.eventType === 'DELETE') {
-          const index = requests.value.findIndex((r) => r.id === payload.old.id)
-          if (index !== -1) requests.value.splice(index, 1)
-        }
+  const initializeStore = async (): Promise<void> => {
+    if (isInitialized) return
+    isInitialized = true
+    await fetchRequests()
+    startSubscription()
+  }
 
-        // Sort by created_at descending
-        requests.value.sort(
-          (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-        )
-      },
-    )
-    .subscribe()
-
-  onUnmounted(() => {
-    channel.unsubscribe()
-  })
+  const cleanup = () => {
+    if (channel) {
+      channel.unsubscribe()
+      channel = null
+    }
+    requests.value = []
+    unitCache.value = {}
+    error.value = null
+    isInitialized = false
+  }
 
   return {
     // State
@@ -284,5 +338,6 @@ export const useStockRequestsStore = defineStore('stockRequests', () => {
     filterRequestsByDate,
     getPendingRequests,
     initializeStore,
+    cleanup,
   }
 })

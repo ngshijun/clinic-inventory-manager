@@ -86,7 +86,10 @@
           </div>
           <div class="mt-4">
             <FormField
-              v-model="newRequest.remark"
+              :model-value="(newRequest.remark ?? undefined) as string | undefined"
+              @update:model-value="
+                (value) => (newRequest.remark = value as string | null | undefined)
+              "
               type="textarea"
               label="Remark (Optional)"
               :rows="3"
@@ -489,7 +492,7 @@ const newRequest = ref<NewStockRequest & { quantity: number }>({
   item_id: '',
   item_name: '',
   quantity: 1,
-  remark: '',
+  remark: undefined,
 })
 
 // Sorting configuration

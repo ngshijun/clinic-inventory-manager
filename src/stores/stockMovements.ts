@@ -1,14 +1,18 @@
 import { supabase } from '@/lib/supabase'
 import type { NewStockMovement, StockMovement } from '@/types/stockMovements'
+import type { RealtimeChannel } from '@supabase/supabase-js'
 import { defineStore } from 'pinia'
-import { onUnmounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 
 export const useStockMovementsStore = defineStore('stockMovements', () => {
   // State
   const movements = ref<StockMovement[]>([])
-  const loading = ref<boolean>(false)
+  const loadingCount = ref(0)
+  const loading = computed(() => loadingCount.value > 0)
   const error = ref<string | null>(null)
   const unitCache = ref<Record<string, string | null>>({})
+  let channel: RealtimeChannel | null = null
+  let isInitialized = false
 
   // Helper function to get unit for an item (with caching)
   const getUnitForItem = async (itemId: string): Promise<string | null> => {
@@ -31,7 +35,7 @@ export const useStockMovementsStore = defineStore('stockMovements', () => {
 
   // Actions
   const fetchMovements = async (): Promise<void> => {
-    loading.value = true
+    loadingCount.value++
     error.value = null
     try {
       const { data, error: supabaseError } = await supabase
@@ -43,7 +47,7 @@ export const useStockMovementsStore = defineStore('stockMovements', () => {
 
       const transformedData: StockMovement[] = data?.map((item) => ({
         ...item,
-        unit: item.inventory?.unit || null,
+        unit: item.inventory?.unit || '',
       }))
       movements.value = transformedData || []
 
@@ -58,7 +62,7 @@ export const useStockMovementsStore = defineStore('stockMovements', () => {
         err instanceof Error ? err.message : 'An error occurred while fetching movements'
       console.error('Error fetching movements:', err)
     } finally {
-      loading.value = false
+      loadingCount.value--
     }
   }
 
@@ -82,23 +86,33 @@ export const useStockMovementsStore = defineStore('stockMovements', () => {
   }
 
   const updateRemark = async (movementId: string, newRemark: string): Promise<void> => {
-    loading.value = true
+    loadingCount.value++
     error.value = null
     try {
-      const { error: supabaseError } = await supabase
+      const { data, error: supabaseError } = await supabase
         .from('stock_movements')
         .update({
           remark: newRemark,
           updated_at: new Date().toISOString(),
         })
         .eq('id', movementId)
+        .select()
+        .single()
 
       if (supabaseError) throw supabaseError
+
+      // Optimistic local update
+      if (data) {
+        const index = movements.value.findIndex((m) => m.id === movementId)
+        if (index !== -1) {
+          movements.value[index] = { ...movements.value[index], ...data }
+        }
+      }
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'An error occurred while updating remark'
       console.error('Error updating remark:', err)
     } finally {
-      loading.value = false
+      loadingCount.value--
     }
   }
 
@@ -109,53 +123,74 @@ export const useStockMovementsStore = defineStore('stockMovements', () => {
     )
   }
 
-  const initializeStore = async (): Promise<void> => {
-    await fetchMovements()
+  // Subscription lifecycle
+  const startSubscription = () => {
+    if (channel) return
+
+    channel = supabase
+      .channel('update-stock-movements')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'stock_movements' },
+        async (payload) => {
+          if (payload.eventType === 'INSERT') {
+            // Dedup: skip if already in local state
+            const exists = movements.value.some((m) => m.id === payload.new.id)
+            if (!exists) {
+              const unit = await getUnitForItem(payload.new.item_id)
+              const newMovement: StockMovement = {
+                ...payload.new,
+                unit,
+              } as StockMovement
+              movements.value.unshift(newMovement as StockMovement)
+            }
+          } else if (payload.eventType === 'UPDATE') {
+            const index = movements.value.findIndex((m) => m.id === payload.new.id)
+            if (index !== -1) {
+              const data: StockMovement = {
+                id: payload.new.id,
+                item_id: payload.new.item_id,
+                item_name: payload.new.item_name,
+                quantity: payload.new.quantity,
+                movement_type: payload.new.movement_type,
+                remark: payload.new.remark,
+                unit: movements.value[index].unit,
+                created_at: payload.new.created_at,
+                updated_at: payload.new.updated_at,
+              }
+              movements.value[index] = data as StockMovement
+            }
+          } else if (payload.eventType === 'DELETE') {
+            const index = movements.value.findIndex((m) => m.id === payload.old.id)
+            if (index !== -1) movements.value.splice(index, 1)
+          }
+
+          // Sort by created_at descending
+          movements.value.sort(
+            (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+          )
+        },
+      )
+      .subscribe()
   }
 
-  const channel = supabase
-    .channel('update-stock-movements')
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'stock_movements' },
-      async (payload) => {
-        if (payload.eventType === 'INSERT') {
-          const unit = await getUnitForItem(payload.new.item_id)
-          const newMovement: StockMovement = {
-            ...payload.new,
-            unit,
-          } as StockMovement
-          movements.value.unshift(newMovement as StockMovement)
-        } else if (payload.eventType === 'UPDATE') {
-          const index = movements.value.findIndex((m) => m.id === payload.new.id)
-          const data: StockMovement = {
-            id: payload.new.id,
-            item_id: payload.new.item_id,
-            item_name: payload.new.item_name,
-            quantity: payload.new.quantity,
-            movement_type: payload.new.movement_type,
-            remark: payload.new.remark,
-            unit: movements.value[index].unit,
-            created_at: payload.new.created_at,
-            updated_at: payload.new.updated_at,
-          }
-          if (index !== -1) movements.value[index] = data as StockMovement
-        } else if (payload.eventType === 'DELETE') {
-          const index = movements.value.findIndex((m) => m.id === payload.old.id)
-          if (index !== -1) movements.value.splice(index, 1)
-        }
+  const initializeStore = async (): Promise<void> => {
+    if (isInitialized) return
+    isInitialized = true
+    await fetchMovements()
+    startSubscription()
+  }
 
-        // Sort by created_at descending
-        movements.value.sort(
-          (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-        )
-      },
-    )
-    .subscribe()
-
-  onUnmounted(() => {
-    channel.unsubscribe()
-  })
+  const cleanup = () => {
+    if (channel) {
+      channel.unsubscribe()
+      channel = null
+    }
+    movements.value = []
+    unitCache.value = {}
+    error.value = null
+    isInitialized = false
+  }
 
   return {
     // State
@@ -169,5 +204,6 @@ export const useStockMovementsStore = defineStore('stockMovements', () => {
     updateRemark,
     searchMovements,
     initializeStore,
+    cleanup,
   }
 })

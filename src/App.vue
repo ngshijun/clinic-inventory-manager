@@ -257,7 +257,7 @@
 
 <script setup lang="ts">
 import { useAuthStore } from '@/stores/auth'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useInventoryStore } from './stores/inventory'
 import { useStockMovementsStore } from './stores/stockMovements'
@@ -284,24 +284,53 @@ const pendingRequestsCount = computed(() => {
   return stockRequestsStore.requests.filter((request) => request.status === 'Pending').length
 })
 
-const handleLogout = () => {
-  logout()
-  router.push('/')
-}
-
-// Initialize auth state and close mobile menu when clicking outside
-onMounted(() => {
-  initAuth()
+const initStores = () => {
   inventoryStore.initializeStore()
   stockMovementStore.initializeStore()
   stockRequestsStore.initializeStore()
   payrollStore.initializeStore()
+}
 
-  document.addEventListener('click', (e) => {
-    const nav = document.querySelector('nav')
-    if (nav && !nav.contains(e.target as Node)) {
-      mobileMenuOpen.value = false
-    }
-  })
+const cleanupStores = () => {
+  inventoryStore.cleanup()
+  stockMovementStore.cleanup()
+  stockRequestsStore.cleanup()
+  payrollStore.cleanup()
+}
+
+const handleLogout = () => {
+  cleanupStores()
+  logout()
+  router.push('/')
+}
+
+// React to auth state changes (login triggers init, logout triggers cleanup)
+watch(isAuthenticated, (newVal) => {
+  if (newVal) {
+    initStores()
+  }
+})
+
+// Close mobile menu when clicking outside nav
+const handleOutsideClick = (e: MouseEvent) => {
+  const nav = document.querySelector('nav')
+  if (nav && !nav.contains(e.target as Node)) {
+    mobileMenuOpen.value = false
+  }
+}
+
+// Initialize auth state on mount
+onMounted(() => {
+  initAuth()
+  // If already authenticated from localStorage, init stores
+  // (watch won't fire if isAuthenticated was already true before watch was set up)
+  if (isAuthenticated.value) {
+    initStores()
+  }
+  document.addEventListener('click', handleOutsideClick)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleOutsideClick)
 })
 </script>

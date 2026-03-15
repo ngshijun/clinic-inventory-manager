@@ -1,9 +1,10 @@
 // stores/payroll.ts
 import { supabase } from '@/lib/supabase'
-import type { Database } from '@/types/database'
+import type { Database } from '@/types/database.types'
 import type { PayrollData } from '@/types/payroll'
+import type { RealtimeChannel } from '@supabase/supabase-js'
 import { defineStore } from 'pinia'
-import { computed, onUnmounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 
 type Employee = Database['public']['Tables']['payroll']['Row']
 type EmployeeInsert = Database['public']['Tables']['payroll']['Insert']
@@ -12,8 +13,11 @@ type EmployeeUpdate = Database['public']['Tables']['payroll']['Update']
 export const usePayrollStore = defineStore('payroll', () => {
   // State
   const employees = ref<Employee[]>([])
-  const loading = ref<boolean>(false)
+  const loadingCount = ref(0)
+  const loading = computed(() => loadingCount.value > 0)
   const error = ref<string | null>(null)
+  let channel: RealtimeChannel | null = null
+  let isInitialized = false
 
   // Getters (computed)
   const totalEmployees = computed((): number => {
@@ -26,7 +30,7 @@ export const usePayrollStore = defineStore('payroll', () => {
 
   // Actions
   const fetchEmployees = async (): Promise<void> => {
-    loading.value = true
+    loadingCount.value++
     error.value = null
     try {
       const { data, error: supabaseError } = await supabase
@@ -41,12 +45,12 @@ export const usePayrollStore = defineStore('payroll', () => {
         err instanceof Error ? err.message : 'An error occurred while fetching employees'
       console.error('Error fetching employees:', err)
     } finally {
-      loading.value = false
+      loadingCount.value--
     }
   }
 
   const addEmployee = async (newEmployee: EmployeeInsert): Promise<Employee | null> => {
-    loading.value = true
+    loadingCount.value++
     error.value = null
     try {
       const { data, error: supabaseError } = await supabase
@@ -56,13 +60,23 @@ export const usePayrollStore = defineStore('payroll', () => {
         .single()
 
       if (supabaseError) throw supabaseError
+
+      // Optimistic local update
+      if (data) {
+        const exists = employees.value.some((e) => e.id === data.id)
+        if (!exists) {
+          employees.value.push(data)
+          employees.value.sort((a, b) => a.name.localeCompare(b.name))
+        }
+      }
+
       return data
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'An error occurred while adding employee'
       console.error('Error adding employee:', err)
       return null
     } finally {
-      loading.value = false
+      loadingCount.value--
     }
   }
 
@@ -70,7 +84,7 @@ export const usePayrollStore = defineStore('payroll', () => {
     employeeId: string,
     updates: EmployeeUpdate,
   ): Promise<Employee | null> => {
-    loading.value = true
+    loadingCount.value++
     error.value = null
     try {
       const { data, error: supabaseError } = await supabase
@@ -81,30 +95,42 @@ export const usePayrollStore = defineStore('payroll', () => {
         .single()
 
       if (supabaseError) throw supabaseError
+
+      // Optimistic local update
+      if (data) {
+        const index = employees.value.findIndex((e) => e.id === employeeId)
+        if (index !== -1) employees.value[index] = data
+      }
+
       return data
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'An error occurred while updating employee'
       console.error('Error updating employee:', err)
       return null
     } finally {
-      loading.value = false
+      loadingCount.value--
     }
   }
 
   const deleteEmployee = async (employeeId: string): Promise<boolean> => {
-    loading.value = true
+    loadingCount.value++
     error.value = null
     try {
       const { error: supabaseError } = await supabase.from('payroll').delete().eq('id', employeeId)
 
       if (supabaseError) throw supabaseError
+
+      // Optimistic local removal
+      const index = employees.value.findIndex((e) => e.id === employeeId)
+      if (index !== -1) employees.value.splice(index, 1)
+
       return true
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'An error occurred while deleting employee'
       console.error('Error deleting employee:', err)
       return false
     } finally {
-      loading.value = false
+      loadingCount.value--
     }
   }
 
@@ -267,33 +293,51 @@ export const usePayrollStore = defineStore('payroll', () => {
     return payrollItem.basicSalary - totalDeductions
   }
 
-  // Initialize store by fetching employees
-  const initializeStore = async (): Promise<void> => {
-    await fetchEmployees()
+  // Subscription lifecycle
+  const startSubscription = () => {
+    if (channel) return
+
+    channel = supabase
+      .channel('update-payroll')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'payroll' }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          // Dedup: skip if already in local state
+          const exists = employees.value.some((e) => e.id === payload.new.id)
+          if (!exists) {
+            employees.value.push(payload.new as Employee)
+          }
+        } else if (payload.eventType === 'UPDATE') {
+          const index = employees.value.findIndex((employee) => employee.id === payload.new.id)
+          if (index !== -1) employees.value[index] = payload.new as Employee
+        } else if (payload.eventType === 'DELETE') {
+          const index = employees.value.findIndex((employee) => employee.id === payload.old.id)
+          if (index !== -1) employees.value.splice(index, 1)
+        }
+
+        // Sort by name ascending
+        employees.value.sort((a, b) => a.name.localeCompare(b.name))
+      })
+      .subscribe()
   }
 
-  // Event listener for real-time updates
-  const channel = supabase
-    .channel('update-payroll')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'payroll' }, (payload) => {
-      if (payload.eventType === 'INSERT') {
-        employees.value.unshift(payload.new as Employee)
-      } else if (payload.eventType === 'UPDATE') {
-        const index = employees.value.findIndex((employee) => employee.id === payload.new.id)
-        if (index !== -1) employees.value[index] = payload.new as Employee
-      } else if (payload.eventType === 'DELETE') {
-        const index = employees.value.findIndex((employee) => employee.id === payload.old.id)
-        if (index !== -1) employees.value.splice(index, 1)
-      }
+  // Initialize store by fetching employees and starting subscription
+  const initializeStore = async (): Promise<void> => {
+    if (isInitialized) return
+    isInitialized = true
+    await fetchEmployees()
+    startSubscription()
+  }
 
-      // Sort by name ascending
-      employees.value.sort((a, b) => a.name.localeCompare(b.name))
-    })
-    .subscribe()
-
-  onUnmounted(() => {
-    channel.unsubscribe()
-  })
+  // Cleanup: unsubscribe and reset state
+  const cleanup = () => {
+    if (channel) {
+      channel.unsubscribe()
+      channel = null
+    }
+    employees.value = []
+    error.value = null
+    isInitialized = false
+  }
 
   return {
     // State
@@ -316,6 +360,7 @@ export const usePayrollStore = defineStore('payroll', () => {
     calculateEPF,
     calculateNetSalary,
     initializeStore,
+    cleanup,
   }
 })
 
