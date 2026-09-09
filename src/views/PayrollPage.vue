@@ -353,6 +353,7 @@
                 Generate Excel
               </button>
               <button
+                v-if="recordSaved"
                 @click="downloadAllPayslips"
                 class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
               >
@@ -380,6 +381,18 @@
             >
               View Payroll History
             </router-link>
+          </div>
+
+          <!-- Payslips stay locked until the figures are frozen into a record -->
+          <div
+            v-if="!recordSaved"
+            class="mb-4 bg-amber-50 border border-amber-200 rounded-md p-3 flex items-center gap-2"
+          >
+            <WarningTriangleIcon class="w-4 h-4 text-amber-500 flex-shrink-0" />
+            <span class="text-sm text-amber-800">
+              Enter PCB and CP38, then {{ existingRun ? 'update' : 'save' }} the record to download
+              payslips.
+            </span>
           </div>
 
           <!-- Desktop Table -->
@@ -428,6 +441,7 @@
                     EIS Employee
                   </th>
                   <th
+                    v-if="lindung24Applies"
                     class="px-2 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
                   >
                     Lindung 24 Jam
@@ -448,6 +462,7 @@
                     Net Salary
                   </th>
                   <th
+                    v-if="recordSaved"
                     class="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
                   >
                     Payslip
@@ -480,7 +495,10 @@
                   <td class="px-2 py-4 whitespace-nowrap text-sm text-gray-600 text-right">
                     RM {{ formatCurrency(payroll.eisEmployee) }}
                   </td>
-                  <td class="px-2 py-4 whitespace-nowrap text-sm text-gray-600 text-right">
+                  <td
+                    v-if="lindung24Applies"
+                    class="px-2 py-4 whitespace-nowrap text-sm text-gray-600 text-right"
+                  >
                     <span v-if="payroll.lindung24 > 0"
                       >RM {{ formatCurrency(payroll.lindung24) }}</span
                     >
@@ -511,7 +529,7 @@
                   >
                     RM {{ formatCurrency(payrollStore.calculateNetSalary(payroll)) }}
                   </td>
-                  <td class="px-2 py-4 whitespace-nowrap text-center">
+                  <td v-if="recordSaved" class="px-2 py-4 whitespace-nowrap text-center">
                     <button
                       @click="downloadPayslip(payroll)"
                       class="text-indigo-600 hover:text-indigo-900 text-sm font-medium underline"
@@ -549,6 +567,7 @@
                     RM {{ formatCurrency(totalEis) }}
                   </td>
                   <td
+                    v-if="lindung24Applies"
                     class="px-2 py-4 whitespace-nowrap text-sm font-bold text-gray-700 text-right"
                   >
                     RM {{ formatCurrency(payrollTotals.lindung24) }}
@@ -568,7 +587,7 @@
                   >
                     RM {{ formatCurrency(payrollTotals.netSalary) }}
                   </td>
-                  <td></td>
+                  <td v-if="recordSaved"></td>
                 </tr>
               </tfoot>
             </table>
@@ -589,7 +608,10 @@
                 </div>
 
                 <!-- Contributions Grid -->
-                <div class="grid grid-rows-4 gap-2 text-xs">
+                <div
+                  :class="lindung24Applies ? 'grid-rows-4' : 'grid-rows-3'"
+                  class="grid gap-2 text-xs"
+                >
                   <div class="bg-gray-50 p-2 rounded">
                     <div class="font-medium text-gray-700 mb-1">EPF</div>
                     <div>Employer: RM {{ formatCurrency(payroll.epfEmployer) }}</div>
@@ -605,7 +627,7 @@
                     <div>Employer: RM {{ formatCurrency(payroll.eisEmployer) }}</div>
                     <div>Employee: RM {{ formatCurrency(payroll.eisEmployee) }}</div>
                   </div>
-                  <div class="bg-gray-50 p-2 rounded">
+                  <div v-if="lindung24Applies" class="bg-gray-50 p-2 rounded">
                     <div class="font-medium text-gray-700 mb-1">Lindung 24 Jam</div>
                     <div v-if="payroll.lindung24 > 0">
                       Employee: RM {{ formatCurrency(payroll.lindung24) }}
@@ -648,6 +670,7 @@
                 </div>
 
                 <button
+                  v-if="recordSaved"
                   @click="downloadPayslip(payroll)"
                   class="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-md text-sm font-medium transition-colors"
                 >
@@ -692,7 +715,10 @@
                   </div>
                 </div>
 
-                <div class="bg-white p-2 rounded border text-center text-xs">
+                <div
+                  v-if="lindung24Applies"
+                  class="bg-white p-2 rounded border text-center text-xs"
+                >
                   <div class="font-medium text-gray-700 mb-1">Lindung 24 Jam Total</div>
                   <div class="font-bold text-gray-900">
                     RM {{ formatCurrency(payrollTotals.lindung24) }}
@@ -996,6 +1022,8 @@ const useDefaultEpfEdit = ref(true)
 const showSaveModal = ref(false)
 const saveLoading = ref(false)
 const savedNotice = ref('')
+// Payslips are only downloadable once the on-screen figures are frozen into a record
+const recordSaved = ref(false)
 
 // Delete modal variables
 const showDeleteModal = ref(false)
@@ -1216,6 +1244,22 @@ watch(
   { immediate: true },
 )
 
+// Editing PCB/CP38, or switching period, puts the figures out of sync with the
+// saved record, so payslips are locked again until the record is saved
+watch(
+  payrollData,
+  () => {
+    recordSaved.value = false
+    savedNotice.value = ''
+  },
+  { deep: true },
+)
+
+watch([selectedMonth, selectedYear], () => {
+  recordSaved.value = false
+  savedNotice.value = ''
+})
+
 const formatCurrency = (amount: number): string => {
   return amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
 }
@@ -1357,13 +1401,15 @@ const cancelMonthSelection = () => {
 
 const processPayroll = () => {
   savedNotice.value = ''
+  recordSaved.value = false
   showMonthSelection.value = false
   showPayrollTable.value = true
-  payrollData.value = payrollStore.generatePayrollData()
+  payrollData.value = payrollStore.generatePayrollData(selectedPeriod.value)
 }
 
 const backToEmployeeList = () => {
   savedNotice.value = ''
+  recordSaved.value = false
   showPayrollTable.value = false
   showMonthSelection.value = false
 }
@@ -1373,6 +1419,11 @@ const selectedPeriod = computed(() => ({
   month: parseInt(selectedMonth.value),
   year: selectedYear.value,
 }))
+
+// Lindung 24 Jam only applies from the July 2026 payroll onwards
+const lindung24Applies = computed(() =>
+  payrollStore.isLindung24Applicable(selectedPeriod.value.year, selectedPeriod.value.month),
+)
 
 // An already saved record for this period means saving again overwrites it
 const existingRun = computed(() =>
@@ -1395,6 +1446,7 @@ const toPayslipEmployee = (payroll: PayrollData): PayslipEmployee => ({
 })
 
 const downloadPayslip = (payroll: PayrollData) => {
+  if (!recordSaved.value) return
   generatePayslipPdf(
     [toPayslipEmployee(payroll)],
     selectedPeriod.value,
@@ -1403,7 +1455,7 @@ const downloadPayslip = (payroll: PayrollData) => {
 }
 
 const downloadAllPayslips = () => {
-  if (!payrollData.value.length) return
+  if (!recordSaved.value || !payrollData.value.length) return
   generatePayslipPdf(
     payrollData.value.map(toPayslipEmployee),
     selectedPeriod.value,
@@ -1433,6 +1485,7 @@ const confirmSavePayroll = async () => {
     )
     if (run) {
       savedNotice.value = `${formatSelectedPeriod.value} payroll ${wasExisting ? 'updated' : 'saved'}.`
+      recordSaved.value = true
       cancelSaveModal()
     }
   } finally {

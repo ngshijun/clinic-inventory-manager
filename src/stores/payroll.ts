@@ -260,6 +260,13 @@ export const usePayrollStore = defineStore('payroll', () => {
     }
   }
 
+  // Lindung 24 Jam is only contributed from the June 2026 payroll onwards
+  const LINDUNG_24_START = { year: 2026, month: 6 }
+
+  const isLindung24Applicable = (year: number, month: number): boolean =>
+    year > LINDUNG_24_START.year ||
+    (year === LINDUNG_24_START.year && month >= LINDUNG_24_START.month)
+
   const calculateLindung24 = (salary: number) => {
     // Lindung 24 Jam / SKBBK (Non-Employment Injury Scheme) - Act 4, effective 1 June 2026.
     // Employee-only contribution; the employer contributes nothing but deducts and remits it.
@@ -293,12 +300,15 @@ export const usePayrollStore = defineStore('payroll', () => {
     return 1.85 + addOn
   }
 
-  const generatePayrollData = (): PayrollData[] => {
+  const generatePayrollData = (period: { year: number; month: number }): PayrollData[] => {
+    const lindung24Applies = isLindung24Applicable(period.year, period.month)
+
     return employees.value.map((employee) => {
       const epf = calculateEPF(employee.basic_salary)
       const socso = calculateSOCSO(employee.basic_salary)
       const eis = calculateEIS(employee.basic_salary)
-      const lindung24 = employee.lindung_24_jam ? calculateLindung24(employee.basic_salary) : 0
+      const lindung24 =
+        lindung24Applies && employee.lindung_24_jam ? calculateLindung24(employee.basic_salary) : 0
 
       return {
         employeeId: employee.id,
@@ -395,6 +405,7 @@ export const usePayrollStore = defineStore('payroll', () => {
     generatePayrollData,
     calculateEPF,
     calculateLindung24,
+    isLindung24Applicable,
     calculateNetSalary,
     initializeStore,
     cleanup,

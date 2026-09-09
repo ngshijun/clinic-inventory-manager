@@ -307,6 +307,7 @@ import {
   payslipFilename,
   type PayslipEmployee,
 } from '@/lib/payslip'
+import { usePayrollStore } from '@/stores/payroll'
 import {
   usePayrollRecordsStore,
   type PayrollRun,
@@ -315,6 +316,7 @@ import {
 import { computed, ref } from 'vue'
 
 const payrollRecordsStore = usePayrollRecordsStore()
+const payrollStore = usePayrollStore()
 
 const showSalaries = ref(false)
 const selectedRunId = ref<string | null>(null)
@@ -341,7 +343,7 @@ type AmountKey = Extract<
   | 'net_salary'
 >
 
-const amountColumns: Array<{ key: AmountKey; label: string }> = [
+const allAmountColumns: Array<{ key: AmountKey; label: string }> = [
   { key: 'basic_salary', label: 'Basic Salary' },
   { key: 'epf_employer', label: 'EPF Employer' },
   { key: 'epf_employee', label: 'EPF Employee' },
@@ -359,18 +361,27 @@ const selectedRun = computed(
   () => payrollRecordsStore.runs.find((run) => run.id === selectedRunId.value) || null,
 )
 
+// Periods before July 2026 predate Lindung 24 Jam, so the column is meaningless there
+const amountColumns = computed(() => {
+  const run = selectedRun.value
+  if (run && !payrollStore.isLindung24Applicable(run.year, run.month)) {
+    return allAmountColumns.filter((column) => column.key !== 'lindung_24_jam')
+  }
+  return allAmountColumns
+})
+
 const selectedItems = computed(() =>
   selectedRunId.value ? payrollRecordsStore.getItems(selectedRunId.value) : [],
 )
 
 const totals = computed(() => {
-  const result = Object.fromEntries(amountColumns.map((column) => [column.key, 0])) as Record<
+  const result = Object.fromEntries(amountColumns.value.map((column) => [column.key, 0])) as Record<
     AmountKey,
     number
   >
 
   selectedItems.value.forEach((item) => {
-    amountColumns.forEach((column) => {
+    amountColumns.value.forEach((column) => {
       result[column.key] += item[column.key]
     })
   })
