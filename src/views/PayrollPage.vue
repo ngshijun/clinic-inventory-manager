@@ -74,6 +74,27 @@
                 </label>
               </div>
             </div>
+
+            <div class="sm:col-span-3">
+              <div class="flex items-center gap-2">
+                <input
+                  id="lindung-24-jam"
+                  v-model="newEmployee.lindung_24_jam"
+                  type="checkbox"
+                  class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label for="lindung-24-jam" class="text-sm text-gray-600">
+                  Opted in to Lindung 24 Jam (SKBBK)
+                </label>
+              </div>
+              <p class="text-xs text-gray-500 mt-1">
+                Employee-only contribution, auto-calculated from the basic salary.
+                <span v-if="newEmployee.lindung_24_jam && newEmployee.basic_salary > 0">
+                  Current deduction: RM
+                  {{ formatCurrency(payrollStore.calculateLindung24(newEmployee.basic_salary)) }}
+                </span>
+              </p>
+            </div>
           </div>
           <div class="flex justify-end gap-3 mt-6">
             <button
@@ -229,6 +250,15 @@
                     <span v-if="showSalaries">RM {{ formatCurrency(employee.epf_employer) }}</span>
                     <span v-else class="text-gray-400">••••••</span>
                   </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <span
+                      v-if="employee.lindung_24_jam"
+                      class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800"
+                    >
+                      Opted in
+                    </span>
+                    <span v-else class="text-gray-400 text-xs">—</span>
+                  </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <ActionButtonGroup
                       :actions="getEmployeeActions()"
@@ -267,6 +297,10 @@
                   >RM {{ formatCurrency(employee.epf_employer) }}</span
                 >
                 <span v-else class="ml-1 text-gray-400">••••••</span>
+              </div>
+              <div>
+                <span class="font-medium">Lindung 24 Jam:</span>
+                <span class="ml-1">{{ employee.lindung_24_jam ? 'Opted in' : '—' }}</span>
               </div>
             </div>
 
@@ -369,6 +403,11 @@
                   <th
                     class="px-2 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
                   >
+                    Lindung 24 Jam
+                  </th>
+                  <th
+                    class="px-2 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
                     PCB
                   </th>
                   <th
@@ -408,6 +447,12 @@
                   </td>
                   <td class="px-2 py-4 whitespace-nowrap text-sm text-gray-600 text-right">
                     RM {{ formatCurrency(payroll.eisEmployee) }}
+                  </td>
+                  <td class="px-2 py-4 whitespace-nowrap text-sm text-gray-600 text-right">
+                    <span v-if="payroll.lindung24 > 0"
+                      >RM {{ formatCurrency(payroll.lindung24) }}</span
+                    >
+                    <span v-else class="text-gray-400">—</span>
                   </td>
                   <td class="px-2 py-4 whitespace-nowrap text-right">
                     <input
@@ -466,6 +511,11 @@
                   <td
                     class="px-2 py-4 whitespace-nowrap text-sm font-bold text-gray-700 text-right"
                   >
+                    RM {{ formatCurrency(payrollTotals.lindung24) }}
+                  </td>
+                  <td
+                    class="px-2 py-4 whitespace-nowrap text-sm font-bold text-gray-700 text-right"
+                  >
                     RM {{ formatCurrency(payrollTotals.pcb) }}
                   </td>
                   <td
@@ -498,7 +548,7 @@
                 </div>
 
                 <!-- Contributions Grid -->
-                <div class="grid grid-rows-3 gap-2 text-xs">
+                <div class="grid grid-rows-4 gap-2 text-xs">
                   <div class="bg-gray-50 p-2 rounded">
                     <div class="font-medium text-gray-700 mb-1">EPF</div>
                     <div>Employer: RM {{ formatCurrency(payroll.epfEmployer) }}</div>
@@ -513,6 +563,13 @@
                     <div class="font-medium text-gray-700 mb-1">EIS</div>
                     <div>Employer: RM {{ formatCurrency(payroll.eisEmployer) }}</div>
                     <div>Employee: RM {{ formatCurrency(payroll.eisEmployee) }}</div>
+                  </div>
+                  <div class="bg-gray-50 p-2 rounded">
+                    <div class="font-medium text-gray-700 mb-1">Lindung 24 Jam</div>
+                    <div v-if="payroll.lindung24 > 0">
+                      Employee: RM {{ formatCurrency(payroll.lindung24) }}
+                    </div>
+                    <div v-else class="text-gray-400">Not opted in</div>
                   </div>
                 </div>
 
@@ -584,6 +641,13 @@
                   <div class="bg-white p-2 rounded border text-center">
                     <div class="font-medium text-gray-700 mb-1">EIS Total</div>
                     <div class="font-bold text-gray-900">RM {{ formatCurrency(totalEis) }}</div>
+                  </div>
+                </div>
+
+                <div class="bg-white p-2 rounded border text-center text-xs">
+                  <div class="font-medium text-gray-700 mb-1">Lindung 24 Jam Total</div>
+                  <div class="font-bold text-gray-900">
+                    RM {{ formatCurrency(payrollTotals.lindung24) }}
                   </div>
                 </div>
 
@@ -677,6 +741,27 @@
                 </label>
               </div>
             </div>
+
+            <div>
+              <div class="flex items-center gap-2">
+                <input
+                  id="lindung-24-jam-edit"
+                  v-model="editEmployee.lindung_24_jam"
+                  type="checkbox"
+                  class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label for="lindung-24-jam-edit" class="text-sm text-gray-600">
+                  Opted in to Lindung 24 Jam (SKBBK)
+                </label>
+              </div>
+              <p class="text-xs text-gray-500 mt-1">
+                Employee-only contribution, auto-calculated from the basic salary.
+                <span v-if="editEmployee.lindung_24_jam && editEmployee.basic_salary > 0">
+                  Current deduction: RM
+                  {{ formatCurrency(payrollStore.calculateLindung24(editEmployee.basic_salary)) }}
+                </span>
+              </p>
+            </div>
           </div>
         </div>
       </ActionModal>
@@ -720,6 +805,10 @@
               <div>
                 <span class="font-medium">EPF Employer:</span> RM
                 {{ formatCurrency(deleteEmployee?.epf_employer || 0) }}
+              </div>
+              <div>
+                <span class="font-medium">Lindung 24 Jam:</span>
+                {{ deleteEmployee?.lindung_24_jam ? 'Opted in' : '—' }}
               </div>
             </div>
           </div>
@@ -783,6 +872,7 @@ const employeeColumns = [
   { key: 'name', label: 'Employee Name', sortable: true, align: 'left' as const },
   { key: 'basic_salary', label: 'Basic Salary', sortable: true, align: 'left' as const },
   { key: 'epf_employer', label: 'EPF Employer', sortable: true, align: 'left' as const },
+  { key: 'lindung_24_jam', label: 'Lindung 24 Jam', sortable: true, align: 'left' as const },
   { key: 'actions', label: 'Actions', sortable: false, align: 'left' as const },
 ]
 
@@ -808,6 +898,7 @@ const newEmployee = ref<EmployeeInsert>({
   name: '',
   basic_salary: 0,
   epf_employer: 0,
+  lindung_24_jam: false,
 })
 
 // Filtered and sorted employees based on search query and sort configuration
@@ -910,6 +1001,7 @@ const payrollTotals = computed(() => {
       socsoEmployee: 0,
       eisEmployer: 0,
       eisEmployee: 0,
+      lindung24: 0,
       pcb: 0,
       cp38: 0,
       netSalary: 0,
@@ -926,6 +1018,7 @@ const payrollTotals = computed(() => {
         socsoEmployee: totals.socsoEmployee + payroll.socsoEmployee,
         eisEmployer: totals.eisEmployer + payroll.eisEmployer,
         eisEmployee: totals.eisEmployee + payroll.eisEmployee,
+        lindung24: totals.lindung24 + (payroll.lindung24 || 0),
         pcb: totals.pcb + (payroll.pcb || 0),
         cp38: totals.cp38 + (payroll.cp38 || 0),
         netSalary: totals.netSalary + payrollStore.calculateNetSalary(payroll),
@@ -939,6 +1032,7 @@ const payrollTotals = computed(() => {
       socsoEmployee: 0,
       eisEmployer: 0,
       eisEmployee: 0,
+      lindung24: 0,
       pcb: 0,
       cp38: 0,
       netSalary: 0,
@@ -1090,6 +1184,7 @@ const confirmEditEmployee = async () => {
     name: editEmployee.value.name,
     basic_salary: editEmployee.value.basic_salary,
     epf_employer: editEmployee.value.epf_employer,
+    lindung_24_jam: editEmployee.value.lindung_24_jam,
   })
 
   if (result) {
@@ -1135,6 +1230,7 @@ const cancelAddForm = () => {
     name: '',
     basic_salary: 0,
     epf_employer: 0,
+    lindung_24_jam: false,
   }
 }
 
@@ -1271,8 +1367,24 @@ const generateExcel = () => {
     0,
   )
 
+  // Lindung 24 Jam (SKBBK) rows - employee-only, so it is charged to the employee's salary
+  // account and accrued to PERKESO alongside SOCSO & EIS.
+  const lindung24Rows = payrollData.value
+    .filter((emp) => emp.lindung24 > 0)
+    .map((emp) => {
+      const info = getEmployeeAccountInfo(emp.employeeName)
+      return [
+        info.salaryCode[0],
+        info.salaryCode[1],
+        `LINDUNG 24 JAM - ${monthName} ${year} (${emp.employeeName})`,
+        emp.lindung24.toFixed(2),
+        '0.00',
+      ]
+    })
+  const totalLindung24 = payrollData.value.reduce((sum, emp) => sum + (emp.lindung24 || 0), 0)
+
   addSection(
-    `BEING ACCRUAL SOCSO & EIS FOR ${monthName} ${year}`,
+    `BEING ACCRUAL SOCSO & EIS${lindung24Rows.length ? ' & LINDUNG 24 JAM' : ''} FOR ${monthName} ${year}`,
     [...socsoEmployerRows, ...socsoEmployeeRows],
     [
       '410-080',
@@ -1294,7 +1406,18 @@ const generateExcel = () => {
       '0.00',
       totalEis.toFixed(2),
     ],
+    lindung24Rows.length === 0,
   )
+
+  if (lindung24Rows.length > 0) {
+    addSection(null, lindung24Rows, [
+      '410-080',
+      'ACCRUALS - KWSP & SOCSO',
+      `LINDUNG 24 JAM CONTRIBUTION - ${monthName} ${year} PERKESO`,
+      '0.00',
+      totalLindung24.toFixed(2),
+    ])
+  }
 
   // PCB section
   const pcbRows = payrollData.value

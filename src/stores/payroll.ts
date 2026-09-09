@@ -260,11 +260,45 @@ export const usePayrollStore = defineStore('payroll', () => {
     }
   }
 
+  const calculateLindung24 = (salary: number) => {
+    // Lindung 24 Jam / SKBBK (Non-Employment Injury Scheme) - Act 4, effective 1 June 2026.
+    // Employee-only contribution; the employer contributes nothing but deducts and remits it.
+    // Rates taken from PERKESO's official 65-band table (identical for both categories).
+    // Ceiling: RM6000, giving a maximum of RM44.65.
+    const cappedSalary = Math.min(salary, 6000)
+
+    if (cappedSalary <= 0) {
+      return 0
+    } else if (cappedSalary <= 30) {
+      return 0.2
+    } else if (cappedSalary <= 50) {
+      return 0.3
+    } else if (cappedSalary <= 70) {
+      return 0.5
+    } else if (cappedSalary <= 100) {
+      return 0.65
+    } else if (cappedSalary <= 140) {
+      return 0.9
+    } else if (cappedSalary <= 200) {
+      return 1.25
+    }
+
+    // Above RM200 the table runs in RM100 bands from RM1.85, alternating +RM0.80 / +RM0.70
+    const brackets = Math.min(Math.ceil(cappedSalary / 100), 60)
+    let addOn = Math.floor((brackets - 3) / 2) * 1.5
+    if ((brackets - 3) % 2 !== 0) {
+      addOn += 0.8
+    }
+
+    return 1.85 + addOn
+  }
+
   const generatePayrollData = (): PayrollData[] => {
     return employees.value.map((employee) => {
       const epf = calculateEPF(employee.basic_salary)
       const socso = calculateSOCSO(employee.basic_salary)
       const eis = calculateEIS(employee.basic_salary)
+      const lindung24 = employee.lindung_24_jam ? calculateLindung24(employee.basic_salary) : 0
 
       return {
         employeeId: employee.id,
@@ -278,6 +312,7 @@ export const usePayrollStore = defineStore('payroll', () => {
         socsoEmployer: socso.employer,
         eisEmployee: eis.employee,
         eisEmployer: eis.employer,
+        lindung24,
       }
     })
   }
@@ -288,7 +323,8 @@ export const usePayrollStore = defineStore('payroll', () => {
       (payrollItem.cp38 || 0) +
       (payrollItem.epfEmployee || 0) +
       (payrollItem.socsoEmployee || 0) +
-      (payrollItem.eisEmployee || 0)
+      (payrollItem.eisEmployee || 0) +
+      (payrollItem.lindung24 || 0)
 
     return payrollItem.basicSalary - totalDeductions
   }
@@ -358,6 +394,7 @@ export const usePayrollStore = defineStore('payroll', () => {
     searchEmployees,
     generatePayrollData,
     calculateEPF,
+    calculateLindung24,
     calculateNetSalary,
     initializeStore,
     cleanup,

@@ -62,6 +62,7 @@ export type Database = {
           created_at: string
           epf_employer: number
           id: string
+          lindung_24_jam: boolean
           name: string
           updated_at: string
         }
@@ -70,6 +71,7 @@ export type Database = {
           created_at?: string
           epf_employer: number
           id?: string
+          lindung_24_jam?: boolean
           name: string
           updated_at?: string
         }
@@ -78,6 +80,7 @@ export type Database = {
           created_at?: string
           epf_employer?: number
           id?: string
+          lindung_24_jam?: boolean
           name?: string
           updated_at?: string
         }

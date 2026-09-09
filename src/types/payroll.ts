@@ -3,17 +3,20 @@ export interface Employee {
   id: string
   name: string
   basic_salary: number
+  lindung_24_jam: boolean
 }
 
 export interface NewEmployee {
   name: string
   basic_salary: number
+  lindung_24_jam: boolean
 }
 
 export interface EmployeeUpdate {
   id?: string
   name?: string
   basic_salary?: number
+  lindung_24_jam?: boolean
 }
 
 // Payroll processing types
@@ -29,6 +32,7 @@ export interface PayrollData {
   socsoEmployer: number
   eisEmployee: number
   eisEmployer: number
+  lindung24: number
 }
 
 export interface PayrollSummary {
@@ -42,6 +46,7 @@ export interface PayrollSummary {
   totalSocsoEmployer: number
   totalEisEmployee: number
   totalEisEmployer: number
+  totalLindung24: number
   totalNetSalary: number
 }
 
@@ -66,6 +71,7 @@ export interface PayrollExportData {
     socsoEmployer: number
     eisEmployee: number
     eisEmployer: number
+    lindung24: number
     netSalary: number
   }>
   summary: PayrollSummary
@@ -82,6 +88,7 @@ export interface PayrollFormData {
   socsoEmployer: number
   eisEmployee: number
   eisEmployer: number
+  lindung24: number
 }
 
 // Enums for salary status
