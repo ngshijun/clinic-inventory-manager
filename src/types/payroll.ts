@@ -102,3 +102,35 @@ export enum PayrollStatus {
   PROCESSED = 'processed',
   EXPORTED = 'exported',
 }
+
+// Saved monthly payroll records
+export interface PayrollRunItem {
+  employeeId: string | null
+  employeeName: string
+  basicSalary: number
+  epfEmployee: number
+  epfEmployer: number
+  socsoEmployee: number
+  socsoEmployer: number
+  eisEmployee: number
+  eisEmployer: number
+  lindung24: number
+  pcb: number
+  cp38: number
+  netSalary: number
+}
+
+export interface PayrollRun {
+  id: string
+  year: number
+  month: number
+  finalizedAt: string
+  items: PayrollRunItem[]
+}
+
+// Everything a payslip needs that is not on the line item itself
+export interface PayslipContext {
+  month: number
+  year: number
+  employerName: string
+}

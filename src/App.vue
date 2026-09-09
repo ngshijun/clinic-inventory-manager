@@ -136,6 +136,18 @@
               >
                 Payroll
               </router-link>
+              <router-link
+                v-if="user && user.role === 'manager'"
+                to="/payroll-history"
+                class="inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                :class="
+                  $route.name === 'PayrollHistory'
+                    ? 'border-blue-500 text-gray-900'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                "
+              >
+                Payroll History
+              </router-link>
             </div>
 
             <!-- Logout button for desktop -->
@@ -243,6 +255,19 @@
             >
               Payroll
             </router-link>
+            <router-link
+              v-if="user && user.role === 'manager'"
+              to="/payroll-history"
+              @click="mobileMenuOpen = false"
+              class="block pl-3 pr-4 py-2 border-l-4 text-base font-medium"
+              :class="
+                $route.name === 'PayrollHistory'
+                  ? 'border-blue-500 text-blue-700 bg-blue-50'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50 hover:border-gray-300'
+              "
+            >
+              Payroll History
+            </router-link>
           </div>
         </div>
       </div>
@@ -263,6 +288,7 @@ import { useInventoryStore } from './stores/inventory'
 import { useStockMovementsStore } from './stores/stockMovements'
 import { useStockRequestsStore } from './stores/stockRequests'
 import { usePayrollStore } from './stores/payroll'
+import { usePayrollRecordsStore } from './stores/payrollRecords'
 import { useConnectionMonitor } from './composables/useConnectionMonitor'
 import CloseIcon from '@/components/icons/CloseIcon.vue'
 import LogoutIcon from '@/components/icons/LogoutIcon.vue'
@@ -272,6 +298,7 @@ const inventoryStore = useInventoryStore()
 const stockRequestsStore = useStockRequestsStore()
 const stockMovementStore = useStockMovementsStore()
 const payrollStore = usePayrollStore()
+const payrollRecordsStore = usePayrollRecordsStore()
 
 const router = useRouter()
 const mobileMenuOpen = ref(false)
@@ -289,6 +316,7 @@ const initStores = () => {
   stockMovementStore.initializeStore()
   stockRequestsStore.initializeStore()
   payrollStore.initializeStore()
+  payrollRecordsStore.initializeStore()
 }
 
 const cleanupStores = () => {
@@ -296,6 +324,7 @@ const cleanupStores = () => {
   stockMovementStore.cleanup()
   stockRequestsStore.cleanup()
   payrollStore.cleanup()
+  payrollRecordsStore.cleanup()
 }
 
 const handleLogout = () => {

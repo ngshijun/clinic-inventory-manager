@@ -352,7 +352,34 @@
               >
                 Generate Excel
               </button>
+              <button
+                @click="downloadAllPayslips"
+                class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
+              >
+                Download All Payslips
+              </button>
+              <button
+                @click="openSaveModal"
+                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
+              >
+                {{ existingRun ? 'Update Saved Record' : 'Save Record' }}
+              </button>
             </div>
+          </div>
+
+          <!-- Saved confirmation -->
+          <div
+            v-if="savedNotice"
+            class="mb-4 bg-green-50 border border-green-200 rounded-md p-3 flex items-center gap-2"
+          >
+            <CheckCircleIcon class="w-4 h-4 text-green-600" />
+            <span class="text-sm text-green-800">{{ savedNotice }}</span>
+            <router-link
+              to="/payroll-history"
+              class="text-sm font-medium text-green-700 underline hover:text-green-900 ml-auto"
+            >
+              View Payroll History
+            </router-link>
           </div>
 
           <!-- Desktop Table -->
@@ -420,6 +447,11 @@
                   >
                     Net Salary
                   </th>
+                  <th
+                    class="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Payslip
+                  </th>
                 </tr>
               </thead>
               <tbody class="bg-white divide-y divide-gray-200">
@@ -479,6 +511,14 @@
                   >
                     RM {{ formatCurrency(payrollStore.calculateNetSalary(payroll)) }}
                   </td>
+                  <td class="px-2 py-4 whitespace-nowrap text-center">
+                    <button
+                      @click="downloadPayslip(payroll)"
+                      class="text-indigo-600 hover:text-indigo-900 text-sm font-medium underline"
+                    >
+                      PDF
+                    </button>
+                  </td>
                 </tr>
               </tbody>
               <!-- Totals Row -->
@@ -528,6 +568,7 @@
                   >
                     RM {{ formatCurrency(payrollTotals.netSalary) }}
                   </td>
+                  <td></td>
                 </tr>
               </tfoot>
             </table>
@@ -605,6 +646,13 @@
                     >RM {{ formatCurrency(payrollStore.calculateNetSalary(payroll)) }}</span
                   >
                 </div>
+
+                <button
+                  @click="downloadPayslip(payroll)"
+                  class="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-md text-sm font-medium transition-colors"
+                >
+                  Download Payslip (PDF)
+                </button>
               </div>
             </div>
           </div>
@@ -666,6 +714,60 @@
           </div>
         </div>
       </div>
+
+      <!-- Save Payroll Record Modal -->
+      <ActionModal
+        :is-open="showSaveModal"
+        :title="existingRun ? 'Update Saved Payroll Record' : 'Save Payroll Record'"
+        variant="blue"
+        :confirm-text="existingRun ? 'Overwrite Record' : 'Save Record'"
+        :loading="saveLoading"
+        @confirm="confirmSavePayroll"
+        @cancel="cancelSaveModal"
+        @close="cancelSaveModal"
+      >
+        <div class="space-y-4">
+          <div v-if="existingRun" class="bg-amber-50 border border-amber-200 rounded-md p-3">
+            <div class="flex items-center gap-2 mb-2">
+              <WarningTriangleIcon class="w-4 h-4 text-amber-500" />
+              <span class="text-sm font-medium text-amber-800">
+                {{ formatSelectedPeriod }} has already been saved
+              </span>
+            </div>
+            <p class="text-sm text-amber-700">
+              Saving again replaces the stored figures for this month with the ones shown below. The
+              previous version cannot be recovered.
+            </p>
+          </div>
+
+          <div v-else class="bg-blue-50 border border-blue-200 rounded-md p-3">
+            <div class="flex items-center gap-2 mb-2">
+              <InfoCircleIcon class="w-4 h-4 text-blue-500" />
+              <span class="text-sm font-medium text-blue-800">Freeze this month's payroll</span>
+            </div>
+            <p class="text-sm text-blue-700">
+              The figures below are copied into a permanent record. Later changes to an employee's
+              salary or Lindung 24 Jam opt-in will not affect it.
+            </p>
+          </div>
+
+          <div class="bg-gray-50 border border-gray-200 rounded-md p-3">
+            <h4 class="text-sm font-medium text-gray-900 mb-2">Record Summary:</h4>
+            <div class="space-y-1 text-sm text-gray-600">
+              <div><span class="font-medium">Period:</span> {{ formatSelectedPeriod }}</div>
+              <div><span class="font-medium">Employees:</span> {{ payrollData.length }}</div>
+              <div>
+                <span class="font-medium">Total Basic Salary:</span> RM
+                {{ formatCurrency(payrollTotals.basicSalary) }}
+              </div>
+              <div>
+                <span class="font-medium">Total Net Salary:</span> RM
+                {{ formatCurrency(payrollTotals.netSalary) }}
+              </div>
+            </div>
+          </div>
+        </div>
+      </ActionModal>
 
       <!-- Edit Employee Modal -->
       <ActionModal
@@ -843,14 +945,23 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
 import SearchInput from '@/components/ui/SearchInput.vue'
 import SortableTableHeader from '@/components/ui/SortableTableHeader.vue'
 import CalendarIcon from '@/components/icons/CalendarIcon.vue'
+import CheckCircleIcon from '@/components/icons/CheckCircleIcon.vue'
 import InfoCircleIcon from '@/components/icons/InfoCircleIcon.vue'
 import WarningTriangleIcon from '@/components/icons/WarningTriangleIcon.vue'
 import { usePayrollStore, type Employee, type EmployeeInsert } from '@/stores/payroll'
+import { usePayrollRecordsStore } from '@/stores/payrollRecords'
+import {
+  allPayslipsFilename,
+  generatePayslipPdf,
+  payslipFilename,
+  type PayslipEmployee,
+} from '@/lib/payslip'
 import type { PayrollData } from '@/types/payroll'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import * as XLSX from 'xlsx'
 
 const payrollStore = usePayrollStore()
+const payrollRecordsStore = usePayrollRecordsStore()
 const showAddForm = ref(false)
 const nameInputRef = ref<{ focus: () => void } | null>(null)
 const showSalaries = ref(false)
@@ -880,6 +991,11 @@ const employeeColumns = [
 const showEditModal = ref(false)
 const editEmployee = ref<Employee | null>(null)
 const useDefaultEpfEdit = ref(true)
+
+// Save payroll record modal variables
+const showSaveModal = ref(false)
+const saveLoading = ref(false)
+const savedNotice = ref('')
 
 // Delete modal variables
 const showDeleteModal = ref(false)
@@ -1240,14 +1356,88 @@ const cancelMonthSelection = () => {
 }
 
 const processPayroll = () => {
+  savedNotice.value = ''
   showMonthSelection.value = false
   showPayrollTable.value = true
   payrollData.value = payrollStore.generatePayrollData()
 }
 
 const backToEmployeeList = () => {
+  savedNotice.value = ''
   showPayrollTable.value = false
   showMonthSelection.value = false
+}
+
+// The period currently being processed, as numbers
+const selectedPeriod = computed(() => ({
+  month: parseInt(selectedMonth.value),
+  year: selectedYear.value,
+}))
+
+// An already saved record for this period means saving again overwrites it
+const existingRun = computed(() =>
+  payrollRecordsStore.getRunByPeriod(selectedPeriod.value.year, selectedPeriod.value.month),
+)
+
+const toPayslipEmployee = (payroll: PayrollData): PayslipEmployee => ({
+  name: payroll.employeeName,
+  basicSalary: payroll.basicSalary,
+  epfEmployee: payroll.epfEmployee,
+  epfEmployer: payroll.epfEmployer,
+  socsoEmployee: payroll.socsoEmployee,
+  socsoEmployer: payroll.socsoEmployer,
+  eisEmployee: payroll.eisEmployee,
+  eisEmployer: payroll.eisEmployer,
+  lindung24: payroll.lindung24,
+  pcb: payroll.pcb || 0,
+  cp38: payroll.cp38 || 0,
+  netSalary: payrollStore.calculateNetSalary(payroll),
+})
+
+const downloadPayslip = (payroll: PayrollData) => {
+  generatePayslipPdf(
+    [toPayslipEmployee(payroll)],
+    selectedPeriod.value,
+    payslipFilename(payroll.employeeName, selectedPeriod.value),
+  )
+}
+
+const downloadAllPayslips = () => {
+  if (!payrollData.value.length) return
+  generatePayslipPdf(
+    payrollData.value.map(toPayslipEmployee),
+    selectedPeriod.value,
+    allPayslipsFilename(selectedPeriod.value),
+  )
+}
+
+const openSaveModal = () => {
+  savedNotice.value = ''
+  showSaveModal.value = true
+}
+
+const cancelSaveModal = () => {
+  showSaveModal.value = false
+  saveLoading.value = false
+}
+
+const confirmSavePayroll = async () => {
+  saveLoading.value = true
+  try {
+    const wasExisting = Boolean(existingRun.value)
+    const run = await payrollRecordsStore.savePayrollRun(
+      selectedPeriod.value.year,
+      selectedPeriod.value.month,
+      payrollData.value,
+      payrollStore.calculateNetSalary,
+    )
+    if (run) {
+      savedNotice.value = `${formatSelectedPeriod.value} payroll ${wasExisting ? 'updated' : 'saved'}.`
+      cancelSaveModal()
+    }
+  } finally {
+    saveLoading.value = false
+  }
 }
 
 const generateExcel = () => {

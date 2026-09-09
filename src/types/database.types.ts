@@ -86,6 +86,108 @@ export type Database = {
         }
         Relationships: []
       }
+      payroll_run_items: {
+        Row: {
+          basic_salary: number
+          cp38: number
+          created_at: string
+          eis_employee: number
+          eis_employer: number
+          employee_id: string | null
+          employee_name: string
+          epf_employee: number
+          epf_employer: number
+          id: string
+          lindung_24_jam: number
+          net_salary: number
+          pcb: number
+          run_id: string
+          socso_employee: number
+          socso_employer: number
+          updated_at: string
+        }
+        Insert: {
+          basic_salary?: number
+          cp38?: number
+          created_at?: string
+          eis_employee?: number
+          eis_employer?: number
+          employee_id?: string | null
+          employee_name: string
+          epf_employee?: number
+          epf_employer?: number
+          id?: string
+          lindung_24_jam?: number
+          net_salary?: number
+          pcb?: number
+          run_id: string
+          socso_employee?: number
+          socso_employer?: number
+          updated_at?: string
+        }
+        Update: {
+          basic_salary?: number
+          cp38?: number
+          created_at?: string
+          eis_employee?: number
+          eis_employer?: number
+          employee_id?: string | null
+          employee_name?: string
+          epf_employee?: number
+          epf_employer?: number
+          id?: string
+          lindung_24_jam?: number
+          net_salary?: number
+          pcb?: number
+          run_id?: string
+          socso_employee?: number
+          socso_employer?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'payroll_run_items_run_id_fkey'
+            columns: ['run_id']
+            isOneToOne: false
+            referencedRelation: 'payroll_runs'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'payroll_run_items_employee_id_fkey'
+            columns: ['employee_id']
+            isOneToOne: false
+            referencedRelation: 'payroll'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      payroll_runs: {
+        Row: {
+          created_at: string
+          finalized_at: string
+          id: string
+          month: number
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          created_at?: string
+          finalized_at?: string
+          id?: string
+          month: number
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          created_at?: string
+          finalized_at?: string
+          id?: string
+          month?: number
+          updated_at?: string
+          year?: number
+        }
+        Relationships: []
+      }
       stock_movements: {
         Row: {
           created_at: string
@@ -187,6 +289,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      save_payroll_run: {
+        Args: { p_items: Json; p_month: number; p_year: number }
+        Returns: {
+          created_at: string
+          finalized_at: string
+          id: string
+          month: number
+          updated_at: string
+          year: number
+        }
+      }
       stock_in: {
         Args: {
           p_clear_order_date?: boolean

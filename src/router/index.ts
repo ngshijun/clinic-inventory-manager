@@ -52,6 +52,12 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/PayrollPage.vue'),
     meta: { requiresAuth: true, roles: ['manager'] },
   },
+  {
+    path: '/payroll-history',
+    name: 'PayrollHistory',
+    component: () => import('@/views/PayrollHistory.vue'),
+    meta: { requiresAuth: true, roles: ['manager'] },
+  },
 ]
 
 const router = createRouter({
