@@ -16,6 +16,7 @@
 		payslipFilename,
 		type PayslipEmployee,
 	} from '$lib/payslip'
+	import { payrollStore } from '$lib/stores/payroll.svelte'
 	import {
 		payrollRecordsStore,
 		type PayrollRun,
@@ -47,7 +48,7 @@
 		| 'net_salary'
 	>
 
-	const amountColumns: Array<{ key: AmountKey; label: string }> = [
+	const allAmountColumns: Array<{ key: AmountKey; label: string }> = [
 		{ key: 'basic_salary', label: 'Basic Salary' },
 		{ key: 'epf_employer', label: 'EPF Employer' },
 		{ key: 'epf_employee', label: 'EPF Employee' },
@@ -63,6 +64,13 @@
 
 	const selectedRun = $derived(
 		payrollRecordsStore.runs.find((run) => run.id === selectedRunId) || null,
+	)
+
+	// Periods before June 2026 predate Lindung 24 Jam, so the column is meaningless there
+	const amountColumns = $derived(
+		selectedRun && !payrollStore.isLindung24Applicable(selectedRun.year, selectedRun.month)
+			? allAmountColumns.filter((column) => column.key !== 'lindung_24_jam')
+			: allAmountColumns,
 	)
 
 	const selectedItems = $derived(selectedRunId ? payrollRecordsStore.getItems(selectedRunId) : [])

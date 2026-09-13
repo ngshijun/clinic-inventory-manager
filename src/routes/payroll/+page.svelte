@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { tick } from 'svelte'
+	import { tick, untrack } from 'svelte'
 	import ActionButtonGroup, {
 		type ActionButtonGroupAction,
 	} from '$lib/components/app/ActionButtonGroup.svelte'
@@ -73,6 +73,8 @@
 	let showSaveModal = $state(false)
 	let saveLoading = $state(false)
 	let savedNotice = $state('')
+	// Payslips are only downloadable once the on-screen figures are frozen into a record
+	let recordSaved = $state(false)
 
 	// Delete modal variables
 	let showDeleteModal = $state(false)
@@ -448,13 +450,15 @@
 
 	const processPayroll = () => {
 		savedNotice = ''
+		recordSaved = false
 		showMonthSelection = false
 		showPayrollTable = true
-		payrollData = payrollStore.generatePayrollData()
+		payrollData = payrollStore.generatePayrollData(selectedPeriod)
 	}
 
 	const backToEmployeeList = () => {
 		savedNotice = ''
+		recordSaved = false
 		showPayrollTable = false
 		showMonthSelection = false
 	}
@@ -463,6 +467,34 @@
 	const selectedPeriod = $derived({
 		month: parseInt(asText(selectedMonth)),
 		year: asNumber(selectedYear),
+	})
+
+	// Lindung 24 Jam only applies from the June 2026 payroll onwards
+	const lindung24Applies = $derived(
+		payrollStore.isLindung24Applicable(selectedPeriod.year, selectedPeriod.month),
+	)
+
+	// Editing PCB/CP38, or switching period, puts the figures out of sync with the
+	// saved record, so payslips are locked again until the record is saved
+	const payrollEdits = $derived(
+		payrollData.map((row) => `${row.pcb ?? ''}:${row.cp38 ?? ''}`).join('|'),
+	)
+
+	$effect(() => {
+		void payrollEdits
+		untrack(() => {
+			recordSaved = false
+			savedNotice = ''
+		})
+	})
+
+	$effect(() => {
+		void selectedMonth
+		void selectedYear
+		untrack(() => {
+			recordSaved = false
+			savedNotice = ''
+		})
 	})
 
 	// An already saved record for this period means saving again overwrites it
@@ -486,6 +518,7 @@
 	})
 
 	const downloadPayslip = (payroll: PayrollData) => {
+		if (!recordSaved) return
 		generatePayslipPdf(
 			[toPayslipEmployee(payroll)],
 			selectedPeriod,
@@ -494,7 +527,7 @@
 	}
 
 	const downloadAllPayslips = () => {
-		if (!payrollData.length) return
+		if (!recordSaved || !payrollData.length) return
 		generatePayslipPdf(
 			payrollData.map(toPayslipEmployee),
 			selectedPeriod,
@@ -524,6 +557,7 @@
 			)
 			if (run) {
 				savedNotice = `${formatSelectedPeriod} payroll ${wasExisting ? 'updated' : 'saved'}.`
+				recordSaved = true
 				cancelSaveModal()
 			}
 		} finally {
@@ -1087,17 +1121,31 @@
 						<div class="flex flex-col gap-2 sm:flex-row">
 							<Button variant="gray" onclick={backToEmployeeList}>Back to Employee List</Button>
 							<Button variant="green" onclick={generateExcel}>Generate Excel</Button>
-							<button
-								onclick={downloadAllPayslips}
-								class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700"
-							>
-								Download All Payslips
-							</button>
+							{#if recordSaved}
+								<button
+									onclick={downloadAllPayslips}
+									class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700"
+								>
+									Download All Payslips
+								</button>
+							{/if}
 							<Button variant="blue" onclick={openSaveModal}>
 								{existingRun ? 'Update Saved Record' : 'Save Record'}
 							</Button>
 						</div>
 					</div>
+
+					<!-- Payslips stay locked until the figures are frozen into a record -->
+					{#if !recordSaved}
+						<div
+							class="mb-4 flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 p-3"
+						>
+							<WarningTriangleIcon class="h-4 w-4 flex-shrink-0 text-amber-500" />
+							<span class="text-sm text-amber-800">
+								Enter PCB and CP38, then {existingRun ? 'update' : 'save'} the record to download payslips.
+							</span>
+						</div>
+					{/if}
 
 					<!-- Saved confirmation -->
 					{#if savedNotice}
@@ -1128,11 +1176,16 @@
 									<Table.Head class="px-2 text-right whitespace-normal">SOCSO Employee</Table.Head>
 									<Table.Head class="px-2 text-right whitespace-normal">EIS Employer</Table.Head>
 									<Table.Head class="px-2 text-right whitespace-normal">EIS Employee</Table.Head>
-									<Table.Head class="px-2 text-right whitespace-normal">Lindung 24 Jam</Table.Head>
+									{#if lindung24Applies}
+										<Table.Head class="px-2 text-right whitespace-normal">Lindung 24 Jam</Table.Head
+										>
+									{/if}
 									<Table.Head class="px-2 text-right whitespace-normal">PCB</Table.Head>
 									<Table.Head class="px-2 text-right whitespace-normal">CP38</Table.Head>
 									<Table.Head class="px-2 text-right whitespace-normal">Net Salary</Table.Head>
-									<Table.Head class="px-2 text-center whitespace-normal">Payslip</Table.Head>
+									{#if recordSaved}
+										<Table.Head class="px-2 text-center whitespace-normal">Payslip</Table.Head>
+									{/if}
 								</Table.Row>
 							</Table.Header>
 							<Table.Body>
@@ -1162,13 +1215,15 @@
 										<Table.Cell class="px-2 text-right text-gray-600">
 											RM {formatCurrency(payroll.eisEmployee)}
 										</Table.Cell>
-										<Table.Cell class="px-2 text-right text-gray-600">
-											{#if payroll.lindung24 > 0}
-												<span>RM {formatCurrency(payroll.lindung24)}</span>
-											{:else}
-												<span class="text-gray-400">—</span>
-											{/if}
-										</Table.Cell>
+										{#if lindung24Applies}
+											<Table.Cell class="px-2 text-right text-gray-600">
+												{#if payroll.lindung24 > 0}
+													<span>RM {formatCurrency(payroll.lindung24)}</span>
+												{:else}
+													<span class="text-gray-400">—</span>
+												{/if}
+											</Table.Cell>
+										{/if}
 										<Table.Cell class="px-2 text-right">
 											<input
 												bind:value={payroll.pcb}
@@ -1192,14 +1247,16 @@
 										<Table.Cell class="px-2 text-right font-medium">
 											RM {formatCurrency(payrollStore.calculateNetSalary(payroll))}
 										</Table.Cell>
-										<Table.Cell class="px-2 text-center">
-											<button
-												onclick={() => downloadPayslip(payroll)}
-												class="text-sm font-medium text-indigo-600 underline hover:text-indigo-900"
-											>
-												PDF
-											</button>
-										</Table.Cell>
+										{#if recordSaved}
+											<Table.Cell class="px-2 text-center">
+												<button
+													onclick={() => downloadPayslip(payroll)}
+													class="text-sm font-medium text-indigo-600 underline hover:text-indigo-900"
+												>
+													PDF
+												</button>
+											</Table.Cell>
+										{/if}
 									</Table.Row>
 								{/each}
 							</Table.Body>
@@ -1230,11 +1287,13 @@
 									>
 										RM {formatCurrency(totalEis)}
 									</td>
-									<td
-										class="px-2 py-4 text-right text-sm font-bold whitespace-nowrap text-gray-700"
-									>
-										RM {formatCurrency(payrollTotals.lindung24)}
-									</td>
+									{#if lindung24Applies}
+										<td
+											class="px-2 py-4 text-right text-sm font-bold whitespace-nowrap text-gray-700"
+										>
+											RM {formatCurrency(payrollTotals.lindung24)}
+										</td>
+									{/if}
 									<td
 										class="px-2 py-4 text-right text-sm font-bold whitespace-nowrap text-gray-700"
 									>
@@ -1268,7 +1327,9 @@
 									</div>
 
 									<!-- Contributions Grid -->
-									<div class="grid grid-rows-4 gap-2 text-xs">
+									<div
+										class="grid gap-2 text-xs {lindung24Applies ? 'grid-rows-4' : 'grid-rows-3'}"
+									>
 										<div class="rounded bg-gray-50 p-2">
 											<div class="mb-1 font-medium text-gray-700">EPF</div>
 											<div>Employer: RM {formatCurrency(payroll.epfEmployer)}</div>
@@ -1284,16 +1345,18 @@
 											<div>Employer: RM {formatCurrency(payroll.eisEmployer)}</div>
 											<div>Employee: RM {formatCurrency(payroll.eisEmployee)}</div>
 										</div>
-										<div class="rounded bg-gray-50 p-2">
-											<div class="mb-1 font-medium text-gray-700">Lindung 24 Jam</div>
-											{#if payroll.lindung24 > 0}
-												<div>
-													Employee: RM {formatCurrency(payroll.lindung24)}
-												</div>
-											{:else}
-												<div class="text-gray-400">Not opted in</div>
-											{/if}
-										</div>
+										{#if lindung24Applies}
+											<div class="rounded bg-gray-50 p-2">
+												<div class="mb-1 font-medium text-gray-700">Lindung 24 Jam</div>
+												{#if payroll.lindung24 > 0}
+													<div>
+														Employee: RM {formatCurrency(payroll.lindung24)}
+													</div>
+												{:else}
+													<div class="text-gray-400">Not opted in</div>
+												{/if}
+											</div>
+										{/if}
 									</div>
 
 									<!-- Manual Inputs -->
@@ -1337,12 +1400,14 @@
 										</span>
 									</div>
 
-									<button
-										onclick={() => downloadPayslip(payroll)}
-										class="w-full rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700"
-									>
-										Download Payslip (PDF)
-									</button>
+									{#if recordSaved}
+										<button
+											onclick={() => downloadPayslip(payroll)}
+											class="w-full rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700"
+										>
+											Download Payslip (PDF)
+										</button>
+									{/if}
 								</div>
 							</div>
 						{/each}
@@ -1383,12 +1448,14 @@
 									</div>
 								</div>
 
-								<div class="rounded border bg-white p-2 text-center text-xs">
-									<div class="mb-1 font-medium text-gray-700">Lindung 24 Jam Total</div>
-									<div class="font-bold text-gray-900">
-										RM {formatCurrency(payrollTotals.lindung24)}
+								{#if lindung24Applies}
+									<div class="rounded border bg-white p-2 text-center text-xs">
+										<div class="mb-1 font-medium text-gray-700">Lindung 24 Jam Total</div>
+										<div class="font-bold text-gray-900">
+											RM {formatCurrency(payrollTotals.lindung24)}
+										</div>
 									</div>
-								</div>
+								{/if}
 
 								<div class="grid grid-cols-2 gap-2 text-xs">
 									<div class="rounded border bg-white p-2 text-center">
