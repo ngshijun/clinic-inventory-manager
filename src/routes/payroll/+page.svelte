@@ -1309,7 +1309,10 @@
 									>
 										RM {formatCurrency(payrollTotals.netSalary)}
 									</td>
-									<td></td>
+									{#if recordSaved}
+										<!-- spacer under the Payslip column, which is only rendered once saved -->
+										<td></td>
+									{/if}
 								</tr>
 							</tfoot>
 						</Table.Root>
