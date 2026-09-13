@@ -29,3 +29,6 @@ coverage
 *.sw?
 
 *.tsbuildinfo
+.svelte-kit
+build
+.vercel

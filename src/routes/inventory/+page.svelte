@@ -1,0 +1,1183 @@
+<script lang="ts">
+	import { tick, untrack } from 'svelte'
+	import * as XLSX from 'xlsx'
+	import ArrowDownIcon from '$lib/components/icons/ArrowDownIcon.svelte'
+	import ArrowUpSolidIcon from '$lib/components/icons/ArrowUpSolidIcon.svelte'
+	import ClockIcon from '$lib/components/icons/ClockIcon.svelte'
+	import CalendarIcon from '$lib/components/icons/CalendarIcon.svelte'
+	import CheckCircleIcon from '$lib/components/icons/CheckCircleIcon.svelte'
+	import EyeIcon from '$lib/components/icons/EyeIcon.svelte'
+	import WarningTriangleIcon from '$lib/components/icons/WarningTriangleIcon.svelte'
+	import ActionButtonGroup, {
+		type ActionButtonGroupAction,
+	} from '$lib/components/app/ActionButtonGroup.svelte'
+	import ActionModal from '$lib/components/app/ActionModal.svelte'
+	import EmptyState from '$lib/components/app/EmptyState.svelte'
+	import ErrorAlert from '$lib/components/app/ErrorAlert.svelte'
+	import FormField from '$lib/components/app/FormField.svelte'
+	import LoadingSpinner from '$lib/components/app/LoadingSpinner.svelte'
+	import ReasonBadge from '$lib/components/app/ReasonBadge.svelte'
+	import SearchInput from '$lib/components/app/SearchInput.svelte'
+	import SortableTableHeader from '$lib/components/app/SortableTableHeader.svelte'
+	import StatusBadge from '$lib/components/app/StatusBadge.svelte'
+	import TablePagination from '$lib/components/app/TablePagination.svelte'
+	import { Button } from '$lib/components/ui/button/index.js'
+	import * as Table from '$lib/components/ui/table/index.js'
+	import { createPagination } from '$lib/composables/pagination.svelte'
+	import { inventoryStore } from '$lib/stores/inventory.svelte'
+	import type { InventoryItem, NewInventoryItem, StockStatus } from '$lib/types/inventory'
+
+	let searchQuery = $state<string>('')
+	let showAddForm = $state<boolean>(false)
+	let showOrderedOnly = $state<boolean>(false)
+	let stockQuantity = $state<number>(1)
+	let fileInput = $state<HTMLInputElement | null>(null)
+	let itemNameInputRef = $state<HTMLInputElement | null>(null)
+
+	// New stock in modal variables
+	let showStockInModal = $state<boolean>(false)
+	let stockInItem = $state<InventoryItem | null>(null)
+	let clearOrderDate = $state<boolean>(true) // Default to clearing order date
+	let notTrackStatus = $state<boolean>(false)
+
+	// Delete confirmation modal variables
+	let showDeleteModal = $state<boolean>(false)
+	let deleteItem = $state<InventoryItem | null>(null)
+	let deleteLoading = $state<boolean>(false)
+	let deleteConfirmation = $state<boolean>(false)
+
+	// Stock management modal variables
+	let showStockOutModal = $state<boolean>(false)
+	let stockManageItem = $state<InventoryItem | null>(null)
+
+	// Sorting configuration
+	let sortConfig = $state<{
+		key: keyof InventoryItem | 'status' | null
+		direction: 'asc' | 'desc'
+	}>({
+		key: null,
+		direction: 'asc',
+	})
+
+	// Import status tracking
+	let importStatus = $state({
+		show: false,
+		loading: false,
+		error: null as string | null,
+		success: false,
+		fileName: '',
+		importedCount: 0,
+		updatedCount: 0,
+		deletedCount: 0,
+		totalProcessed: 0,
+	})
+
+	// New item form
+	//
+	// The shared FormField binds `string | number | undefined`, so the form model
+	// is kept loose here and converted to `NewInventoryItem` on submit.
+	interface NewItemForm {
+		item_name: string | number | undefined
+		quantity: string | number | undefined
+		reorder_level: string | number | undefined
+		unit: string | number | undefined
+		back_order: boolean
+		not_track: boolean
+	}
+
+	let newItem = $state<NewItemForm>({
+		item_name: '',
+		quantity: 0,
+		reorder_level: 0,
+		unit: '',
+		back_order: false,
+		not_track: false,
+	})
+
+	// Helper function to get stock status for sorting
+	const getStockStatusValue = (item: InventoryItem): number => {
+		if (item.not_track) return 3 // Not Tracked (check this first)
+		if (item.quantity === 0) return 0 // Out of Stock
+		if (item.quantity <= item.reorder_level) return 1 // Reorder Level Reached
+		return 2 // In Stock
+	}
+
+	// Sorting and filtering logic
+	const sortedAndFilteredItems = $derived.by((): InventoryItem[] => {
+		let items = inventoryStore.searchItems(searchQuery)
+
+		// Apply order date filter
+		if (showOrderedOnly) {
+			items = items.filter((item) => item.order_date)
+		}
+
+		const key = sortConfig.key
+		if (key) {
+			items = [...items].sort((a, b) => {
+				let aValue: string | number | boolean | null
+				let bValue: string | number | boolean | null
+
+				if (key === 'status') {
+					aValue = getStockStatusValue(a)
+					bValue = getStockStatusValue(b)
+				} else {
+					aValue = a[key as keyof InventoryItem]
+					bValue = b[key as keyof InventoryItem]
+				}
+
+				// Handle null values (put them at the end)
+				if (aValue === null && bValue === null) return 0
+				if (aValue === null) return sortConfig.direction === 'asc' ? 1 : -1
+				if (bValue === null) return sortConfig.direction === 'asc' ? -1 : 1
+
+				// Handle string comparison for item_name
+				if (typeof aValue === 'string' && typeof bValue === 'string') {
+					const comparison = aValue.toLowerCase().localeCompare(bValue.toLowerCase())
+					return sortConfig.direction === 'asc' ? comparison : -comparison
+				}
+
+				// Handle boolean comparison
+				if (typeof aValue === 'boolean' && typeof bValue === 'boolean') {
+					const aNum = aValue ? 1 : 0
+					const bNum = bValue ? 1 : 0
+					return sortConfig.direction === 'asc' ? aNum - bNum : bNum - aNum
+				}
+
+				// Handle number comparison
+				if (typeof aValue === 'number' && typeof bValue === 'number') {
+					return sortConfig.direction === 'asc' ? aValue - bValue : bValue - aValue
+				}
+
+				return 0
+			})
+		}
+
+		return items
+	})
+
+	// Pagination
+	const pagination = createPagination(() => sortedAndFilteredItems)
+
+	// Format date for display
+	const formatDate = (dateString: string): string => {
+		const date = new Date(dateString)
+		return date.toLocaleDateString('en-US', {
+			month: 'short',
+			day: 'numeric',
+			year: 'numeric',
+		})
+	}
+
+	// Close stock in modal
+	const closeStockInModal = (): void => {
+		showStockInModal = false
+		stockInItem = null
+		clearOrderDate = true
+		notTrackStatus = false
+		stockQuantity = 0
+	}
+
+	// Helper function to get item max quantity
+	const getItemMaxQuantity = (itemId: string): number => {
+		const item = inventoryStore.items.find((item) => item.id === itemId)
+		return item?.quantity || 0
+	}
+
+	// Confirm stock in with optional order date clearing
+	const confirmStockIn = async (): Promise<void> => {
+		if (!stockInItem || stockQuantity <= 0) return
+
+		await inventoryStore.stockIn(stockInItem.id, stockQuantity, clearOrderDate, notTrackStatus)
+
+		if (!inventoryStore.error) {
+			closeStockInModal()
+		}
+	}
+
+	// Reset to first page when filters change
+	$effect(() => {
+		searchQuery
+		showOrderedOnly
+		untrack(() => {
+			pagination.resetToFirstPage()
+		})
+	})
+
+	// Table column configuration
+	const tableColumns = [
+		{ key: 'item_name', label: 'Item Name', sortable: true },
+		{ key: 'quantity', label: 'Current Stock', sortable: true },
+		{ key: 'reorder_level', label: 'Reorder Level', sortable: true },
+		{ key: 'status', label: 'Status', sortable: true },
+		{ key: 'actions', label: 'Actions', sortable: false },
+	]
+
+	// Sorting functions
+	const toggleSort = (key: string): void => {
+		if (sortConfig.key === key) {
+			// Same column clicked - toggle direction
+			sortConfig.direction = sortConfig.direction === 'asc' ? 'desc' : 'asc'
+		} else {
+			// New column clicked - set ascending
+			sortConfig.key = key as keyof InventoryItem | 'status'
+			sortConfig.direction = 'asc'
+		}
+		pagination.resetToFirstPage() // Reset to first page when sorting changes
+	}
+
+	// Action button configurations
+	const getItemActions = (): Array<ActionButtonGroupAction> => {
+		return [
+			{
+				key: 'stock-in',
+				label: 'Stock In',
+				variant: 'blue',
+			},
+			{
+				key: 'stock-out',
+				label: 'Stock Out',
+				variant: 'yellow',
+			},
+			{
+				key: 'delete',
+				label: 'Delete',
+				variant: 'red',
+			},
+		]
+	}
+
+	// Handle action button clicks
+	const handleActionClick = (actionKey: string, item: InventoryItem) => {
+		switch (actionKey) {
+			case 'stock-in':
+				openStockInFromButton(item)
+				break
+			case 'stock-out':
+				openStockOutModal(item)
+				break
+			case 'delete':
+				showDeleteConfirmation(item)
+				break
+		}
+	}
+
+	// Stock In Button handler - uses existing stock in modal
+	const openStockInFromButton = (item: InventoryItem): void => {
+		stockInItem = item
+		clearOrderDate = !!item.order_date // Set based on whether item has order date
+		notTrackStatus = false // Initialize to 0 if current is -1
+		showStockInModal = true
+	}
+
+	// Stock Out Modal functions
+	const openStockOutModal = (item: InventoryItem): void => {
+		stockManageItem = item
+		stockQuantity = 1
+		showStockOutModal = true
+	}
+
+	const closeStockOutModal = (): void => {
+		showStockOutModal = false
+		stockManageItem = null
+		stockQuantity = 1
+	}
+
+	const confirmStockOut = async (): Promise<void> => {
+		if (!stockManageItem) return
+
+		const itemId = stockManageItem.id
+		const maxQuantity = getItemMaxQuantity(itemId)
+
+		if (stockQuantity > maxQuantity) {
+			stockQuantity = maxQuantity
+			return
+		}
+
+		await inventoryStore.stockOut(itemId, stockQuantity)
+
+		if (!inventoryStore.error) {
+			closeStockOutModal()
+		}
+	}
+
+	const openAddForm = async (): Promise<void> => {
+		showAddForm = true
+		await tick() // Wait for DOM to update
+		itemNameInputRef?.focus() // Focus the item name input
+	}
+
+	const addNewItem = async (): Promise<void> => {
+		if (String(newItem.item_name ?? '').trim()) {
+			const payload: NewInventoryItem = {
+				item_name: String(newItem.item_name ?? ''),
+				quantity: Number(newItem.quantity ?? 0),
+				reorder_level: Number(newItem.reorder_level ?? 0),
+				unit: String(newItem.unit ?? ''),
+				back_order: newItem.back_order,
+				not_track: newItem.not_track,
+			}
+			await inventoryStore.addItem(payload)
+			if (!inventoryStore.error) {
+				newItem = {
+					item_name: '',
+					quantity: 0,
+					reorder_level: 0,
+					unit: '',
+					back_order: false,
+					not_track: false,
+				}
+				showAddForm = false
+			}
+		}
+	}
+
+	const showDeleteConfirmation = (item: InventoryItem): void => {
+		deleteItem = item
+		deleteConfirmation = false
+		showDeleteModal = true
+	}
+
+	const confirmDelete = async (): Promise<void> => {
+		if (!deleteItem || !deleteConfirmation) return
+
+		deleteLoading = true
+		try {
+			await inventoryStore.deleteItem(deleteItem.id)
+			showDeleteModal = false
+			deleteItem = null
+			deleteConfirmation = false
+		} finally {
+			deleteLoading = false
+		}
+	}
+
+	const cancelDelete = (): void => {
+		showDeleteModal = false
+		deleteItem = null
+		deleteConfirmation = false
+		deleteLoading = false
+	}
+
+	const getStockStatus = (item: InventoryItem): StockStatus => {
+		if (item.not_track) return { text: 'Not Tracked', class: 'bg-gray-100 text-gray-800' }
+		if (item.quantity === 0) return { text: 'Out of Stock', class: 'bg-red-100 text-red-800' }
+		if (item.quantity <= item.reorder_level)
+			return { text: 'Low Stock', class: 'bg-yellow-100 text-yellow-800' }
+		return { text: 'In Stock', class: 'bg-green-100 text-green-800' }
+	}
+
+	const getStockStatusColor = (item: InventoryItem): 'gray' | 'red' | 'yellow' | 'green' => {
+		if (item.not_track) return 'gray'
+		if (item.quantity === 0) return 'red'
+		if (item.quantity <= item.reorder_level) return 'yellow'
+		return 'green'
+	}
+
+	// Excel Import Functions
+	const triggerFileUpload = (): void => {
+		fileInput?.click()
+	}
+
+	const handleFileUpload = async (event: Event): Promise<void> => {
+		const target = event.target as HTMLInputElement
+		const file = target.files?.[0]
+
+		if (!file) return
+
+		// Reset import status
+		importStatus = {
+			show: true,
+			loading: true,
+			error: null,
+			success: false,
+			fileName: file.name,
+			importedCount: 0,
+			updatedCount: 0,
+			deletedCount: 0,
+			totalProcessed: 0,
+		}
+
+		try {
+			const data = await parseExcelFile(file)
+			await importInventoryData(data)
+
+			importStatus.loading = false
+			importStatus.success = true
+
+			// Hide success message after 10 seconds
+			setTimeout(() => {
+				importStatus.show = false
+			}, 10000)
+		} catch (error) {
+			importStatus.loading = false
+			importStatus.error = error instanceof Error ? error.message : 'Unknown error occurred'
+
+			// Hide error message after 10 seconds
+			setTimeout(() => {
+				importStatus.show = false
+			}, 10000)
+		}
+
+		// Clear the file input
+		target.value = ''
+	}
+
+	interface ExcelData {
+		item_name: string
+		quantity: number
+		reorder_level: number
+		unit: string
+		remark: string
+		order_date: string
+	}
+
+	const parseExcelFile = async (file: File): Promise<ExcelData[]> => {
+		return new Promise((resolve, reject) => {
+			const reader = new FileReader()
+
+			reader.onload = (e) => {
+				try {
+					const data = new Uint8Array(e.target?.result as ArrayBuffer)
+
+					const workbook = XLSX.read(data, { type: 'array' })
+					const sheetName = workbook.SheetNames[0]
+					const worksheet = workbook.Sheets[sheetName]
+					const jsonData = XLSX.utils.sheet_to_json(worksheet)
+
+					resolve(jsonData as ExcelData[])
+				} catch {
+					reject(new Error('Failed to parse Excel file. Please ensure it has the correct format.'))
+				}
+			}
+
+			reader.onerror = () => {
+				reject(new Error('Failed to read file'))
+			}
+
+			reader.readAsArrayBuffer(file)
+		})
+	}
+
+	const importInventoryData = async (data: ExcelData[]): Promise<void> => {
+		let importedCount = 0
+		let updatedCount = 0
+		let deletedCount = 0
+
+		try {
+			// Validate all rows first
+			for (const row of data) {
+				if (
+					!row.item_name ||
+					typeof row.quantity !== 'number' ||
+					typeof row.reorder_level !== 'number' ||
+					!row.unit ||
+					!row.remark ||
+					!row.order_date
+				) {
+					throw new Error(
+						'Invalid data format. Please ensure all rows have: item_name, quantity, reorder_level, unit, remark, order_date',
+					)
+				}
+			}
+
+			// Get current items from the store
+			const currentItems = [...inventoryStore.items]
+
+			// Create a map of Excel items (lowercase for case-insensitive comparison)
+			const excelItemsMap = new Map<string, ExcelData>()
+			data.forEach((row) => {
+				excelItemsMap.set(row.item_name.toLowerCase(), row)
+			})
+
+			// Step 1: Update existing items and add new items from Excel
+			for (const row of data) {
+				const itemNameLower = row.item_name.toLowerCase()
+
+				// Check if item already exists
+				const existingItem = currentItems.find(
+					(item) => item.item_name.toLowerCase() === itemNameLower,
+				)
+
+				if (existingItem) {
+					// Update existing item
+					if (
+						existingItem.item_name !== row.item_name ||
+						existingItem.quantity !== row.quantity ||
+						existingItem.reorder_level !== row.reorder_level ||
+						existingItem.unit !== row.unit ||
+						existingItem.remark !== row.remark ||
+						existingItem.order_date !== row.order_date
+					) {
+						await inventoryStore.updateItem(existingItem.id, {
+							...existingItem,
+							quantity: Math.max(0, row.quantity),
+							reorder_level: Math.max(0, row.reorder_level),
+							unit: row.unit,
+							remark: row.remark,
+							order_date: row.order_date,
+						})
+
+						if (!inventoryStore.error) {
+							updatedCount++
+						}
+					}
+				} else {
+					// Add new item
+					await inventoryStore.addItem({
+						item_name: row.item_name,
+						quantity: Math.max(0, row.quantity),
+						reorder_level: Math.max(0, row.reorder_level),
+						unit: row.unit,
+						remark: row.remark,
+						order_date: row.order_date,
+					})
+
+					if (!inventoryStore.error) {
+						importedCount++
+					}
+				}
+			}
+
+			// Step 2: Delete items that are not in the Excel file
+			for (const currentItem of currentItems) {
+				const itemNameLower = currentItem.item_name.toLowerCase()
+
+				// If item is not in Excel file, delete it
+				if (!excelItemsMap.has(itemNameLower)) {
+					await inventoryStore.deleteItem(currentItem.id)
+
+					if (!inventoryStore.error) {
+						deletedCount++
+					}
+				}
+			}
+
+			// Update import status with detailed counts
+			importStatus.importedCount = importedCount
+			importStatus.updatedCount = updatedCount
+			importStatus.deletedCount = deletedCount
+			importStatus.totalProcessed = data.length
+		} catch (error) {
+			throw error
+		}
+	}
+
+	const exportToExcel = (): void => {
+		try {
+			// Prepare data for export
+			const exportData = inventoryStore.items.map((item) => ({
+				item_name: item.item_name,
+				quantity: item.quantity,
+				reorder_level: item.reorder_level,
+				unit: item.unit,
+				remark: item.remark,
+				order_date: item.order_date,
+			}))
+
+			// Create workbook and worksheet
+			const workbook = XLSX.utils.book_new()
+			const worksheet = XLSX.utils.json_to_sheet(exportData)
+
+			// Set column widths for better formatting
+			const columnWidths = [
+				{ wch: 50 }, // item_name
+				{ wch: 12 }, // quantity
+				{ wch: 22 }, // reorder_level
+				{ wch: 25 }, // unit
+				{ wch: 50 }, // remark
+				{ wch: 25 }, // order_date
+			]
+			worksheet['!cols'] = columnWidths
+
+			// Add the worksheet to workbook
+			XLSX.utils.book_append_sheet(workbook, worksheet, 'Inventory')
+
+			// Generate filename with current date
+			const currentDate = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
+				.toISOString()
+				.slice(0, 10)
+			const filename = `inventory_export_${currentDate}.xlsx`
+
+			// Write and download the file
+			XLSX.writeFile(workbook, filename)
+		} catch (error) {
+			console.error('Export failed:', error)
+			alert('Failed to export data. Please try again.')
+		}
+	}
+</script>
+
+<div class="px-2 py-3 sm:px-0 sm:py-6">
+	<div class="rounded-lg border-4 border-dashed border-gray-200 p-3 sm:p-6">
+		<!-- Header -->
+		<div class="mb-4 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between">
+			<h2 class="text-xl font-bold text-gray-900 sm:text-2xl">Inventory Management</h2>
+			<div class="flex flex-col gap-3 sm:flex-row">
+				{#if !showAddForm}
+					<Button variant="green" class="w-full sm:w-auto" onclick={triggerFileUpload}>
+						Import from Excel (xlsx)
+					</Button>
+				{/if}
+				{#if !showAddForm}
+					<Button
+						class="w-full bg-purple-600 hover:bg-purple-700 focus-visible:ring-purple-500 sm:w-auto"
+						onclick={exportToExcel}
+					>
+						Export to Excel (xlsx)
+					</Button>
+				{/if}
+				{#if !showAddForm}
+					<Button variant="blue" class="w-full sm:w-auto" onclick={openAddForm}>Add New Item</Button
+					>
+				{/if}
+			</div>
+		</div>
+
+		<!-- Hidden File Input -->
+		<input
+			bind:this={fileInput}
+			type="file"
+			accept=".xlsx"
+			onchange={handleFileUpload}
+			class="hidden"
+		/>
+
+		<!-- Import Progress/Error Display -->
+		{#if importStatus.show}
+			<div class="mb-4 sm:mb-6">
+				{#if importStatus.loading}
+					<div class="rounded-md border border-blue-200 bg-blue-50 p-4">
+						<div class="flex">
+							<div class="flex-shrink-0">
+								<div class="h-5 w-5 animate-spin rounded-full border-b-2 border-blue-600"></div>
+							</div>
+							<div class="ml-3">
+								<h3 class="text-sm font-medium text-blue-800">Importing data...</h3>
+								<p class="mt-1 text-sm text-blue-700">Processing {importStatus.fileName}</p>
+							</div>
+						</div>
+					</div>
+				{:else if importStatus.error}
+					<div>
+						<ErrorAlert title="Import failed" message={importStatus.error} />
+					</div>
+				{:else if importStatus.success}
+					<div class="rounded-md border border-green-200 bg-green-50 p-4">
+						<div class="flex">
+							<div class="flex-shrink-0">
+								<CheckCircleIcon class="h-5 w-5 text-green-400" />
+							</div>
+							<div class="ml-3">
+								<h3 class="text-sm font-medium text-green-800">Import successful!</h3>
+								<div class="mt-1 text-sm text-green-700">
+									<p>Successfully synced inventory with {importStatus.fileName}:</p>
+									<ul class="mt-1 space-y-1">
+										{#if importStatus.importedCount > 0}
+											<li>• Added {importStatus.importedCount} new items</li>
+										{/if}
+										{#if importStatus.updatedCount > 0}
+											<li>• Updated {importStatus.updatedCount} existing items</li>
+										{/if}
+										{#if importStatus.deletedCount > 0}
+											<li>• Removed {importStatus.deletedCount} items not in Excel</li>
+										{/if}
+									</ul>
+									<p class="mt-2 font-medium">
+										Total processed: {importStatus.totalProcessed} items
+									</p>
+								</div>
+							</div>
+						</div>
+					</div>
+				{/if}
+			</div>
+		{/if}
+
+		<!-- Stock In Modal -->
+		<ActionModal
+			bind:open={showStockInModal}
+			title={`Stock In: ${stockInItem?.item_name}`}
+			variant="green"
+			loading={inventoryStore.loading}
+			confirmText="Stock In"
+			onclose={closeStockInModal}
+			oncancel={closeStockInModal}
+			onconfirm={confirmStockIn}
+		>
+			<div class="space-y-4">
+				<div class="rounded-md border border-blue-200 bg-blue-50 p-3">
+					<div class="mb-2 flex items-center gap-2">
+						<ArrowDownIcon class="h-4 w-4 text-blue-500" />
+						<span class="text-sm font-medium text-blue-800">
+							Current Stock: {stockInItem?.quantity || 0}
+							{stockInItem?.unit}
+						</span>
+					</div>
+					<p class="text-sm text-blue-700">
+						Add stock to increase the inventory quantity for this item.
+					</p>
+				</div>
+
+				<div>
+					<label class="mb-1 block text-sm font-medium text-gray-700" for="stock-in-quantity">
+						Quantity to Add
+					</label>
+					<input
+						id="stock-in-quantity"
+						bind:value={stockQuantity}
+						type="number"
+						min="1"
+						class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-green-500 focus:ring-2 focus:ring-green-500 focus:outline-none"
+						placeholder="Enter quantity to add"
+					/>
+					<p class="mt-1 text-xs text-gray-500">Enter the quantity you want to add to inventory</p>
+				</div>
+
+				<!-- Not Track Status -->
+				{#if stockInItem?.not_track}
+					<div class="rounded-md border border-blue-200 bg-blue-50 p-3">
+						<div class="mb-2 flex items-center gap-2">
+							<EyeIcon class="h-4 w-4 text-blue-500" />
+							<span class="text-sm font-medium text-blue-800">
+								Updated Tracking Status: {stockInItem.not_track ? 'Track' : 'Not Track'}
+							</span>
+						</div>
+						<div class="flex items-start gap-3">
+							<input
+								id="updateNotTrackStatus"
+								bind:checked={notTrackStatus}
+								type="checkbox"
+								class="mt-1 h-4 w-4 rounded border-blue-300 text-blue-600 focus:ring-blue-500"
+							/>
+							<div class="flex-1">
+								<label for="updateNotTrackStatus" class="text-sm font-medium text-gray-700">
+									Mark as untracked
+								</label>
+								<p class="mt-1 text-xs text-gray-500">Check this to mark the item as untracked.</p>
+							</div>
+						</div>
+					</div>
+				{/if}
+
+				<!-- Order Date Handling -->
+				{#if stockInItem?.order_date}
+					<div class="rounded-md border border-blue-200 bg-blue-50 p-3">
+						<div class="mb-2 flex items-center gap-2">
+							<CalendarIcon class="h-4 w-4 text-blue-500" />
+							<span class="text-sm font-medium text-blue-800">
+								Order Date: {formatDate(stockInItem.order_date)}
+							</span>
+						</div>
+						<div class="flex items-start gap-3">
+							<input
+								id="clearOrderDate"
+								bind:checked={clearOrderDate}
+								type="checkbox"
+								class="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+							/>
+							<div class="flex-1">
+								<label for="clearOrderDate" class="text-sm font-medium text-gray-700">
+									Mark as received and clear order date
+								</label>
+								<p class="mt-1 text-xs text-gray-500">
+									Check this to mark the item as received and remove the order date tracking.
+								</p>
+							</div>
+						</div>
+					</div>
+				{/if}
+			</div>
+		</ActionModal>
+
+		<!-- Delete Confirmation Modal -->
+		<ActionModal
+			bind:open={showDeleteModal}
+			title={`Delete Item: ${deleteItem?.item_name || ''}`}
+			variant="red"
+			confirmText="Delete"
+			loading={deleteLoading}
+			disabled={!deleteConfirmation}
+			onconfirm={confirmDelete}
+			oncancel={cancelDelete}
+			onclose={cancelDelete}
+		>
+			<div class="space-y-4">
+				<!-- Confirmation Message -->
+				<div class="rounded-md border border-red-200 bg-red-50 p-3">
+					<div class="mb-2 flex items-center gap-2">
+						<WarningTriangleIcon class="h-4 w-4 text-red-500" />
+						<span class="text-sm font-medium text-red-800">
+							Warning: This action cannot be undone
+						</span>
+					</div>
+					<p class="text-sm text-red-700">
+						Are you sure you want to delete this item? This action cannot be undone.
+					</p>
+				</div>
+
+				<div class="flex items-start gap-3">
+					<input
+						id="delete-confirmation"
+						bind:checked={deleteConfirmation}
+						type="checkbox"
+						class="mt-1 h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
+					/>
+					<label for="delete-confirmation" class="text-sm text-gray-700">
+						I understand that this action cannot be undone and I want to permanently delete this
+						item.
+					</label>
+				</div>
+			</div>
+		</ActionModal>
+
+		<!-- Stock Out Modal -->
+		<ActionModal
+			bind:open={showStockOutModal}
+			title={`Stock Out: ${stockManageItem?.item_name}`}
+			variant="green"
+			loading={inventoryStore.loading}
+			confirmText="Stock Out"
+			onclose={closeStockOutModal}
+			oncancel={closeStockOutModal}
+			onconfirm={confirmStockOut}
+		>
+			<div class="space-y-4">
+				<div class="rounded-md border border-yellow-200 bg-yellow-50 p-3">
+					<div class="mb-2 flex items-center gap-2">
+						<ArrowUpSolidIcon class="h-4 w-4 text-yellow-500" />
+						<span class="text-sm font-medium text-yellow-800">
+							Current Stock: {stockManageItem?.quantity || 0}
+							{stockManageItem?.unit}
+						</span>
+					</div>
+					<p class="text-sm text-yellow-700">
+						Stock out to decrease the inventory quantity for this item.
+					</p>
+				</div>
+
+				<div>
+					<label class="mb-1 block text-sm font-medium text-gray-700" for="stock-out-quantity">
+						Quantity to Remove
+					</label>
+					<input
+						id="stock-out-quantity"
+						bind:value={stockQuantity}
+						type="number"
+						min="1"
+						max={getItemMaxQuantity(stockManageItem?.id || '')}
+						class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-yellow-500 focus:ring-2 focus:ring-yellow-500 focus:outline-none"
+						placeholder="Enter quantity to remove"
+					/>
+					<p class="mt-1 text-xs text-gray-500">
+						Maximum available for stock out: {getItemMaxQuantity(stockManageItem?.id || '')}
+						{stockManageItem?.unit}
+					</p>
+				</div>
+			</div>
+		</ActionModal>
+
+		<!-- Add New Item Form -->
+		{#if showAddForm}
+			<div class="mb-4 rounded-lg bg-white p-4 shadow sm:mb-6 sm:p-6">
+				<h3 class="mb-4 text-base font-medium text-gray-900 sm:text-lg">Add New Item</h3>
+				<form
+					onsubmit={(e) => {
+						e.preventDefault()
+						addNewItem()
+					}}
+				>
+					<div class="space-y-4 sm:grid sm:grid-cols-6 sm:gap-6 sm:space-y-0">
+						<div class="col-span-3">
+							<FormField
+								bind:ref={itemNameInputRef}
+								bind:value={newItem.item_name}
+								type="text"
+								label="Item Name"
+								placeholder="Enter item name"
+								required={true}
+							/>
+						</div>
+						<div class="col-span-1">
+							<FormField
+								bind:value={newItem.quantity}
+								type="number"
+								label="Initial Quantity"
+								required={true}
+								min={0}
+							/>
+						</div>
+						<div class="col-span-1">
+							<FormField
+								bind:value={newItem.reorder_level}
+								type="number"
+								label="Reorder Level"
+								required={true}
+								min={-1}
+							/>
+						</div>
+						<div class="col-span-1">
+							<FormField
+								bind:value={newItem.unit}
+								type="text"
+								label="Unit"
+								placeholder="Enter unit"
+								required={true}
+							/>
+						</div>
+					</div>
+					<div class="mt-4 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+						<Button
+							type="button"
+							variant="gray"
+							class="w-full disabled:opacity-50 sm:w-auto"
+							onclick={() => (showAddForm = false)}
+						>
+							Cancel
+						</Button>
+						<Button
+							type="submit"
+							variant="green"
+							class="w-full disabled:opacity-50 sm:w-auto"
+							disabled={inventoryStore.loading ||
+								newItem.item_name === '' ||
+								Number(newItem.quantity) < 0 ||
+								Number(newItem.reorder_level) < 0 ||
+								newItem.unit === ''}
+						>
+							{inventoryStore.loading ? 'Adding...' : 'Add Item'}
+						</Button>
+					</div>
+				</form>
+			</div>
+		{/if}
+
+		<!-- Search Bar and Filters -->
+		<div class="mb-4 space-y-4 sm:mb-6">
+			<SearchInput bind:value={searchQuery} placeholder="Search items..." />
+
+			<!-- Filter Controls -->
+			<div class="flex flex-wrap gap-3">
+				<div class="flex items-center gap-2">
+					<input
+						id="filter-ordered"
+						bind:checked={showOrderedOnly}
+						type="checkbox"
+						class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+					/>
+					<label for="filter-ordered" class="text-sm font-medium text-gray-700">
+						Show only items with order date
+					</label>
+				</div>
+			</div>
+		</div>
+
+		<!-- Mobile Card View -->
+		<div class="block lg:hidden">
+			<div class="overflow-hidden bg-white shadow sm:rounded-md">
+				<div class="border-b border-gray-200 px-4 py-5 sm:px-6">
+					<h3 class="text-lg leading-6 font-medium text-gray-900">
+						Items ({sortedAndFilteredItems.length})
+					</h3>
+				</div>
+
+				{#if inventoryStore.loading && sortedAndFilteredItems.length === 0}
+					<LoadingSpinner message="Loading items..." />
+				{:else if sortedAndFilteredItems.length === 0}
+					<EmptyState
+						icon="box"
+						title="No items found"
+						description={searchQuery
+							? 'Try adjusting your search terms.'
+							: 'Get started by adding your first item.'}
+					/>
+				{:else}
+					<div class="divide-y divide-gray-200">
+						{#each pagination.paginatedItems as item (item.id)}
+							<div class="px-4 py-4">
+								<div class="space-y-3">
+									<!-- Item Header -->
+									<div class="flex items-center justify-between">
+										<div class="mr-2 flex-1">
+											<h4 class="truncate text-sm font-medium text-gray-900">
+												{item.item_name}
+											</h4>
+											<!-- Show non-order reason if set -->
+											{#if item.non_order_reason}
+												<div class="mt-1">
+													<ReasonBadge reason={item.non_order_reason} size="sm">
+														{item.non_order_reason}
+													</ReasonBadge>
+												</div>
+											{/if}
+										</div>
+										<StatusBadge
+											variant={getStockStatusColor(item)}
+											text={getStockStatus(item).text}
+										/>
+									</div>
+
+									<!-- Item Details -->
+									<div class="space-y-1 text-sm">
+										<div class="flex items-baseline gap-2">
+											<span class="flex-shrink-0 text-gray-500">Current Stock:</span>
+											<span class="font-medium text-gray-900">
+												{item.quantity}
+												{item.unit}
+											</span>
+										</div>
+										<div class="flex items-baseline gap-2">
+											<span class="flex-shrink-0 text-gray-500">Reorder Level:</span>
+											<span class="font-medium text-gray-900">
+												{item.reorder_level}
+												{item.unit}
+											</span>
+										</div>
+									</div>
+
+									<!-- Order Status -->
+									{#if item.order_date}
+										<div class="rounded bg-blue-50 p-2 text-xs text-blue-600">
+											{#if item.back_order}
+												<span class="inline-flex items-center gap-1">
+													<CalendarIcon class="h-3 w-3" />
+													Back-ordered: {formatDate(item.order_date)}
+												</span>
+											{:else}
+												<span class="inline-flex items-center gap-1">
+													<CalendarIcon class="h-3 w-3" />
+													Ordered: {formatDate(item.order_date)}
+												</span>
+											{/if}
+										</div>
+									{/if}
+
+									<!-- Actions -->
+									<div class="border-t border-gray-100 pt-2">
+										<ActionButtonGroup
+											class="w-full"
+											actions={getItemActions()}
+											size="sm"
+											loading={inventoryStore.loading}
+											onactionclick={(actionKey) => handleActionClick(actionKey, item)}
+										/>
+									</div>
+								</div>
+							</div>
+						{/each}
+					</div>
+				{/if}
+
+				<!-- Mobile Pagination -->
+				{#if pagination.totalPages > 1}
+					<TablePagination
+						currentPage={pagination.currentPage}
+						totalPages={pagination.totalPages}
+						itemsPerPage={pagination.itemsPerPage}
+						totalItems={sortedAndFilteredItems.length}
+						startIndex={pagination.startIndex}
+						endIndex={pagination.endIndex}
+						showItemsPerPageSelector={false}
+						onpagechange={pagination.goToPage}
+						onitemsperpagechange={pagination.updateItemsPerPage}
+					/>
+				{/if}
+			</div>
+		</div>
+
+		<!-- Desktop Table View -->
+		<div class="hidden lg:block">
+			<div class="overflow-hidden bg-white shadow sm:rounded-md">
+				<div class="border-b border-gray-200 px-4 py-5 sm:px-6">
+					<h3 class="text-lg leading-6 font-medium text-gray-900">
+						Items ({sortedAndFilteredItems.length})
+					</h3>
+				</div>
+
+				{#if inventoryStore.loading && sortedAndFilteredItems.length === 0}
+					<LoadingSpinner message="Loading items..." />
+				{:else if sortedAndFilteredItems.length === 0}
+					<EmptyState
+						icon="box"
+						title="No items found"
+						description={searchQuery
+							? 'Try adjusting your search terms.'
+							: 'Get started by adding your first item.'}
+					/>
+				{:else}
+					<Table.Root>
+						<SortableTableHeader columns={tableColumns} {sortConfig} onsortchange={toggleSort} />
+						<Table.Body>
+							{#each pagination.paginatedItems as item (item.id)}
+								<Table.Row>
+									<Table.Cell
+										class="max-w-xs min-w-0 px-6 py-4 text-sm font-medium whitespace-normal text-gray-900"
+									>
+										<div class="break-words">{item.item_name}</div>
+										<!-- Show order status if item has order date -->
+										{#if item.order_date}
+											<div class="mt-1 text-xs text-blue-600">
+												{#if item.back_order}
+													<span class="inline-flex items-center gap-1">
+														<ClockIcon class="h-3 w-3" />
+														Back Ordered: {formatDate(item.order_date)}
+													</span>
+												{:else}
+													<span class="inline-flex items-center gap-1">
+														<CalendarIcon class="h-3 w-3" />
+														Ordered: {formatDate(item.order_date)}
+													</span>
+												{/if}
+											</div>
+											<!-- Show non-order reason if set -->
+										{:else if item.non_order_reason}
+											<div class="mt-1 text-xs">
+												<ReasonBadge reason={item.non_order_reason} size="sm">
+													{item.non_order_reason}
+												</ReasonBadge>
+											</div>
+										{/if}
+									</Table.Cell>
+									<Table.Cell class="px-6 py-4 text-sm whitespace-nowrap text-gray-900">
+										{item.quantity}
+										{item.unit}
+									</Table.Cell>
+									<Table.Cell class="px-6 py-4 text-sm whitespace-nowrap text-gray-900">
+										{item.reorder_level}
+										{item.unit}
+									</Table.Cell>
+									<Table.Cell class="px-6 py-4 whitespace-nowrap">
+										<StatusBadge
+											variant={getStockStatusColor(item)}
+											text={getStockStatus(item).text}
+										/>
+									</Table.Cell>
+									<Table.Cell class="px-6 py-4 text-sm font-medium whitespace-nowrap">
+										<ActionButtonGroup
+											actions={getItemActions()}
+											size="sm"
+											loading={inventoryStore.loading}
+											onactionclick={(actionKey) => handleActionClick(actionKey, item)}
+										/>
+									</Table.Cell>
+								</Table.Row>
+							{/each}
+						</Table.Body>
+					</Table.Root>
+				{/if}
+
+				<!-- Desktop Pagination -->
+				<TablePagination
+					currentPage={pagination.currentPage}
+					totalPages={pagination.totalPages}
+					itemsPerPage={pagination.itemsPerPage}
+					totalItems={sortedAndFilteredItems.length}
+					startIndex={pagination.startIndex}
+					endIndex={pagination.endIndex}
+					showItemsPerPageSelector={true}
+					onpagechange={pagination.goToPage}
+					onitemsperpagechange={pagination.updateItemsPerPage}
+				/>
+			</div>
+		</div>
+	</div>
+</div>
