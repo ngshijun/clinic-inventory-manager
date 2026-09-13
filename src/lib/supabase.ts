@@ -1,5 +1,5 @@
 // lib/supabase.ts
-import type { Database } from '@/types/database.types'
+import type { Database } from '$lib/types/database.types'
 import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = 'https://knezqdjwcgauoycrmbdi.supabase.co'
