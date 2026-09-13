@@ -3,5 +3,4 @@ build
 .vercel
 node_modules
 .claude/worktrees
-.vue-ref
 package-lock.json
