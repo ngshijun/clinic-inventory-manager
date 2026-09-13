@@ -1,3 +1,3 @@
 export interface User {
-  role: 'manager' | 'requester'
+	role: 'manager' | 'requester'
 }

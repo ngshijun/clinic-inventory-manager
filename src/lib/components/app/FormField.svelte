@@ -50,7 +50,7 @@
 	}
 
 	const selectLabel = $derived(
-		options.find((option) => String(option.value) === String(value))?.label
+		options.find((option) => String(option.value) === String(value))?.label,
 	)
 </script>
 
@@ -82,12 +82,16 @@
 			}}
 			{disabled}
 		>
-			<Select.Trigger aria-invalid={error ? 'true' : undefined} class={error ? 'border-red-300' : ''}>
+			<Select.Trigger
+				aria-invalid={error ? 'true' : undefined}
+				class={error ? 'border-red-300' : ''}
+			>
 				{selectLabel ?? (placeholder || 'Select an option')}
 			</Select.Trigger>
 			<Select.Content>
 				{#each options as option (option.value)}
-					<Select.Item value={String(option.value)} label={option.label}>{option.label}</Select.Item>
+					<Select.Item value={String(option.value)} label={option.label}>{option.label}</Select.Item
+					>
 				{/each}
 			</Select.Content>
 		</Select.Root>

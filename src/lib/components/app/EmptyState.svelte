@@ -38,7 +38,7 @@
 				? ChartIcon
 				: icon === 'search'
 					? SearchIcon
-					: BoxIcon
+					: BoxIcon,
 	)
 </script>
 

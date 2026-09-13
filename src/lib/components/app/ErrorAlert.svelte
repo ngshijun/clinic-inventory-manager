@@ -2,6 +2,7 @@
 	import type { Snippet } from 'svelte'
 	import * as Alert from '$lib/components/ui/alert/index.js'
 	import { Button } from '$lib/components/ui/button/index.js'
+	import { cn } from '$lib/utils.js'
 	import CloseIcon from '$lib/components/icons/CloseIcon.svelte'
 	import ExclamationCircleIcon from '$lib/components/icons/ExclamationCircleIcon.svelte'
 
@@ -10,8 +11,12 @@
 		message: string
 		variant?: 'error' | 'warning'
 		dismissible?: boolean
+		size?: 'sm' | 'md' | 'lg'
 		ondismiss?: () => void
 		children?: Snippet
+		/* The Vue component took fall-through attributes; callers use this to add
+		 * their own margin. */
+		class?: string
 	}
 
 	let {
@@ -19,16 +24,22 @@
 		message,
 		variant = 'error',
 		dismissible = false,
+		size = 'md',
 		ondismiss,
 		children,
+		class: className,
 	}: Props = $props()
+
+	const iconSizes = { sm: 'h-4 w-4', md: 'h-5 w-5', lg: 'h-5 w-5 sm:h-6 sm:w-6' }
+	const titleSizes = { sm: 'text-xs', md: 'text-sm', lg: 'text-sm sm:text-base' }
+	const messageSizes = { sm: 'text-xs', md: 'text-sm', lg: 'text-sm sm:text-base' }
 </script>
 
-<Alert.Root {variant} class="has-[>svg]:grid-cols-[auto_1fr_auto]">
-	<ExclamationCircleIcon />
+<Alert.Root {variant} class={cn('has-[>svg]:grid-cols-[auto_1fr_auto]', className)}>
+	<ExclamationCircleIcon class={iconSizes[size]} />
 	<div class="min-w-0">
-		<Alert.Title>{title}</Alert.Title>
-		<Alert.Description>{message}</Alert.Description>
+		<Alert.Title class={titleSizes[size]}>{title}</Alert.Title>
+		<Alert.Description class={messageSizes[size]}>{message}</Alert.Description>
 		{#if children}
 			<div class="mt-2">{@render children()}</div>
 		{/if}

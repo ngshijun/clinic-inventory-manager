@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { Pagination as PaginationPrimitive } from "bits-ui";
-	import { cn } from "$lib/utils.js";
+	import { Pagination as PaginationPrimitive } from 'bits-ui'
+	import { cn } from '$lib/utils.js'
 
 	let {
 		ref = $bindable(null),
@@ -10,7 +10,7 @@
 		page = $bindable(1),
 		siblingCount = 1,
 		...restProps
-	}: PaginationPrimitive.RootProps = $props();
+	}: PaginationPrimitive.RootProps = $props()
 </script>
 
 <PaginationPrimitive.Root
@@ -22,6 +22,6 @@
 	{count}
 	{perPage}
 	{siblingCount}
-	class={cn("mx-auto flex w-full justify-center", className)}
+	class={cn('mx-auto flex w-full justify-center', className)}
 	{...restProps}
 />

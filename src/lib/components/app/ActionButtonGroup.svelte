@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { cn } from '$lib/utils.js'
 	import { Button } from '$lib/components/ui/button/index.js'
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js'
 	import CheckIcon from '$lib/components/icons/CheckIcon.svelte'
@@ -26,6 +27,9 @@
 		size?: 'sm' | 'md' | 'lg'
 		layout?: 'horizontal' | 'vertical'
 		onactionclick?: (actionKey: string) => void
+		/* The Vue component merged fall-through attributes onto its root; the
+		 * mobile card in every list view passes `w-full` that way. */
+		class?: string
 	}
 
 	let {
@@ -34,6 +38,7 @@
 		size = 'md',
 		layout = 'horizontal',
 		onactionclick,
+		class: className,
 	}: Props = $props()
 
 	// `row` / `row-sm` are the button sizes that reproduce the original in-row
@@ -55,7 +60,9 @@
 	}
 </script>
 
-<div class="flex {layout === 'horizontal' ? 'flex-row gap-x-2' : 'flex-col gap-y-2'}">
+<div
+	class={cn('flex', layout === 'horizontal' ? 'flex-row gap-x-2' : 'flex-col gap-y-2', className)}
+>
 	{#each actions as action (action.key)}
 		{#if action.dropdown}
 			<DropdownMenu.Root>

@@ -12,11 +12,11 @@ export const prerender = false
 let initialized = false
 
 export const load = ({ url }: { url: URL }) => {
-  if (!initialized) {
-    initialized = true
-    authStore.initAuth()
-  }
+	if (!initialized) {
+		initialized = true
+		authStore.initAuth()
+	}
 
-  const to = resolveRedirect(url.pathname, authStore.isAuthenticated, authStore.user)
-  if (to && to !== url.pathname) redirect(307, to)
+	const to = resolveRedirect(url.pathname, authStore.isAuthenticated, authStore.user)
+	if (to && to !== url.pathname) redirect(307, to)
 }

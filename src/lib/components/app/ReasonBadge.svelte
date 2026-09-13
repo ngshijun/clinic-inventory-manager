@@ -23,7 +23,7 @@
 				? ClockFilledIcon
 				: meta.icon === 'cross'
 					? CrossCircleIcon
-					: InfoCircleIcon
+					: InfoCircleIcon,
 	)
 </script>
 

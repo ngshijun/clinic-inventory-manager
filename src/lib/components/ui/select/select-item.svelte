@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { Select as SelectPrimitive } from "bits-ui";
-	import CheckIcon from '@lucide/svelte/icons/check';
-	import { cn, type WithoutChild } from "$lib/utils.js";
+	import { Select as SelectPrimitive } from 'bits-ui'
+	import CheckIcon from '@lucide/svelte/icons/check'
+	import { cn, type WithoutChild } from '$lib/utils.js'
 
 	let {
 		ref = $bindable(null),
@@ -10,7 +10,7 @@
 		label,
 		children: childrenProp,
 		...restProps
-	}: WithoutChild<SelectPrimitive.ItemProps> = $props();
+	}: WithoutChild<SelectPrimitive.ItemProps> = $props()
 </script>
 
 <SelectPrimitive.Item
@@ -20,8 +20,8 @@
 	data-slot="select-item"
 	class={cn(
 		"relative flex w-full cursor-default items-center gap-1.5 rounded px-3 py-2 text-sm text-gray-700 outline-hidden select-none focus:bg-gray-100 data-disabled:pointer-events-none data-disabled:opacity-50 data-highlighted:bg-gray-100 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 *:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2",
-		"data-highlighted:bg-accent data-highlighted:text-accent-foreground",
-		className
+		'data-highlighted:bg-accent data-highlighted:text-accent-foreground',
+		className,
 	)}
 	{...restProps}
 >
@@ -31,7 +31,7 @@
 				<CheckIcon class="pointer-events-none" />
 			{/if}
 		</span>
-		<span class="flex flex-1 gap-2 shrink-0 whitespace-nowrap">
+		<span class="flex flex-1 shrink-0 gap-2 whitespace-nowrap">
 			{#if childrenProp}
 				{@render childrenProp({ selected, highlighted })}
 			{:else}

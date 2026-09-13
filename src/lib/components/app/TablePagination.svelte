@@ -113,7 +113,12 @@
 				{/if}
 
 				<div class="flex items-center space-x-1">
-					<Button variant="outline" size="sm" disabled={currentPage <= 1} onclick={() => goToPage(1)}>
+					<Button
+						variant="outline"
+						size="sm"
+						disabled={currentPage <= 1}
+						onclick={() => goToPage(1)}
+					>
 						First
 					</Button>
 					<Button

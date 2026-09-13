@@ -56,7 +56,11 @@
 		if (!next && !loading) onclose?.()
 	}}
 >
-	<Dialog.Content showCloseButton={false} interactOutsideBehavior="ignore">
+	<Dialog.Content
+		showCloseButton={false}
+		interactOutsideBehavior="ignore"
+		escapeKeydownBehavior={loading ? 'ignore' : 'close'}
+	>
 		<Dialog.Header>
 			<Dialog.Title class="mb-4">{title}</Dialog.Title>
 		</Dialog.Header>
