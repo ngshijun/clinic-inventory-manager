@@ -10,11 +10,16 @@
 	import { payrollStore } from '$lib/stores/payroll.svelte'
 	import { payrollRecordsStore } from '$lib/stores/payrollRecords.svelte'
 	import { createConnectionMonitor } from '$lib/composables/connectionMonitor.svelte'
+	import { setConvexClientContext } from 'convex-svelte'
+	import { convex } from '$lib/convex'
 	import CloseIcon from '$lib/components/icons/CloseIcon.svelte'
 	import LogoutIcon from '$lib/components/icons/LogoutIcon.svelte'
 	import MenuIcon from '$lib/components/icons/MenuIcon.svelte'
 
 	let { children } = $props()
+
+	// Share the app-wide Convex client with any component that uses `useQuery`
+	setConvexClientContext(convex)
 
 	let mobileMenuOpen = $state(false)
 
