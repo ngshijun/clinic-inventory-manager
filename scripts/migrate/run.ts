@@ -4,6 +4,7 @@
  *   node scripts/migrate/run.ts export            pull every table from Supabase
  *   node scripts/migrate/run.ts import [--prod]   load it into the Convex deployment
  *   node scripts/migrate/run.ts verify [--prod]   counts and consistency checks
+ *   node scripts/migrate/run.ts backfill [--prod] rebuild the movements count aggregate
  *   node scripts/migrate/run.ts all    [--prod]   export, import, verify
  *
  * Without --prod the target is the deployment in .env.local (CONVEX_DEPLOYMENT).
@@ -101,12 +102,7 @@ async function importAll(): Promise<void> {
 	)
 	await importTable('stock_movements', movementRows)
 
-	// The movements count aggregate is rebuilt in the background, 500 rows per
-	// scheduled mutation. Wait until the count stops moving before returning so
-	// a verify straight after sees the final number.
-	convex('run', 'movements:backfillAggregate', '{}', ...targetFlags)
-	console.log('rebuilding movements aggregate...')
-	await waitForAggregate(movementRows)
+	await backfill(movementRows.length)
 
 	if (skipped.length > 0) {
 		const file = `${DATA_DIR}/skipped.json`
@@ -115,13 +111,24 @@ async function importAll(): Promise<void> {
 	}
 }
 
+/**
+ * The movements count aggregate is rebuilt in the background, a few hundred
+ * entries per scheduled mutation (clear, then insert). Wait until the count
+ * settles at the expected number so a verify straight after sees it.
+ */
+async function backfill(expected: number): Promise<void> {
+	convex('run', 'movements:backfillAggregate', '{}', ...targetFlags)
+	console.log('rebuilding movements aggregate...')
+	await waitForAggregate(expected)
+	console.log(`movements aggregate rebuilt: ${expected}`)
+}
+
 function readMovementCount(): number {
 	const output = convex('run', 'migration:movementCount', '{}', ...targetFlags)
 	return Number(output.trim().split('\n').pop())
 }
 
-async function waitForAggregate(rows: Record<string, unknown>[]): Promise<void> {
-	const expected = rows.length
+async function waitForAggregate(expected: number): Promise<void> {
 	let stableSince = 0
 	let last = -1
 	for (let attempt = 0; attempt < 300; attempt++) {
@@ -129,8 +136,8 @@ async function waitForAggregate(rows: Record<string, unknown>[]): Promise<void> 
 		if (count === expected) return
 		if (count === last) {
 			stableSince++
-			// Unchanged for a while and still short: the backfill has stalled.
-			if (stableSince >= 10) {
+			// Unchanged for a while and still off: the backfill has stalled.
+			if (stableSince >= 15) {
 				throw new Error(`movements aggregate stuck at ${count}, expected ${expected}`)
 			}
 		} else {
@@ -204,13 +211,21 @@ async function main(): Promise<void> {
 		case 'verify':
 			await verify()
 			break
+		case 'backfill': {
+			const expected = await exportCounts()
+			if (!expected) throw new Error('run export first so the expected count is known')
+			await backfill(expected.stock_movements)
+			break
+		}
 		case 'all':
 			await exportSupabase()
 			await importAll()
 			await verify()
 			break
 		default:
-			console.error('usage: node scripts/migrate/run.ts <export|import|verify|all> [--prod]')
+			console.error(
+				'usage: node scripts/migrate/run.ts <export|import|verify|backfill|all> [--prod]',
+			)
 			process.exitCode = 1
 	}
 }

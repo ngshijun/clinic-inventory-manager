@@ -187,19 +187,49 @@ export const updateRemark = mutation({
 	},
 })
 
+const NAMESPACES = ['stock_in', 'stock_out'] as const
+const CLEAR_BATCH = 200
+
 /**
- * Clears and rebuilds the movementsByType aggregate from the table, one page
- * per mutation, rescheduling itself until done. Run with
+ * Clears and rebuilds the movementsByType aggregate from the table, a few
+ * hundred entries per mutation, rescheduling itself until done. The clear
+ * phase pages through the aggregate's own entries rather than calling
+ * `clear`, which touches every node at once and exceeds the per-mutation
+ * limits once the aggregate is large. Run with
  * `npx convex run movements:backfillAggregate '{}'`.
  */
 export const backfillAggregate = internalMutation({
-	args: { cursor: v.optional(v.string()) },
+	args: {
+		phase: v.optional(v.union(v.literal('clear'), v.literal('insert'))),
+		namespace: v.optional(movementType),
+		cursor: v.optional(v.string()),
+	},
 	returns: v.null(),
 	handler: async (ctx, args) => {
-		if (args.cursor === undefined) {
-			await movementsByType.clear(ctx, { namespace: 'stock_in' })
-			await movementsByType.clear(ctx, { namespace: 'stock_out' })
+		const phase = args.phase ?? 'clear'
+
+		if (phase === 'clear') {
+			const namespace = args.namespace ?? NAMESPACES[0]
+			const page = await movementsByType.paginate(ctx, { namespace, pageSize: CLEAR_BATCH })
+			for (const item of page.page) {
+				// Only the fields the aggregate's key and namespace functions read
+				await movementsByType.deleteIfExists(ctx, {
+					_id: item.id,
+					_creationTime: item.key,
+					movement_type: namespace,
+				} as Doc<'stock_movements'>)
+			}
+			const stillClearing = page.page.length > 0
+			const nextNamespace = NAMESPACES[NAMESPACES.indexOf(namespace) + 1]
+			const next = stillClearing
+				? { phase: 'clear' as const, namespace }
+				: nextNamespace
+					? { phase: 'clear' as const, namespace: nextNamespace }
+					: { phase: 'insert' as const }
+			await ctx.scheduler.runAfter(0, internal.movements.backfillAggregate, next)
+			return null
 		}
+
 		const result = await ctx.db
 			.query('stock_movements')
 			.paginate({ cursor: args.cursor ?? null, numItems: BACKFILL_BATCH })
@@ -208,6 +238,7 @@ export const backfillAggregate = internalMutation({
 		}
 		if (!result.isDone) {
 			await ctx.scheduler.runAfter(0, internal.movements.backfillAggregate, {
+				phase: 'insert',
 				cursor: result.continueCursor,
 			})
 		}
