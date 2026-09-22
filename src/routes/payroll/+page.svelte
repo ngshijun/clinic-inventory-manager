@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { tick, untrack } from 'svelte'
+	import { selectOnFocus } from '$lib/attachments/focus'
 	import ActionButtonGroup, {
 		type ActionButtonGroupAction,
 	} from '$lib/components/app/ActionButtonGroup.svelte'
@@ -448,12 +449,18 @@
 		// Don't reset the selected month and year - preserve user's choice
 	}
 
-	const processPayroll = () => {
+	const processPayroll = async () => {
 		savedNotice = ''
 		recordSaved = false
 		showMonthSelection = false
 		showPayrollTable = true
 		payrollData = payrollStore.generatePayrollData(selectedPeriod)
+
+		// PCB is the first figure entered by hand, so start there. The desktop
+		// and mobile tables both render, so pick whichever one is displayed.
+		await tick()
+		const pcbInputs = Array.from(document.querySelectorAll<HTMLInputElement>('[data-pcb-input]'))
+		pcbInputs.find((input) => input.offsetParent !== null)?.focus()
 	}
 
 	const backToEmployeeList = () => {
@@ -843,6 +850,7 @@
 							required={true}
 							min={0}
 							step="0.01"
+							selectOnFocus
 						/>
 
 						<div>
@@ -855,6 +863,7 @@
 								min={0}
 								step="0.01"
 								disabled={useDefaultEpf}
+								selectOnFocus
 							/>
 							<div class="mt-2 flex items-center gap-2">
 								<input
@@ -1232,6 +1241,8 @@
 												step="0.01"
 												class="w-20 rounded-md border border-gray-300 px-2 py-1 text-right text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
 												placeholder="0.00"
+												data-pcb-input
+												{@attach selectOnFocus()}
 											/>
 										</Table.Cell>
 										<Table.Cell class="px-2 text-right">
@@ -1242,6 +1253,7 @@
 												step="0.01"
 												class="w-20 rounded-md border border-gray-300 px-2 py-1 text-right text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
 												placeholder="0.00"
+												{@attach selectOnFocus()}
 											/>
 										</Table.Cell>
 										<Table.Cell class="px-2 text-right font-medium">
@@ -1377,6 +1389,8 @@
 												step="0.01"
 												class="w-full rounded-md border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
 												placeholder="0.00"
+												data-pcb-input
+												{@attach selectOnFocus()}
 											/>
 										</div>
 										<div>
@@ -1392,6 +1406,7 @@
 												step="0.01"
 												class="w-full rounded-md border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
 												placeholder="0.00"
+												{@attach selectOnFocus()}
 											/>
 										</div>
 									</div>
@@ -1581,6 +1596,7 @@
 							required={true}
 							min={0}
 							step="0.01"
+							selectOnFocus
 						/>
 
 						<div>
@@ -1593,6 +1609,7 @@
 								min={0}
 								step="0.01"
 								disabled={useDefaultEpfEdit}
+								selectOnFocus
 							/>
 							<div class="mt-2 flex items-center gap-2">
 								<input

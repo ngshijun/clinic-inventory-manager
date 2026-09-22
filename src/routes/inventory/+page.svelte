@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { tick, untrack } from 'svelte'
 	import * as XLSX from 'xlsx'
+	import { selectOnFocus } from '$lib/attachments/focus'
 	import ArrowDownIcon from '$lib/components/icons/ArrowDownIcon.svelte'
 	import ArrowUpSolidIcon from '$lib/components/icons/ArrowUpSolidIcon.svelte'
 	import ClockIcon from '$lib/components/icons/ClockIcon.svelte'
@@ -174,7 +175,7 @@
 		stockInItem = null
 		clearOrderDate = true
 		notTrackStatus = false
-		stockQuantity = 0
+		stockQuantity = 1
 	}
 
 	// Helper function to get item max quantity
@@ -264,6 +265,7 @@
 	// Stock In Button handler - uses existing stock in modal
 	const openStockInFromButton = (item: InventoryItem): void => {
 		stockInItem = item
+		stockQuantity = 1
 		clearOrderDate = !!item.order_date // Set based on whether item has order date
 		notTrackStatus = false // Initialize to 0 if current is -1
 		showStockInModal = true
@@ -729,6 +731,7 @@
 						min="1"
 						class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-green-500 focus:ring-2 focus:ring-green-500 focus:outline-none"
 						placeholder="Enter quantity to add"
+						{@attach selectOnFocus()}
 					/>
 					<p class="mt-1 text-xs text-gray-500">Enter the quantity you want to add to inventory</p>
 				</div>
@@ -867,6 +870,7 @@
 						max={getItemMaxQuantity(stockManageItem?.id || '')}
 						class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-yellow-500 focus:ring-2 focus:ring-yellow-500 focus:outline-none"
 						placeholder="Enter quantity to remove"
+						{@attach selectOnFocus()}
 					/>
 					<p class="mt-1 text-xs text-gray-500">
 						Maximum available for stock out: {getItemMaxQuantity(stockManageItem?.id || '')}
@@ -904,6 +908,7 @@
 								label="Initial Quantity"
 								required={true}
 								min={0}
+								selectOnFocus
 							/>
 						</div>
 						<div class="col-span-1">
@@ -913,6 +918,7 @@
 								label="Reorder Level"
 								required={true}
 								min={-1}
+								selectOnFocus
 							/>
 						</div>
 						<div class="col-span-1">

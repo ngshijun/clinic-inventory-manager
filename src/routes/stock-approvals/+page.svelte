@@ -641,6 +641,7 @@
 						max={editingRequest ? getItemMaxQuantity(editingRequest.item_id) : undefined}
 						placeholder="Enter quantity"
 						required={true}
+						selectOnFocus
 					/>
 					{#if editingRequest}
 						<p class="mt-1 text-xs text-gray-500">
@@ -656,6 +657,7 @@
 					label="Remark (Optional)"
 					rows={3}
 					placeholder="Add any notes or comments..."
+					caretAtEnd
 				/>
 			</div>
 		</ActionModal>

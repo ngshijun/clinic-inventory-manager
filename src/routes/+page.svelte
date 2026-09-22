@@ -29,12 +29,14 @@
 		<div class="w-full max-w-md rounded-lg border-4 border-dashed border-gray-200 p-3 sm:p-6">
 			<div class="px-3 py-4 sm:px-6 sm:py-5">
 				<form onsubmit={handleLogin} class="space-y-4">
+					<!-- The password is the only field on the page, so it takes focus on load -->
 					<FormField
 						bind:value={password}
 						type="password"
 						label="Password"
 						placeholder="Enter password"
 						required
+						autofocus
 						{error}
 					/>
 

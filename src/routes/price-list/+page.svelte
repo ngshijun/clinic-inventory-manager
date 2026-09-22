@@ -379,6 +379,7 @@
 					label="Remark"
 					rows={3}
 					placeholder="Enter remark (e.g., last purchase price, supplier info)..."
+					caretAtEnd
 				/>
 			</div>
 		</ActionModal>

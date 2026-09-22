@@ -3,6 +3,7 @@
 	import { Label } from '$lib/components/ui/label/index.js'
 	import { Textarea } from '$lib/components/ui/textarea/index.js'
 	import * as Select from '$lib/components/ui/select/index.js'
+	import { caretAtEnd, selectOnFocus } from '$lib/attachments/focus'
 
 	export interface FormFieldOption {
 		value: string | number
@@ -23,6 +24,16 @@
 		step?: number | string
 		rows?: number
 		ref?: HTMLInputElement | null
+		/**
+		 * Focus this field on page load. Goes through the native attribute
+		 * because SvelteKit resets focus after every navigation (including the
+		 * first client-side render) and only an `[autofocus]` element survives.
+		 */
+		autofocus?: boolean
+		/** Select the whole value on focus so typing replaces a prefilled default */
+		selectOnFocus?: boolean
+		/** Textarea only: put the caret after the existing text on first focus */
+		caretAtEnd?: boolean
 	}
 
 	let {
@@ -39,6 +50,9 @@
 		step,
 		rows = 3,
 		ref = $bindable(null),
+		autofocus = false,
+		selectOnFocus: selectAll = false,
+		caretAtEnd: caretEnd = false,
 	}: Props = $props()
 
 	const fieldId = $props.id()
@@ -71,6 +85,7 @@
 			{required}
 			{disabled}
 			aria-invalid={error ? 'true' : undefined}
+			{@attach caretAtEnd(caretEnd)}
 		/>
 	{:else if type === 'select'}
 		<Select.Root
@@ -108,7 +123,9 @@
 			{min}
 			{max}
 			{step}
+			{autofocus}
 			aria-invalid={error ? 'true' : undefined}
+			{@attach selectOnFocus(selectAll)}
 		/>
 	{:else}
 		<Input
@@ -119,7 +136,9 @@
 			{placeholder}
 			{required}
 			{disabled}
+			{autofocus}
 			aria-invalid={error ? 'true' : undefined}
+			{@attach selectOnFocus(selectAll)}
 		/>
 	{/if}
 

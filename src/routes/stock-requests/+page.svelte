@@ -62,6 +62,7 @@
 
 	// Template refs
 	let itemInputRef = $state<HTMLInputElement | null>(null)
+	let quantityInputRef = $state<HTMLInputElement | null>(null)
 	let dropdownRef = $state<HTMLDivElement | null>(null)
 
 	// Remove confirmation modal
@@ -372,6 +373,9 @@
 		showItemDropdown = false
 		selectedItemIndex = -1
 		newRequest.quantity = 1 // Reset quantity when item changes
+		// The quantity field is enabled by the selection, so hand it focus once
+		// the DOM reflects that; it selects its default on focus
+		tick().then(() => quantityInputRef?.focus())
 	}
 
 	const createNewRequest = async (): Promise<void> => {
@@ -527,6 +531,7 @@
 						</div>
 						<div class="col-span-2">
 							<FormField
+								bind:ref={quantityInputRef}
 								bind:value={
 									() => newRequest.quantity, (value) => (newRequest.quantity = Number(value ?? 0))
 								}
@@ -536,6 +541,7 @@
 								max={selectedItemMaxQuantity}
 								disabled={!newRequest.item_id}
 								required={true}
+								selectOnFocus
 								placeholder={selectedItemMaxQuantity
 									? `Max: ${selectedItemMaxQuantity}`
 									: 'Select item first'}
@@ -857,6 +863,7 @@
 					max={editingRequest ? getItemMaxQuantity(editingRequest.item_id) : undefined}
 					placeholder="Enter quantity"
 					required={true}
+					selectOnFocus
 				/>
 				{#if editingRequest}
 					<p class="mt-1 text-xs text-gray-500">
@@ -872,6 +879,7 @@
 				label="Remark (Optional)"
 				rows={3}
 				placeholder="Add any notes or comments..."
+				caretAtEnd
 			/>
 		</div>
 	</ActionModal>

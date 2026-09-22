@@ -616,6 +616,7 @@
 				label="Remark"
 				rows={3}
 				placeholder="Enter remark..."
+				caretAtEnd
 			/>
 		</div>
 	</ActionModal>
