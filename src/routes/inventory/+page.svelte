@@ -37,6 +37,7 @@
 	import * as Table from '$lib/components/ui/table'
 	import { Textarea } from '$lib/components/ui/textarea'
 	import * as ToggleGroup from '$lib/components/ui/toggle-group'
+	import { useErrorToast } from '$lib/composables/errorToast.svelte'
 	import { createLoadMore } from '$lib/composables/loadMore.svelte'
 	import { inventoryStore } from '$lib/stores/inventory.svelte'
 	import { stockBatchesStore } from '$lib/stores/stockBatches.svelte'
@@ -194,14 +195,11 @@
 	let importing = $state(false)
 	let importError = $state<string | null>(null)
 
-	$effect(() => {
-		const message = inventoryStore.error
-		if (message && !untrack(() => importing)) toast.error(message, { duration: Infinity })
-	})
-	$effect(() => {
-		const message = stockBatchesStore.error
-		if (message) toast.error(message, { duration: Infinity })
-	})
+	useErrorToast(
+		() => inventoryStore.error,
+		() => importing,
+	)
+	useErrorToast(() => stockBatchesStore.error)
 
 	// ---------- Add item ----------
 	interface NewItemForm {
