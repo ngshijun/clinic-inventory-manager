@@ -17,8 +17,11 @@
 	import FormField from '$lib/components/app/FormField.svelte'
 	import LoadingSpinner from '$lib/components/app/LoadingSpinner.svelte'
 	import ReasonBadge from '$lib/components/app/ReasonBadge.svelte'
+	import StatusBadge from '$lib/components/app/StatusBadge.svelte'
 	import { inventoryStore } from '$lib/stores/inventory.svelte'
+	import { stockBatchesStore } from '$lib/stores/stockBatches.svelte'
 	import type { InventoryItem } from '$lib/types/inventory'
+	import { EXPIRY_WARNING_DAYS, daysUntilExpiry, type StockBatch } from '$lib/types/stockBatches'
 
 	// Order modal variables
 	let showOrderModal = $state<boolean>(false)
@@ -30,9 +33,13 @@
 	let isOutOfStockOpen = $state(false)
 	let isLowStockOpen = $state(false)
 	let isStaleInventoryOpen = $state(false)
+	let isExpiringOpen = $state(false)
 
-	const toggleSection = (section: 'outOfStock' | 'lowStock' | 'staleInventory') => {
+	const toggleSection = (section: 'outOfStock' | 'lowStock' | 'staleInventory' | 'expiring') => {
 		switch (section) {
+			case 'expiring':
+				isExpiringOpen = !isExpiringOpen
+				break
 			case 'outOfStock':
 				isOutOfStockOpen = !isOutOfStockOpen
 				break
@@ -169,6 +176,38 @@
 			.filter((item) => !item.not_track && item.isStale && item.quantity !== 0)
 			.sort((a, b) => b.daysSinceUpdate - a.daysSinceUpdate) // Sort by oldest first
 	})
+
+	// Batches that have expired or expire within the warning window, soonest first
+	interface ExpiringBatch {
+		batch: StockBatch
+		item: InventoryItem
+		daysLeft: number
+	}
+
+	const expiringBatches = $derived.by((): ExpiringBatch[] => {
+		const rows: ExpiringBatch[] = []
+		for (const batch of stockBatchesStore.batches) {
+			if (!batch.expiry_date) continue
+			const daysLeft = daysUntilExpiry(batch.expiry_date)
+			if (daysLeft > EXPIRY_WARNING_DAYS) continue
+			const item = inventoryStore.getItemById(batch.item_id)
+			if (!item || item.not_track) continue
+			rows.push({ batch, item, daysLeft })
+		}
+		return rows.sort(
+			(a, b) => a.daysLeft - b.daysLeft || a.item.item_name.localeCompare(b.item.item_name),
+		)
+	})
+
+	const expiredCount = $derived(expiringBatches.filter((row) => row.daysLeft < 0).length)
+
+	const formatExpiryCountdown = (daysLeft: number): string => {
+		if (daysLeft < 0) return `Expired ${formatDuration(-daysLeft)} ago`
+		if (daysLeft === 0) return 'Expires today'
+		return `Expires in ${formatDuration(daysLeft)}`
+	}
+
+	const formatExpiryDate = (expiryDate: string): string => formatDate(`${expiryDate}T00:00:00`)
 
 	// Navigate to inventory page
 	const navigateToInventory = () => {
@@ -320,7 +359,7 @@
 		<div>
 			<!-- Stats Cards - Responsive Grid -->
 			<!-- Simplified Enhanced Hover Effects -->
-			<div class="mb-6 grid grid-cols-2 gap-3 sm:mb-8 sm:grid-cols-2 sm:gap-5 lg:grid-cols-4">
+			<div class="mb-6 grid grid-cols-2 gap-3 sm:mb-8 sm:grid-cols-3 sm:gap-5 lg:grid-cols-5">
 				<!-- Total Products -->
 				<div
 					class="hover:ring-opacity-50 cursor-pointer overflow-hidden rounded-lg bg-white shadow transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-lg hover:ring-2 hover:ring-green-500"
@@ -438,7 +477,107 @@
 						</div>
 					</div>
 				</div>
+
+				<!-- Expiring Soon -->
+				<div
+					class="hover:ring-opacity-50 cursor-pointer overflow-hidden rounded-lg bg-white shadow transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-lg hover:ring-2 hover:ring-orange-500"
+					onclick={() => scrollToSection('expiring-soon')}
+					title="Click to view batches expiring soon"
+					role="presentation"
+				>
+					<div class="p-3 sm:p-5">
+						<div class="flex items-center">
+							<div class="flex-shrink-0">
+								<div
+									class="flex h-6 w-6 items-center justify-center rounded-md bg-orange-500 transition-colors duration-200 hover:bg-orange-600 sm:h-8 sm:w-8"
+								>
+									<CalendarIcon class="h-3 w-3 text-white sm:h-5 sm:w-5" />
+								</div>
+							</div>
+							<div class="ml-3 w-0 flex-1 sm:ml-5">
+								<dl>
+									<dt class="truncate text-xs font-medium text-gray-500 sm:text-sm">
+										Expiring Soon
+									</dt>
+									<dd class="text-base font-medium text-gray-900 sm:text-lg">
+										{expiringBatches.length}
+										{#if expiredCount > 0}
+											<span class="text-sm font-normal text-red-600">({expiredCount} expired)</span>
+										{/if}
+									</dd>
+								</dl>
+							</div>
+						</div>
+					</div>
+				</div>
 			</div>
+
+			<!-- Expiring Soon Alert -->
+			{#if expiringBatches.length > 0}
+				<div
+					id="expiring-soon"
+					class="mb-4 scroll-mt-4 rounded-md border border-orange-200 bg-orange-50 p-3 sm:mb-6 sm:p-4"
+				>
+					<div
+						class="flex cursor-pointer items-center justify-between"
+						onclick={() => toggleSection('expiring')}
+						role="presentation"
+					>
+						<div class="flex items-center gap-2">
+							<CalendarIcon class="h-4 w-4 text-orange-400 sm:h-5 sm:w-5" />
+							<h3 class="text-sm font-medium text-orange-800">Expiry Alert</h3>
+						</div>
+						<ArrowUpIcon
+							class="h-4 w-4 transform transition-transform duration-200 {!isExpiringOpen
+								? 'rotate-180'
+								: ''}"
+						/>
+					</div>
+
+					{#if isExpiringOpen}
+						<div class="mt-2 text-sm text-orange-700">
+							<p>
+								The following batches have expired or expire within the next {EXPIRY_WARNING_DAYS}
+								days:
+							</p>
+							<div class="mt-1 space-y-1">
+								{#each expiringBatches as row (row.batch.id)}
+									<div class="flex items-start border-b border-orange-200 py-2 last:border-b-0">
+										<div
+											class="mt-1.5 mr-3 h-1.5 w-1.5 flex-shrink-0 rounded-full {row.daysLeft < 0
+												? 'bg-red-500'
+												: 'bg-orange-400'}"
+										></div>
+										<div class="flex-1">
+											<div
+												class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between"
+											>
+												<div class="min-w-0 flex-1">
+													<div class="font-semibold break-words text-gray-900">
+														{row.item.item_name}
+													</div>
+													<div class="mt-0.5 text-sm font-medium text-orange-700">
+														{row.batch.quantity}
+														{row.item.unit} · expires {formatExpiryDate(
+															row.batch.expiry_date ?? '',
+														)}
+													</div>
+												</div>
+												<div class="flex-shrink-0">
+													<StatusBadge
+														variant={row.daysLeft < 0 ? 'red' : 'yellow'}
+														text={formatExpiryCountdown(row.daysLeft)}
+													/>
+												</div>
+											</div>
+										</div>
+									</div>
+								{/each}
+							</div>
+						</div>
+					{/if}
+				</div>
+			{/if}
 
 			<!-- Out of Stock Alert -->
 			{#if inventoryStore.outOfStockItems.length > 0}
