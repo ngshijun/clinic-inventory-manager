@@ -119,8 +119,8 @@ async function importAll(): Promise<void> {
 async function backfill(expected: number): Promise<void> {
 	convex('run', 'movements:backfillAggregate', '{}', ...targetFlags)
 	console.log('rebuilding movements aggregate...')
-	await waitForAggregate(expected)
-	console.log(`movements aggregate rebuilt: ${expected}`)
+	const count = await waitForAggregate(expected)
+	console.log(`movements aggregate rebuilt: ${count}`)
 }
 
 function readMovementCount(): number {
@@ -128,16 +128,22 @@ function readMovementCount(): number {
 	return Number(output.trim().split('\n').pop())
 }
 
-async function waitForAggregate(expected: number): Promise<void> {
+async function waitForAggregate(expected: number): Promise<number> {
 	let stableSince = 0
 	let last = -1
-	for (let attempt = 0; attempt < 300; attempt++) {
+	for (let attempt = 0; attempt < 600; attempt++) {
 		const count = readMovementCount()
-		if (count === expected) return
+		if (count === expected) return count
 		if (count === last) {
 			stableSince++
-			// Unchanged for a while and still off: the backfill has stalled.
 			if (stableSince >= 15) {
+				// Settled above the export count: the deployment has rows the export
+				// does not (a dev deployment with test writes). Settled below it: the
+				// scheduled chain broke; the deployment's logs say why.
+				if (count > expected) {
+					console.warn(`movements aggregate settled above the export count of ${expected}`)
+					return count
+				}
 				throw new Error(`movements aggregate stuck at ${count}, expected ${expected}`)
 			}
 		} else {

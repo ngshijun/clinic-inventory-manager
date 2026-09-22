@@ -10,7 +10,9 @@ import { movementsByType } from './lib/aggregates'
 import { movementType, stockMovementDoc } from './schema'
 
 const MAX_PAGE_SIZE = 500
-const BACKFILL_BATCH = 500
+// Small batches: each aggregate write is several component calls, and a
+// mutation that does too many of them is rejected by the platform.
+const BACKFILL_BATCH = 100
 
 type MovementsQuery = OrderedQuery<NamedTableInfo<DataModel, 'stock_movements'>>
 
@@ -188,7 +190,7 @@ export const updateRemark = mutation({
 })
 
 const NAMESPACES = ['stock_in', 'stock_out'] as const
-const CLEAR_BATCH = 200
+const CLEAR_BATCH = 100
 
 /**
  * Clears and rebuilds the movementsByType aggregate from the table, a few
