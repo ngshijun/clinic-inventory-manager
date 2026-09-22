@@ -4,7 +4,6 @@ import { v } from 'convex/values'
 /** Fields every table carries. `_creationTime` is the created-at timestamp. */
 const commonFields = {
 	updated_at: v.number(),
-	legacy_id: v.optional(v.string()),
 }
 
 export const movementType = v.union(v.literal('stock_in'), v.literal('stock_out'))
@@ -118,9 +117,7 @@ export const payrollRunItemDoc = v.object({
 })
 
 export default defineSchema({
-	inventory: defineTable(inventoryFields)
-		.index('by_item_name', ['item_name'])
-		.index('by_legacy_id', ['legacy_id']),
+	inventory: defineTable(inventoryFields).index('by_item_name', ['item_name']),
 
 	stock_batches: defineTable(stockBatchFields)
 		// Stock out drains these in FEFO order (see lib/stock.ts fefoOrder).

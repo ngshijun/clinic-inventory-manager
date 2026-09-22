@@ -4,49 +4,12 @@ import type { Id } from './_generated/dataModel'
 import { movementsByType } from './lib/aggregates'
 
 /*
- * One-off helpers for the Supabase → Convex data import (scripts/migrate).
- * Internal only: nothing in the app calls these.
- */
-
-const mappableTable = v.union(
-	v.literal('inventory'),
-	v.literal('stock_batches'),
-	v.literal('payroll'),
-	v.literal('payroll_runs'),
-)
-
-/**
- * legacy_id → _id for a table that other tables reference. The importer runs
- * this after loading a table so it can rewrite foreign keys in the next one.
- * Bounded: none of these tables is large (movements are never referenced).
- */
-export const idMap = internalQuery({
-	args: { table: mappableTable },
-	returns: v.array(v.object({ legacy_id: v.string(), id: v.string() })),
-	handler: async (ctx, { table }) => {
-		const docs = await ctx.db.query(table).collect()
-		return docs.flatMap((doc) =>
-			doc.legacy_id ? [{ legacy_id: doc.legacy_id, id: doc._id as string }] : [],
-		)
-	},
-})
-
-/** Current movements aggregate total; the importer polls this until the backfill settles. */
-export const movementCount = internalQuery({
-	args: {},
-	returns: v.number(),
-	handler: async (ctx) => {
-		const [stockIn, stockOut] = await Promise.all([
-			movementsByType.count(ctx, { namespace: 'stock_in' }),
-			movementsByType.count(ctx, { namespace: 'stock_out' }),
-		])
-		return stockIn + stockOut
-	},
-})
-
-/**
- * Sanity report after an import: row counts, items whose quantity does not
- * equal the sum of their batches, and references that point at missing rows.
+ * Consistency check. Internal only, nothing in the app calls it:
+ *
+ *   npx convex run migration:verify '{}' [--prod]
+ *
+ * Row counts, items whose quantity does not equal the sum of their batches,
+ * and references that point at missing rows.
  */
 export const verify = internalQuery({
 	args: {},
@@ -91,7 +54,7 @@ export const verify = internalQuery({
 				: [{ item_name: item.item_name, quantity: item.quantity, batchTotal }]
 		})
 
-		// One-off check: ~10k requests today, and a query may read up to ~16k
+		// ~10k requests today, and a query may read up to ~16k
 		// docs. If this ever throws, count per status via by_status instead.
 		const requests = await ctx.db.query('stock_requests').collect()
 		const requestCount = requests.length

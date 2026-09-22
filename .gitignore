@@ -34,4 +34,3 @@ build
 .vercel
 
 # Supabase -> Convex migration data (contains live records)
-scripts/migrate/data/
