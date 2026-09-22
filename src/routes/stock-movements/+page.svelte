@@ -5,6 +5,7 @@
 	} from '$lib/components/app/ActionButtonGroup.svelte'
 	import ActionModal from '$lib/components/app/ActionModal.svelte'
 	import EmptyState from '$lib/components/app/EmptyState.svelte'
+	import ErrorAlert from '$lib/components/app/ErrorAlert.svelte'
 	import FormField from '$lib/components/app/FormField.svelte'
 	import LoadingSpinner from '$lib/components/app/LoadingSpinner.svelte'
 	import SearchInput from '$lib/components/app/SearchInput.svelte'
@@ -15,9 +16,17 @@
 	import CogIcon from '$lib/components/icons/CogIcon.svelte'
 	import FilterIcon from '$lib/components/icons/FilterIcon.svelte'
 	import * as Table from '$lib/components/ui/table/index.js'
-	import { createPagination } from '$lib/composables/pagination.svelte'
 	import { stockMovementsStore } from '$lib/stores/stockMovements.svelte'
-	import type { StockMovement } from '$lib/types/stockMovements'
+	import {
+		emptyMovementFilters,
+		type MovementFilters,
+		type MovementSortKey,
+		type MovementsQuery,
+		type StockMovement,
+	} from '$lib/types/stockMovements'
+
+	const SEARCH_DEBOUNCE_MS = 300
+	const PAGE_SIZE_OPTIONS = [25, 50, 100, 500]
 
 	let searchQuery = $state<string>('')
 	let newRemark = $state<string>('')
@@ -33,38 +42,17 @@
 		return newRemark.trim() !== (editingMovement.remark || '').trim()
 	})
 
-	// Advanced search filters
-	let advancedFilters = $state({
-		itemName: '',
-		quantityMin: null as number | null,
-		quantityMax: null as number | null,
-		movementType: '',
-		startDate: '',
-		endDate: '',
-		remark: '',
-	})
+	// Advanced search filters (as typed; text fields are debounced before querying)
+	let advancedFilters = $state<MovementFilters>(emptyMovementFilters())
 
-	// Computed values for quantity defaults
-	const quantityDefaults = $derived.by(() => {
-		const movements = stockMovementsStore.movements
-		if (movements.length === 0) {
-			return { min: 0, max: 1000 }
-		}
+	// Server-side paging state
+	let currentPage = $state<number>(1)
+	let pageSize = $state<number>(25)
 
-		const quantities = movements.map((m) => m.quantity)
-		return {
-			min: Math.min(...quantities),
-			max: Math.max(...quantities),
-		}
-	})
-
-	// Sorting configuration
-	let sortConfig = $state<{
-		key: keyof StockMovement | null
-		direction: 'asc' | 'desc'
-	}>({
-		key: null,
-		direction: 'asc',
+	// Sorting configuration. Newest first by default, as before.
+	let sortConfig = $state<{ key: MovementSortKey; direction: 'asc' | 'desc' }>({
+		key: 'created_at',
+		direction: 'desc',
 	})
 
 	// Check if any advanced filters are active
@@ -80,133 +68,91 @@
 		),
 	)
 
-	// Advanced filtering function
-	const applyAdvancedFilters = (movements: StockMovement[]): StockMovement[] => {
-		return movements.filter((movement) => {
-			// Quick search by item name (legacy compatibility)
-			if (searchQuery && !movement.item_name.toLowerCase().includes(searchQuery.toLowerCase())) {
-				return false
-			}
+	// The quick search and the advanced item-name filter both narrow by item
+	// name; the server gets whichever is set (both, if both are).
+	const effectiveFilters = $derived.by((): MovementFilters => {
+		const quantityMin =
+			advancedFilters.quantityMin === null || Number.isNaN(Number(advancedFilters.quantityMin))
+				? null
+				: Number(advancedFilters.quantityMin)
+		const quantityMax =
+			advancedFilters.quantityMax === null || Number.isNaN(Number(advancedFilters.quantityMax))
+				? null
+				: Number(advancedFilters.quantityMax)
+		const names = [searchQuery, advancedFilters.itemName].map((n) => n.trim()).filter(Boolean)
+		return {
+			...advancedFilters,
+			// Postgres ilike takes one pattern, so both terms are joined with a
+			// wildcard when the user has typed in both boxes.
+			itemName: names.join('%'),
+			quantityMin,
+			quantityMax,
+		}
+	})
 
-			// Advanced item name filter
-			if (
-				advancedFilters.itemName &&
-				!movement.item_name.toLowerCase().includes(advancedFilters.itemName.toLowerCase())
-			) {
-				return false
-			}
+	// Debounce the typed filters so each keystroke does not hit the server
+	let debouncedFilters = $state<MovementFilters>(emptyMovementFilters())
+	$effect(() => {
+		const next = effectiveFilters
+		const timer = setTimeout(() => {
+			debouncedFilters = next
+		}, SEARCH_DEBOUNCE_MS)
+		return () => clearTimeout(timer)
+	})
 
-			// Quantity range filter
-			if (advancedFilters.quantityMin !== null && movement.quantity < advancedFilters.quantityMin) {
-				return false
-			}
-			if (advancedFilters.quantityMax !== null && movement.quantity > advancedFilters.quantityMax) {
-				return false
-			}
-
-			// Movement type filter
-			if (advancedFilters.movementType && movement.movement_type !== advancedFilters.movementType) {
-				return false
-			}
-
-			// Date range filters
-			if (advancedFilters.startDate) {
-				const movementDate = new Date(movement.created_at).toISOString().split('T')[0]
-				if (movementDate < advancedFilters.startDate) {
-					return false
-				}
-			}
-			if (advancedFilters.endDate) {
-				const movementDate = new Date(movement.created_at).toISOString().split('T')[0]
-				if (movementDate > advancedFilters.endDate) {
-					return false
-				}
-			}
-
-			// Remark filter
-			if (
-				advancedFilters.remark &&
-				!movement.remark.toLowerCase().includes(advancedFilters.remark.toLowerCase())
-			) {
-				return false
-			}
-
-			return true
+	// Any change to the filters or sort restarts from page one
+	$effect(() => {
+		debouncedFilters
+		sortConfig.key
+		sortConfig.direction
+		untrack(() => {
+			currentPage = 1
 		})
+	})
+
+	// Fetch the page whenever the query changes
+	$effect(() => {
+		const query: MovementsQuery = {
+			page: currentPage,
+			pageSize,
+			sortKey: sortConfig.key,
+			sortDirection: sortConfig.direction,
+			filters: debouncedFilters,
+		}
+		stockMovementsStore.fetchMovements(query)
+	})
+
+	const totalPages = $derived(Math.max(1, Math.ceil(stockMovementsStore.totalCount / pageSize)))
+	const startIndex = $derived((currentPage - 1) * pageSize)
+	const endIndex = $derived(startIndex + stockMovementsStore.movements.length)
+
+	// If rows disappear (a filter, a delete) and the page no longer exists, step back
+	$effect(() => {
+		const tp = totalPages
+		untrack(() => {
+			if (currentPage > tp) currentPage = tp
+		})
+	})
+
+	const goToPage = (page: number): void => {
+		if (page >= 1 && page <= totalPages && page !== currentPage) currentPage = page
 	}
 
-	// Sorting and filtering logic
-	const sortedAndFilteredMovements = $derived.by((): StockMovement[] => {
-		// Start with all movements
-		let movements = [...stockMovementsStore.movements]
-
-		// Apply advanced filters
-		movements = applyAdvancedFilters(movements)
-
-		// Apply sorting
-		if (sortConfig.key) {
-			movements = movements.sort((a, b) => {
-				const aValue = a[sortConfig.key as keyof StockMovement]
-				const bValue = b[sortConfig.key as keyof StockMovement]
-
-				// Handle string comparison
-				if (typeof aValue === 'string' && typeof bValue === 'string') {
-					const comparison = aValue.toLowerCase().localeCompare(bValue.toLowerCase())
-					return sortConfig.direction === 'asc' ? comparison : -comparison
-				}
-
-				// Handle number comparison
-				if (typeof aValue === 'number' && typeof bValue === 'number') {
-					return sortConfig.direction === 'asc' ? aValue - bValue : bValue - aValue
-				}
-
-				// Handle date comparison
-				if (sortConfig.key === 'created_at') {
-					const aDate = new Date(aValue as string).getTime()
-					const bDate = new Date(bValue as string).getTime()
-					return sortConfig.direction === 'asc' ? aDate - bDate : bDate - aDate
-				}
-
-				return 0
-			})
+	const updatePageSize = (size: number): void => {
+		if (PAGE_SIZE_OPTIONS.includes(size)) {
+			pageSize = size
+			currentPage = 1
 		}
-
-		return movements
-	})
-
-	// Pagination
-	const pagination = createPagination(() => sortedAndFilteredMovements)
-
-	// Reset to first page when filters change
-	$effect(() => {
-		searchQuery
-		advancedFilters.itemName
-		advancedFilters.quantityMin
-		advancedFilters.quantityMax
-		advancedFilters.movementType
-		advancedFilters.startDate
-		advancedFilters.endDate
-		advancedFilters.remark
-
-		untrack(() => pagination.resetToFirstPage())
-	})
+	}
 
 	// Clear functions
 	const clearAdvancedFilters = (): void => {
-		advancedFilters = {
-			itemName: '',
-			quantityMin: null,
-			quantityMax: null,
-			movementType: '',
-			startDate: '',
-			endDate: '',
-			remark: '',
-		}
+		advancedFilters = emptyMovementFilters()
 	}
 
 	const clearAllFilters = (): void => {
 		clearAdvancedFilters()
-		pagination.resetToFirstPage()
+		currentPage = 1
 	}
 
 	// Table column configuration
@@ -214,6 +160,7 @@
 		{ key: 'item_name', label: 'Item Name', sortable: true },
 		{ key: 'quantity', label: 'Quantity', sortable: true },
 		{ key: 'movement_type', label: 'Movement', sortable: true },
+		{ key: 'expiry_date', label: 'Batch Expiry', sortable: true },
 		{ key: 'created_at', label: 'Date/Time', sortable: true },
 		{ key: 'remark', label: 'Remark', sortable: false },
 		{ key: 'actions', label: 'Actions', sortable: false },
@@ -226,10 +173,9 @@
 			sortConfig.direction = sortConfig.direction === 'asc' ? 'desc' : 'asc'
 		} else {
 			// New column clicked - set ascending
-			sortConfig.key = key as keyof StockMovement
+			sortConfig.key = key as MovementSortKey
 			sortConfig.direction = 'asc'
 		}
-		pagination.resetToFirstPage()
 	}
 
 	// Action button configurations
@@ -247,13 +193,9 @@
 	const handleActionClick = (actionKey: string, movement: StockMovement) => {
 		switch (actionKey) {
 			case 'edit-remark':
-				startEditRemark(movement)
+				openEditRemarkModal(movement)
 				break
 		}
-	}
-
-	const startEditRemark = (movement: StockMovement): void => {
-		openEditRemarkModal(movement)
 	}
 
 	// Edit remark modal functions
@@ -272,14 +214,10 @@
 	const confirmSaveRemark = async (): Promise<void> => {
 		if (!editingMovement || !isRemarkChanged) return
 
-		await saveRemark(editingMovement.id)
+		await stockMovementsStore.updateRemark(editingMovement.id, newRemark)
 		if (!stockMovementsStore.error) {
 			closeEditRemarkModal()
 		}
-	}
-
-	const saveRemark = async (movementId: string): Promise<void> => {
-		await stockMovementsStore.updateRemark(movementId, newRemark)
 	}
 
 	const formatDateTime = (datetime: string): string => {
@@ -296,6 +234,18 @@
 		})
 		return `${dateStr}\n${timeStr}`
 	}
+
+	const formatExpiry = (expiryDate: string | null): string => {
+		if (!expiryDate) return '—'
+		return new Date(`${expiryDate}T00:00:00`).toLocaleDateString('en-US', {
+			month: 'short',
+			day: 'numeric',
+			year: 'numeric',
+		})
+	}
+
+	const isEmpty = $derived(stockMovementsStore.movements.length === 0)
+	const isInitialLoad = $derived(stockMovementsStore.loading && isEmpty)
 </script>
 
 <div class="px-2 py-3 sm:px-0 sm:py-6">
@@ -359,19 +309,16 @@
 									bind:value={advancedFilters.quantityMin}
 									type="number"
 									min="0"
-									placeholder={`Min (${quantityDefaults.min})`}
+									placeholder="Min"
 									class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
 								/>
 								<input
 									bind:value={advancedFilters.quantityMax}
 									type="number"
 									min="0"
-									placeholder={`Max (${quantityDefaults.max})`}
+									placeholder="Max"
 									class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
 								/>
-							</div>
-							<div class="mt-1 text-xs text-gray-500">
-								Range: {quantityDefaults.min} - {quantityDefaults.max} units
 							</div>
 						</div>
 
@@ -407,35 +354,41 @@
 					<!-- Filter Actions -->
 					<div class="mt-4 flex items-center justify-between">
 						<div class="text-xs text-gray-600">
-							Showing {stockMovementsStore.movements.length} movements
+							{stockMovementsStore.totalCount} matching movements
 						</div>
 					</div>
 				</div>
 			{/if}
 		</div>
 
+		{#if stockMovementsStore.error}
+			<div class="mb-4 sm:mb-6">
+				<ErrorAlert title="Error loading movements" message={stockMovementsStore.error} />
+			</div>
+		{/if}
+
 		<!-- Mobile Card View -->
 		<div class="block lg:hidden">
 			<div class="overflow-hidden bg-white shadow sm:rounded-md">
 				<div class="border-b border-gray-200 px-4 py-5 sm:px-6">
 					<h3 class="text-lg leading-6 font-medium text-gray-900">
-						Movements ({sortedAndFilteredMovements.length})
+						Movements ({stockMovementsStore.totalCount})
 					</h3>
 				</div>
 
-				{#if stockMovementsStore.loading && sortedAndFilteredMovements.length === 0}
+				{#if isInitialLoad}
 					<LoadingSpinner message="Loading movements..." />
-				{:else if sortedAndFilteredMovements.length === 0}
+				{:else if isEmpty}
 					<EmptyState
 						icon="chart"
 						title="No movements found"
-						description={searchQuery
+						description={searchQuery || hasActiveFilters
 							? 'Try adjusting your search terms.'
 							: 'Stock movements will appear here when you manage inventory.'}
 					/>
 				{:else}
 					<div class="divide-y divide-gray-200">
-						{#each pagination.paginatedItems as movement (movement.id)}
+						{#each stockMovementsStore.movements as movement (movement.id)}
 							<div class="px-4 py-4">
 								<div class="space-y-3">
 									<!-- Movement Header -->
@@ -458,6 +411,12 @@
 											<span class="font-medium text-gray-900">
 												{movement.quantity}
 												{movement.unit}
+											</span>
+										</div>
+										<div class="flex items-baseline gap-2">
+											<span class="flex-shrink-0 text-gray-500">Batch Expiry:</span>
+											<span class="font-medium text-gray-900">
+												{formatExpiry(movement.expiry_date)}
 											</span>
 										</div>
 										<div class="flex items-baseline gap-2">
@@ -491,17 +450,18 @@
 				{/if}
 
 				<!-- Mobile Pagination -->
-				{#if pagination.totalPages > 1}
+				{#if totalPages > 1}
 					<TablePagination
-						currentPage={pagination.currentPage}
-						totalPages={pagination.totalPages}
-						itemsPerPage={pagination.itemsPerPage}
-						totalItems={sortedAndFilteredMovements.length}
-						startIndex={pagination.startIndex}
-						endIndex={pagination.endIndex}
+						{currentPage}
+						{totalPages}
+						itemsPerPage={pageSize}
+						totalItems={stockMovementsStore.totalCount}
+						{startIndex}
+						{endIndex}
 						showItemsPerPageSelector={false}
-						onpagechange={pagination.goToPage}
-						onitemsperpagechange={pagination.updateItemsPerPage}
+						itemsPerPageOptions={PAGE_SIZE_OPTIONS}
+						onpagechange={goToPage}
+						onitemsperpagechange={updatePageSize}
 					/>
 				{/if}
 			</div>
@@ -512,17 +472,17 @@
 			<div class="overflow-hidden bg-white shadow sm:rounded-md">
 				<div class="border-b border-gray-200 px-4 py-5 sm:px-6">
 					<h3 class="text-lg leading-6 font-medium text-gray-900">
-						Movements ({sortedAndFilteredMovements.length})
+						Movements ({stockMovementsStore.totalCount})
 					</h3>
 				</div>
 
-				{#if stockMovementsStore.loading && sortedAndFilteredMovements.length === 0}
+				{#if isInitialLoad}
 					<LoadingSpinner message="Loading movements..." />
-				{:else if sortedAndFilteredMovements.length === 0}
+				{:else if isEmpty}
 					<EmptyState
 						icon="chart"
 						title="No movements found"
-						description={searchQuery
+						description={searchQuery || hasActiveFilters
 							? 'Try adjusting your search terms.'
 							: 'Stock movements will appear here when you manage inventory.'}
 					/>
@@ -530,7 +490,7 @@
 					<Table.Root>
 						<SortableTableHeader columns={tableColumns} {sortConfig} onsortchange={toggleSort} />
 						<Table.Body>
-							{#each pagination.paginatedItems as movement (movement.id)}
+							{#each stockMovementsStore.movements as movement (movement.id)}
 								<Table.Row>
 									<Table.Cell
 										class="max-w-xs min-w-0 px-6 py-4 text-sm font-medium whitespace-normal text-gray-900"
@@ -548,6 +508,9 @@
 												? 'Stock In (+)'
 												: 'Stock Out (-)'}
 										/>
+									</Table.Cell>
+									<Table.Cell class="px-6 py-4 text-sm whitespace-nowrap text-gray-900">
+										{formatExpiry(movement.expiry_date)}
 									</Table.Cell>
 									<Table.Cell class="px-6 py-4 text-sm text-gray-900" style="white-space: pre-line">
 										{formatDateTime(movement.created_at)}
@@ -573,15 +536,16 @@
 
 				<!-- Desktop Pagination -->
 				<TablePagination
-					currentPage={pagination.currentPage}
-					totalPages={pagination.totalPages}
-					itemsPerPage={pagination.itemsPerPage}
-					totalItems={sortedAndFilteredMovements.length}
-					startIndex={pagination.startIndex}
-					endIndex={pagination.endIndex}
+					{currentPage}
+					{totalPages}
+					itemsPerPage={pageSize}
+					totalItems={stockMovementsStore.totalCount}
+					{startIndex}
+					{endIndex}
 					showItemsPerPageSelector={true}
-					onpagechange={pagination.goToPage}
-					onitemsperpagechange={pagination.updateItemsPerPage}
+					itemsPerPageOptions={PAGE_SIZE_OPTIONS}
+					onpagechange={goToPage}
+					onitemsperpagechange={updatePageSize}
 				/>
 			</div>
 		</div>

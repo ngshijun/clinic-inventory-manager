@@ -3,7 +3,6 @@ import { supabase } from '$lib/supabase'
 import type { Database } from '$lib/types/database.types'
 import type { InventoryItem, NewInventoryItem } from '$lib/types/inventory'
 import type { RealtimeChannel } from '@supabase/supabase-js'
-import { stockMovementsStore } from './stockMovements.svelte'
 
 class InventoryStore {
 	// State
@@ -60,7 +59,19 @@ class InventoryStore {
 		}
 	}
 
-	addItem = async (newItem: NewInventoryItem): Promise<void> => {
+	/**
+	 * Replace the local copy of an item with the row the server returned.
+	 * Exposed for the batches store, whose RPC also returns the item.
+	 */
+	applyServerItem = (item: InventoryItem): void => {
+		const index = this.items.findIndex((i) => i.id === item.id)
+		if (index !== -1) this.items[index] = item
+	}
+
+	// Stock is only ever held in batches, so the row is created empty and the
+	// opening quantity goes through stock_in, which creates the first batch and
+	// logs the movement.
+	addItem = async (newItem: NewInventoryItem, expiryDate?: string | null): Promise<void> => {
 		this.#loadingCount++
 		this.error = null
 		try {
@@ -69,7 +80,7 @@ class InventoryStore {
 				.insert([
 					{
 						item_name: newItem.item_name,
-						quantity: Math.max(0, newItem.quantity),
+						quantity: 0,
 						reorder_level: Math.max(-1, newItem.reorder_level),
 						unit: newItem.unit,
 						remark: newItem.remark || '',
@@ -92,15 +103,16 @@ class InventoryStore {
 					this.items.sort((a, b) => a.item_name.localeCompare(b.item_name))
 				}
 
-				// Log initial stock if quantity is greater than 0
-				if (data.quantity > 0) {
-					stockMovementsStore.addMovement({
-						item_id: data.id,
-						item_name: data.item_name,
-						quantity: data.quantity,
-						movement_type: 'stock_in',
-						remark: 'Initial stock',
-					})
+				const openingQuantity = Math.max(0, Math.floor(newItem.quantity))
+				if (openingQuantity > 0) {
+					await this.stockIn(
+						data.id,
+						openingQuantity,
+						false,
+						undefined,
+						expiryDate,
+						'Initial stock',
+					)
 				}
 			}
 		} catch (err) {
@@ -111,12 +123,15 @@ class InventoryStore {
 		}
 	}
 
-	// Stock In - Atomic RPC: increments quantity server-side
+	// Stock In - Atomic RPC: creates a batch (with optional expiry date),
+	// increments the quantity and logs the movement server-side.
 	stockIn = async (
 		itemId: string,
 		quantity: number,
 		clearOrderDate: boolean = true,
 		notTrackStatus?: boolean,
+		expiryDate?: string | null,
+		remark?: string,
 	): Promise<void> => {
 		this.#loadingCount++
 		this.error = null
@@ -124,37 +139,21 @@ class InventoryStore {
 			const item = this.items.find((item) => item.id === itemId)
 			if (!item) throw new Error('Item not found')
 
-			const rpcArgs: {
-				p_item_id: string
-				p_quantity: number
-				p_clear_order_date: boolean
-				p_not_track?: boolean
-			} = {
-				p_item_id: itemId,
-				p_quantity: Math.max(0, quantity),
-				p_clear_order_date: clearOrderDate,
-			}
-			if (notTrackStatus !== undefined) {
-				rpcArgs.p_not_track = notTrackStatus
-			}
-
-			const { data, error: rpcError } = await supabase.rpc('stock_in', rpcArgs).single()
+			const { data, error: rpcError } = await supabase
+				.rpc('stock_in', {
+					p_item_id: itemId,
+					p_quantity: Math.max(0, Math.floor(quantity)),
+					p_clear_order_date: clearOrderDate,
+					p_not_track: notTrackStatus ?? null,
+					p_expiry_date: expiryDate || null,
+					p_remark: remark || '',
+				})
+				.single()
 
 			if (rpcError) throw rpcError
 
 			// Optimistic local update with server-returned data
-			if (data) {
-				const index = this.items.findIndex((i) => i.id === itemId)
-				if (index !== -1) this.items[index] = data as InventoryItem
-			}
-
-			// Log stock movement
-			stockMovementsStore.addMovement({
-				item_id: itemId,
-				item_name: item.item_name,
-				quantity: quantity,
-				movement_type: 'stock_in',
-			})
+			if (data) this.applyServerItem(data as InventoryItem)
 		} catch (err) {
 			this.error = err instanceof Error ? err.message : 'An error occurred while adding stock'
 			console.error('Error adding stock:', err)
@@ -163,7 +162,8 @@ class InventoryStore {
 		}
 	}
 
-	// Stock Out - Atomic RPC: decrements quantity server-side, clamped at 0
+	// Stock Out - Atomic RPC: consumes batches first-in-first-out, decrements
+	// the quantity (clamped at 0) and logs one movement per batch touched.
 	stockOut = async (itemId: string, quantity: number, remark?: string): Promise<void> => {
 		this.#loadingCount++
 		this.error = null
@@ -174,26 +174,15 @@ class InventoryStore {
 			const { data, error: rpcError } = await supabase
 				.rpc('stock_out', {
 					p_item_id: itemId,
-					p_quantity: Math.max(0, quantity),
+					p_quantity: Math.max(0, Math.floor(quantity)),
+					p_remark: remark || '',
 				})
 				.single()
 
 			if (rpcError) throw rpcError
 
 			// Optimistic local update with server-returned data
-			if (data) {
-				const index = this.items.findIndex((i) => i.id === itemId)
-				if (index !== -1) this.items[index] = data as InventoryItem
-			}
-
-			// Log stock movement
-			stockMovementsStore.addMovement({
-				item_id: itemId,
-				item_name: item.item_name,
-				quantity: quantity,
-				movement_type: 'stock_out',
-				remark: remark || '',
-			})
+			if (data) this.applyServerItem(data as InventoryItem)
 		} catch (err) {
 			this.error = err instanceof Error ? err.message : 'An error occurred while removing stock'
 			console.error('Error removing stock:', err)
@@ -309,13 +298,18 @@ class InventoryStore {
 		}
 	}
 
-	updateItem = async (itemId: string, item: Partial<InventoryItem>): Promise<void> => {
+	// Quantity is deliberately not accepted here: stock lives in batches, so
+	// it only changes through stockIn / stockOut / the batch editor.
+	updateItem = async (
+		itemId: string,
+		item: Omit<Database['public']['Tables']['inventory']['Update'], 'quantity' | 'id'>,
+	): Promise<void> => {
 		this.#loadingCount++
 		this.error = null
 		try {
 			const { data, error: supabaseError } = await supabase
 				.from('inventory')
-				.update(item)
+				.update({ ...item, updated_at: new Date().toISOString() })
 				.eq('id', itemId)
 				.select()
 				.single()

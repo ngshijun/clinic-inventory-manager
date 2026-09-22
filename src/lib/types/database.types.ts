@@ -188,9 +188,46 @@ export type Database = {
 				}
 				Relationships: []
 			}
-			stock_movements: {
+			stock_batches: {
 				Row: {
 					created_at: string
+					expiry_date: string | null
+					id: string
+					item_id: string
+					quantity: number
+					updated_at: string
+				}
+				Insert: {
+					created_at?: string
+					expiry_date?: string | null
+					id?: string
+					item_id: string
+					quantity?: number
+					updated_at?: string
+				}
+				Update: {
+					created_at?: string
+					expiry_date?: string | null
+					id?: string
+					item_id?: string
+					quantity?: number
+					updated_at?: string
+				}
+				Relationships: [
+					{
+						foreignKeyName: 'stock_batches_item_id_fkey'
+						columns: ['item_id']
+						isOneToOne: false
+						referencedRelation: 'inventory'
+						referencedColumns: ['id']
+					},
+				]
+			}
+			stock_movements: {
+				Row: {
+					batch_id: string | null
+					created_at: string
+					expiry_date: string | null
 					id: string
 					item_id: string
 					item_name: string
@@ -200,7 +237,9 @@ export type Database = {
 					updated_at: string
 				}
 				Insert: {
+					batch_id?: string | null
 					created_at?: string
+					expiry_date?: string | null
 					id?: string
 					item_id?: string
 					item_name: string
@@ -210,7 +249,9 @@ export type Database = {
 					updated_at?: string
 				}
 				Update: {
+					batch_id?: string | null
 					created_at?: string
+					expiry_date?: string | null
 					id?: string
 					item_id?: string
 					item_name?: string
@@ -220,6 +261,13 @@ export type Database = {
 					updated_at?: string
 				}
 				Relationships: [
+					{
+						foreignKeyName: 'stock_movements_batch_id_fkey'
+						columns: ['batch_id']
+						isOneToOne: false
+						referencedRelation: 'stock_batches'
+						referencedColumns: ['id']
+					},
 					{
 						foreignKeyName: 'stock_movements_item_id_fkey'
 						columns: ['item_id']
@@ -303,9 +351,11 @@ export type Database = {
 			stock_in: {
 				Args: {
 					p_clear_order_date?: boolean
+					p_expiry_date?: string | null
 					p_item_id: string
-					p_not_track?: boolean
+					p_not_track?: boolean | null
 					p_quantity: number
+					p_remark?: string
 				}
 				Returns: {
 					back_order: boolean
@@ -330,7 +380,36 @@ export type Database = {
 				}
 			}
 			stock_out: {
-				Args: { p_item_id: string; p_quantity: number }
+				Args: { p_item_id: string; p_quantity: number; p_remark?: string }
+				Returns: {
+					back_order: boolean
+					created_at: string
+					id: string
+					is_pinned: boolean
+					item_name: string
+					non_order_reason: string | null
+					not_track: boolean
+					order_date: string | null
+					quantity: number
+					remark: string
+					reorder_level: number
+					unit: string
+					updated_at: string
+				}[]
+				SetofOptions: {
+					from: '*'
+					to: 'inventory'
+					isOneToOne: false
+					isSetofReturn: true
+				}
+			}
+			update_stock_batch: {
+				Args: {
+					p_batch_id: string
+					p_expiry_date?: string | null
+					p_quantity: number
+					p_remark?: string
+				}
 				Returns: {
 					back_order: boolean
 					created_at: string

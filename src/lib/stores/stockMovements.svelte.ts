@@ -1,64 +1,89 @@
 import { supabase } from '$lib/supabase'
-import type { NewStockMovement, StockMovement } from '$lib/types/stockMovements'
+import type { MovementsQuery, StockMovement } from '$lib/types/stockMovements'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 
+/** Escape the LIKE wildcards in user input so they match literally */
+const escapeLike = (value: string): string => value.replace(/[\\%_]/g, (match) => `\\${match}`)
+
+/** Start of a local calendar day as an ISO timestamp */
+const startOfLocalDay = (date: string): string => new Date(`${date}T00:00:00`).toISOString()
+
+/** End of a local calendar day as an ISO timestamp */
+const endOfLocalDay = (date: string): string => new Date(`${date}T23:59:59.999`).toISOString()
+
+/**
+ * Stock movements are paginated on the server: this store only ever holds
+ * the page that is currently on screen, plus the total row count for the
+ * active filters. Realtime changes re-run the last query rather than
+ * patching rows, because an insert can push a row off (or onto) the page.
+ */
 class StockMovementsStore {
 	// State
 	movements = $state<StockMovement[]>([])
+	totalCount = $state(0)
 	#loadingCount = $state(0)
 	error = $state<string | null>(null)
-	#unitCache = $state<Record<string, string | null>>({})
 	#channel: RealtimeChannel | null = null
 	#isInitialized = false
+	#lastQuery: MovementsQuery | null = null
+	#requestSequence = 0
+	#refreshTimer: ReturnType<typeof setTimeout> | null = null
 
 	get loading(): boolean {
 		return this.#loadingCount > 0
 	}
 
-	// Helper function to get unit for an item (with caching)
-	#getUnitForItem = async (itemId: string): Promise<string | null> => {
-		// Check cache first
-		if (this.#unitCache[itemId] !== undefined) {
-			return this.#unitCache[itemId]
-		}
-
-		const { data, error } = await supabase
-			.from('inventory')
-			.select('unit')
-			.eq('id', itemId)
-			.single()
-
-		const unit = error ? null : data?.unit || null
-		// Cache the result
-		this.#unitCache[itemId] = unit
-		return unit
-	}
-
 	// Actions
-	fetchMovements = async (): Promise<void> => {
+	fetchMovements = async (query: MovementsQuery): Promise<void> => {
+		this.#lastQuery = query
+		const sequence = ++this.#requestSequence
+
 		this.#loadingCount++
 		this.error = null
 		try {
-			const { data, error: supabaseError } = await supabase
+			const { filters } = query
+			let request = supabase
 				.from('stock_movements')
-				.select('*, inventory!stock_movements_item_id_fkey(unit)')
-				.order('created_at', { ascending: false })
+				.select('*, inventory!stock_movements_item_id_fkey(unit)', { count: 'exact' })
+
+			const itemName = filters.itemName.trim()
+			if (itemName) request = request.ilike('item_name', `%${escapeLike(itemName)}%`)
+			if (filters.quantityMin !== null) request = request.gte('quantity', filters.quantityMin)
+			if (filters.quantityMax !== null) request = request.lte('quantity', filters.quantityMax)
+			if (filters.movementType) request = request.eq('movement_type', filters.movementType)
+			if (filters.startDate) request = request.gte('created_at', startOfLocalDay(filters.startDate))
+			if (filters.endDate) request = request.lte('created_at', endOfLocalDay(filters.endDate))
+			const remark = filters.remark.trim()
+			if (remark) request = request.ilike('remark', `%${escapeLike(remark)}%`)
+
+			const ascending = query.sortDirection === 'asc'
+			request = request.order(query.sortKey, { ascending, nullsFirst: false })
+			// Stable secondary order so paging never repeats or skips a row
+			if (query.sortKey !== 'created_at') {
+				request = request.order('created_at', { ascending: false })
+			}
+			request = request.order('id', { ascending: false })
+
+			const from = (query.page - 1) * query.pageSize
+			const {
+				data,
+				error: supabaseError,
+				count,
+			} = await request.range(from, from + query.pageSize - 1)
+
+			// A newer request has been issued since; let it win.
+			if (sequence !== this.#requestSequence) return
 
 			if (supabaseError) throw supabaseError
 
-			const transformedData: StockMovement[] | undefined = data?.map((item) => ({
-				...item,
-				unit: item.inventory?.unit || '',
-			}))
-			this.movements = transformedData || []
-
-			// Populate unit cache from fetched data
-			transformedData?.forEach((movement) => {
-				if (movement.item_id) {
-					this.#unitCache[movement.item_id] = movement.unit
-				}
-			})
+			this.movements =
+				data?.map((row) => ({
+					...row,
+					unit: row.inventory?.unit || '',
+				})) ?? []
+			this.totalCount = count ?? 0
 		} catch (err) {
+			if (sequence !== this.#requestSequence) return
 			this.error = err instanceof Error ? err.message : 'An error occurred while fetching movements'
 			console.error('Error fetching movements:', err)
 		} finally {
@@ -66,23 +91,19 @@ class StockMovementsStore {
 		}
 	}
 
-	addMovement = async (movement: NewStockMovement): Promise<void> => {
-		try {
-			const { error: supabaseError } = await supabase.from('stock_movements').insert([
-				{
-					item_id: movement.item_id,
-					item_name: movement.item_name,
-					quantity: movement.quantity,
-					movement_type: movement.movement_type,
-					remark: movement.remark || '',
-				},
-			])
+	/** Re-run the last query (after a realtime change or an edit) */
+	refresh = async (): Promise<void> => {
+		if (this.#lastQuery) await this.fetchMovements(this.#lastQuery)
+	}
 
-			if (supabaseError) throw supabaseError
-		} catch (err) {
-			this.error = err instanceof Error ? err.message : 'An error occurred while adding movement'
-			console.error('Error adding movement:', err)
-		}
+	// Several realtime events arrive in a burst for one stock out (one row per
+	// batch consumed), so collapse them into a single refetch.
+	#scheduleRefresh = () => {
+		if (this.#refreshTimer) clearTimeout(this.#refreshTimer)
+		this.#refreshTimer = setTimeout(() => {
+			this.#refreshTimer = null
+			this.refresh()
+		}, 250)
 	}
 
 	updateRemark = async (movementId: string, newRemark: string): Promise<void> => {
@@ -116,68 +137,23 @@ class StockMovementsStore {
 		}
 	}
 
-	searchMovements = (query: string): StockMovement[] => {
-		if (!query) return this.movements
-		return this.movements.filter((movement) =>
-			movement.item_name.toLowerCase().includes(query.toLowerCase()),
-		)
-	}
-
 	// Subscription lifecycle
 	#startSubscription = () => {
 		if (this.#channel) return
 
 		this.#channel = supabase
 			.channel('update-stock-movements')
-			.on(
-				'postgres_changes',
-				{ event: '*', schema: 'public', table: 'stock_movements' },
-				async (payload) => {
-					if (payload.eventType === 'INSERT') {
-						// Dedup: skip if already in local state
-						const exists = this.movements.some((m) => m.id === payload.new.id)
-						if (!exists) {
-							const unit = await this.#getUnitForItem(payload.new.item_id)
-							const newMovement: StockMovement = {
-								...payload.new,
-								unit,
-							} as StockMovement
-							this.movements.unshift(newMovement as StockMovement)
-						}
-					} else if (payload.eventType === 'UPDATE') {
-						const index = this.movements.findIndex((m) => m.id === payload.new.id)
-						if (index !== -1) {
-							const data: StockMovement = {
-								id: payload.new.id,
-								item_id: payload.new.item_id,
-								item_name: payload.new.item_name,
-								quantity: payload.new.quantity,
-								movement_type: payload.new.movement_type,
-								remark: payload.new.remark,
-								unit: this.movements[index].unit,
-								created_at: payload.new.created_at,
-								updated_at: payload.new.updated_at,
-							}
-							this.movements[index] = data as StockMovement
-						}
-					} else if (payload.eventType === 'DELETE') {
-						const index = this.movements.findIndex((m) => m.id === payload.old.id)
-						if (index !== -1) this.movements.splice(index, 1)
-					}
-
-					// Sort by created_at descending
-					this.movements.sort(
-						(a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-					)
-				},
-			)
+			.on('postgres_changes', { event: '*', schema: 'public', table: 'stock_movements' }, () => {
+				this.#scheduleRefresh()
+			})
 			.subscribe()
 	}
 
+	// The subscription is started at login; the page issues the first query
+	// once it knows its filters.
 	initializeStore = async (): Promise<void> => {
 		if (this.#isInitialized) return
 		this.#isInitialized = true
-		await this.fetchMovements()
 		this.#startSubscription()
 	}
 
@@ -186,8 +162,14 @@ class StockMovementsStore {
 			this.#channel.unsubscribe()
 			this.#channel = null
 		}
+		if (this.#refreshTimer) {
+			clearTimeout(this.#refreshTimer)
+			this.#refreshTimer = null
+		}
+		this.#requestSequence++
+		this.#lastQuery = null
 		this.movements = []
-		this.#unitCache = {}
+		this.totalCount = 0
 		this.error = null
 		this.#isInitialized = false
 	}

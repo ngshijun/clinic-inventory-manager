@@ -5,6 +5,7 @@
 	import { authStore } from '$lib/stores/auth.svelte'
 	import { inventoryStore } from '$lib/stores/inventory.svelte'
 	import { stockMovementsStore } from '$lib/stores/stockMovements.svelte'
+	import { stockBatchesStore } from '$lib/stores/stockBatches.svelte'
 	import { stockRequestsStore } from '$lib/stores/stockRequests.svelte'
 	import { payrollStore } from '$lib/stores/payroll.svelte'
 	import { payrollRecordsStore } from '$lib/stores/payrollRecords.svelte'
@@ -41,6 +42,7 @@
 
 	function initStores() {
 		inventoryStore.initializeStore()
+		stockBatchesStore.initializeStore()
 		stockMovementsStore.initializeStore()
 		stockRequestsStore.initializeStore()
 		payrollStore.initializeStore()
@@ -49,6 +51,7 @@
 
 	function cleanupStores() {
 		inventoryStore.cleanup()
+		stockBatchesStore.cleanup()
 		stockMovementsStore.cleanup()
 		stockRequestsStore.cleanup()
 		payrollStore.cleanup()

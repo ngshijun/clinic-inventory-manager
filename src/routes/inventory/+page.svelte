@@ -26,7 +26,16 @@
 	import * as Table from '$lib/components/ui/table/index.js'
 	import { createPagination } from '$lib/composables/pagination.svelte'
 	import { inventoryStore } from '$lib/stores/inventory.svelte'
+	import { stockBatchesStore } from '$lib/stores/stockBatches.svelte'
 	import type { InventoryItem, NewInventoryItem, StockStatus } from '$lib/types/inventory'
+	import {
+		EXPIRY_WARNING_DAYS,
+		daysUntilExpiry,
+		getExpiryStatus,
+		todayIsoDate,
+		type ExpiryStatus,
+		type StockBatch,
+	} from '$lib/types/stockBatches'
 
 	let searchQuery = $state<string>('')
 	let showAddForm = $state<boolean>(false)
@@ -40,6 +49,34 @@
 	let stockInItem = $state<InventoryItem | null>(null)
 	let clearOrderDate = $state<boolean>(true) // Default to clearing order date
 	let notTrackStatus = $state<boolean>(false)
+	let stockInExpiryDate = $state<string>('')
+
+	// Edit item details modal variables
+	let showEditModal = $state<boolean>(false)
+	let editingItem = $state<InventoryItem | null>(null)
+	interface EditItemForm {
+		item_name: string | number | undefined
+		unit: string | number | undefined
+		reorder_level: string | number | undefined
+		remark: string | number | undefined
+		not_track: boolean
+	}
+	let editForm = $state<EditItemForm>({
+		item_name: '',
+		unit: '',
+		reorder_level: 0,
+		remark: '',
+		not_track: false,
+	})
+
+	// Batches modal variables
+	let showBatchesModal = $state<boolean>(false)
+	let batchesItem = $state<InventoryItem | null>(null)
+	let editingBatchId = $state<string | null>(null)
+	let batchForm = $state<{ quantity: number; expiry_date: string }>({
+		quantity: 0,
+		expiry_date: '',
+	})
 
 	// Delete confirmation modal variables
 	let showDeleteModal = $state<boolean>(false)
@@ -53,7 +90,7 @@
 
 	// Sorting configuration
 	let sortConfig = $state<{
-		key: keyof InventoryItem | 'status' | null
+		key: keyof InventoryItem | 'status' | 'nearest_expiry' | null
 		direction: 'asc' | 'desc'
 	}>({
 		key: null,
@@ -82,18 +119,46 @@
 		quantity: string | number | undefined
 		reorder_level: string | number | undefined
 		unit: string | number | undefined
+		expiry_date: string | number | undefined
 		back_order: boolean
 		not_track: boolean
 	}
 
-	let newItem = $state<NewItemForm>({
+	const emptyNewItem = (): NewItemForm => ({
 		item_name: '',
 		quantity: 0,
 		reorder_level: 0,
 		unit: '',
+		expiry_date: '',
 		back_order: false,
 		not_track: false,
 	})
+
+	let newItem = $state<NewItemForm>(emptyNewItem())
+
+	// ---------- Expiry helpers ----------
+	const getNearestExpiry = (item: InventoryItem): string | null =>
+		stockBatchesStore.nearestExpiryByItem.get(item.id) ?? null
+
+	const expiryBadge = (
+		expiryDate: string | null,
+	): { variant: 'red' | 'yellow' | 'green' | 'gray'; text: string } | null => {
+		const status: ExpiryStatus = getExpiryStatus(expiryDate)
+		if (status === 'none' || !expiryDate) return null
+		const days = daysUntilExpiry(expiryDate)
+		if (status === 'expired') {
+			return { variant: 'red', text: days === 0 ? 'Expires today' : `Expired ${-days}d ago` }
+		}
+		if (status === 'expiring') {
+			return { variant: 'yellow', text: days === 0 ? 'Expires today' : `Expires in ${days}d` }
+		}
+		return { variant: 'green', text: 'OK' }
+	}
+
+	const formatExpiry = (expiryDate: string | null): string =>
+		expiryDate ? formatDate(`${expiryDate}T00:00:00`) : '—'
+
+	const formatReceived = (createdAt: string): string => formatDate(createdAt)
 
 	// Helper function to get stock status for sorting
 	const getStockStatusValue = (item: InventoryItem): number => {
@@ -121,6 +186,9 @@
 				if (key === 'status') {
 					aValue = getStockStatusValue(a)
 					bValue = getStockStatusValue(b)
+				} else if (key === 'nearest_expiry') {
+					aValue = getNearestExpiry(a)
+					bValue = getNearestExpiry(b)
 				} else {
 					aValue = a[key as keyof InventoryItem]
 					bValue = b[key as keyof InventoryItem]
@@ -175,6 +243,7 @@
 		stockInItem = null
 		clearOrderDate = true
 		notTrackStatus = false
+		stockInExpiryDate = ''
 		stockQuantity = 1
 	}
 
@@ -188,7 +257,13 @@
 	const confirmStockIn = async (): Promise<void> => {
 		if (!stockInItem || stockQuantity <= 0) return
 
-		await inventoryStore.stockIn(stockInItem.id, stockQuantity, clearOrderDate, notTrackStatus)
+		await inventoryStore.stockIn(
+			stockInItem.id,
+			stockQuantity,
+			clearOrderDate,
+			notTrackStatus,
+			stockInExpiryDate || null,
+		)
 
 		if (!inventoryStore.error) {
 			closeStockInModal()
@@ -209,6 +284,7 @@
 		{ key: 'item_name', label: 'Item Name', sortable: true },
 		{ key: 'quantity', label: 'Current Stock', sortable: true },
 		{ key: 'reorder_level', label: 'Reorder Level', sortable: true },
+		{ key: 'nearest_expiry', label: 'Nearest Expiry', sortable: true },
 		{ key: 'status', label: 'Status', sortable: true },
 		{ key: 'actions', label: 'Actions', sortable: false },
 	]
@@ -220,7 +296,7 @@
 			sortConfig.direction = sortConfig.direction === 'asc' ? 'desc' : 'asc'
 		} else {
 			// New column clicked - set ascending
-			sortConfig.key = key as keyof InventoryItem | 'status'
+			sortConfig.key = key as keyof InventoryItem | 'status' | 'nearest_expiry'
 			sortConfig.direction = 'asc'
 		}
 		pagination.resetToFirstPage() // Reset to first page when sorting changes
@@ -240,6 +316,15 @@
 				variant: 'yellow',
 			},
 			{
+				key: 'edit-action',
+				label: 'Edit',
+				variant: 'gray',
+				dropdown: [
+					{ key: 'edit-details', label: 'Edit Details' },
+					{ key: 'edit-batches', label: 'Batches & Expiry' },
+				],
+			},
+			{
 				key: 'delete',
 				label: 'Delete',
 				variant: 'red',
@@ -256,6 +341,12 @@
 			case 'stock-out':
 				openStockOutModal(item)
 				break
+			case 'edit-details':
+				openEditModal(item)
+				break
+			case 'edit-batches':
+				openBatchesModal(item)
+				break
 			case 'delete':
 				showDeleteConfirmation(item)
 				break
@@ -268,6 +359,7 @@
 		stockQuantity = 1
 		clearOrderDate = !!item.order_date // Set based on whether item has order date
 		notTrackStatus = false // Initialize to 0 if current is -1
+		stockInExpiryDate = ''
 		showStockInModal = true
 	}
 
@@ -282,6 +374,115 @@
 		showStockOutModal = false
 		stockManageItem = null
 		stockQuantity = 1
+	}
+
+	// Which batches a stock out of `stockQuantity` would draw from, oldest first
+	const stockOutPlan = $derived.by((): Array<{ batch: StockBatch; take: number }> => {
+		if (!stockManageItem) return []
+		let remaining = Math.max(0, Math.floor(Number(stockQuantity) || 0))
+		const plan: Array<{ batch: StockBatch; take: number }> = []
+		for (const batch of stockBatchesStore.getBatchesForItem(stockManageItem.id)) {
+			if (remaining <= 0) break
+			const take = Math.min(batch.quantity, remaining)
+			plan.push({ batch, take })
+			remaining -= take
+		}
+		return plan
+	})
+
+	// ---------- Edit item details ----------
+	const openEditModal = (item: InventoryItem): void => {
+		editingItem = item
+		editForm = {
+			item_name: item.item_name,
+			unit: item.unit,
+			reorder_level: item.reorder_level,
+			remark: item.remark,
+			not_track: item.not_track,
+		}
+		showEditModal = true
+	}
+
+	const closeEditModal = (): void => {
+		showEditModal = false
+		editingItem = null
+	}
+
+	const isEditFormValid = $derived(
+		String(editForm.item_name ?? '').trim() !== '' &&
+			String(editForm.unit ?? '').trim() !== '' &&
+			Number(editForm.reorder_level ?? 0) >= -1,
+	)
+
+	const isEditFormChanged = $derived.by((): boolean => {
+		if (!editingItem) return false
+		return (
+			String(editForm.item_name ?? '').trim() !== editingItem.item_name ||
+			String(editForm.unit ?? '').trim() !== editingItem.unit ||
+			Number(editForm.reorder_level ?? 0) !== editingItem.reorder_level ||
+			String(editForm.remark ?? '') !== editingItem.remark ||
+			editForm.not_track !== editingItem.not_track
+		)
+	})
+
+	const confirmEditItem = async (): Promise<void> => {
+		if (!editingItem || !isEditFormValid || !isEditFormChanged) return
+
+		await inventoryStore.updateItem(editingItem.id, {
+			item_name: String(editForm.item_name ?? '').trim(),
+			unit: String(editForm.unit ?? '').trim(),
+			reorder_level: Math.max(-1, Math.floor(Number(editForm.reorder_level ?? 0))),
+			remark: String(editForm.remark ?? ''),
+			not_track: editForm.not_track,
+		})
+
+		if (!inventoryStore.error) closeEditModal()
+	}
+
+	// ---------- Batches & expiry ----------
+	const batchesForModal = $derived(
+		batchesItem ? stockBatchesStore.getBatchesForItem(batchesItem.id) : [],
+	)
+
+	const openBatchesModal = (item: InventoryItem): void => {
+		batchesItem = item
+		editingBatchId = null
+		showBatchesModal = true
+	}
+
+	const closeBatchesModal = (): void => {
+		showBatchesModal = false
+		batchesItem = null
+		editingBatchId = null
+	}
+
+	const startEditBatch = (batch: StockBatch): void => {
+		editingBatchId = batch.id
+		batchForm = { quantity: batch.quantity, expiry_date: batch.expiry_date ?? '' }
+	}
+
+	const cancelEditBatch = (): void => {
+		editingBatchId = null
+	}
+
+	const editingBatch = $derived(batchesForModal.find((b) => b.id === editingBatchId) ?? null)
+
+	const isBatchFormChanged = $derived.by((): boolean => {
+		if (!editingBatch) return false
+		return (
+			Math.floor(Number(batchForm.quantity) || 0) !== editingBatch.quantity ||
+			(batchForm.expiry_date || '') !== (editingBatch.expiry_date ?? '')
+		)
+	})
+
+	const confirmSaveBatch = async (): Promise<void> => {
+		if (!editingBatch || !isBatchFormChanged) return
+		const quantity = Math.floor(Number(batchForm.quantity) || 0)
+		if (quantity < 0) return
+
+		await stockBatchesStore.updateBatch(editingBatch.id, quantity, batchForm.expiry_date || null)
+
+		if (!stockBatchesStore.error) editingBatchId = null
 	}
 
 	const confirmStockOut = async (): Promise<void> => {
@@ -318,16 +519,9 @@
 				back_order: newItem.back_order,
 				not_track: newItem.not_track,
 			}
-			await inventoryStore.addItem(payload)
+			await inventoryStore.addItem(payload, String(newItem.expiry_date ?? '') || null)
 			if (!inventoryStore.error) {
-				newItem = {
-					item_name: '',
-					quantity: 0,
-					reorder_level: 0,
-					unit: '',
-					back_order: false,
-					not_track: false,
-				}
+				newItem = emptyNewItem()
 				showAddForm = false
 			}
 		}
@@ -501,28 +695,42 @@
 				)
 
 				if (existingItem) {
-					// Update existing item
+					// Update existing item details
+					let changed = false
 					if (
-						existingItem.item_name !== row.item_name ||
-						existingItem.quantity !== row.quantity ||
 						existingItem.reorder_level !== row.reorder_level ||
 						existingItem.unit !== row.unit ||
 						existingItem.remark !== row.remark ||
 						existingItem.order_date !== row.order_date
 					) {
 						await inventoryStore.updateItem(existingItem.id, {
-							...existingItem,
-							quantity: Math.max(0, row.quantity),
 							reorder_level: Math.max(0, row.reorder_level),
 							unit: row.unit,
 							remark: row.remark,
 							order_date: row.order_date,
 						})
-
-						if (!inventoryStore.error) {
-							updatedCount++
-						}
+						changed = !inventoryStore.error
 					}
+
+					// Stock lives in batches, so a quantity difference is applied as
+					// a stock in (new batch, no expiry) or a FIFO stock out.
+					const delta = Math.max(0, row.quantity) - existingItem.quantity
+					if (delta > 0) {
+						await inventoryStore.stockIn(
+							existingItem.id,
+							delta,
+							false,
+							undefined,
+							null,
+							'Excel import',
+						)
+						changed = changed || !inventoryStore.error
+					} else if (delta < 0) {
+						await inventoryStore.stockOut(existingItem.id, -delta, 'Excel import')
+						changed = changed || !inventoryStore.error
+					}
+
+					if (changed) updatedCount++
 				} else {
 					// Add new item
 					await inventoryStore.addItem({
@@ -736,6 +944,22 @@
 					<p class="mt-1 text-xs text-gray-500">Enter the quantity you want to add to inventory</p>
 				</div>
 
+				<div>
+					<label class="mb-1 block text-sm font-medium text-gray-700" for="stock-in-expiry">
+						Expiry Date <span class="font-normal text-gray-400">(optional)</span>
+					</label>
+					<input
+						id="stock-in-expiry"
+						bind:value={stockInExpiryDate}
+						type="date"
+						min={todayIsoDate()}
+						class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-green-500 focus:ring-2 focus:ring-green-500 focus:outline-none"
+					/>
+					<p class="mt-1 text-xs text-gray-500">
+						This stock is recorded as its own batch. Stock out takes from the oldest batch first.
+					</p>
+				</div>
+
 				<!-- Not Track Status -->
 				{#if stockInItem?.not_track}
 					<div class="rounded-md border border-blue-200 bg-blue-50 p-3">
@@ -877,6 +1101,232 @@
 						{stockManageItem?.unit}
 					</p>
 				</div>
+
+				{#if stockOutPlan.length > 0}
+					<div class="rounded-md border border-gray-200 bg-gray-50 p-3">
+						<p class="mb-2 text-xs font-medium text-gray-700">
+							Taken from the oldest batches first (FIFO):
+						</p>
+						<ul class="space-y-1 text-xs text-gray-700">
+							{#each stockOutPlan as { batch, take } (batch.id)}
+								{@const badge = expiryBadge(batch.expiry_date)}
+								<li class="flex items-center justify-between gap-2">
+									<span>
+										{take} of {batch.quantity}
+										{stockManageItem?.unit} · received {formatReceived(batch.created_at)} · expires {formatExpiry(
+											batch.expiry_date,
+										)}
+									</span>
+									{#if badge && badge.variant !== 'green'}
+										<StatusBadge variant={badge.variant} text={badge.text} />
+									{/if}
+								</li>
+							{/each}
+						</ul>
+					</div>
+				{/if}
+			</div>
+		</ActionModal>
+
+		<!-- Edit Item Details Modal -->
+		<ActionModal
+			bind:open={showEditModal}
+			title={`Edit Item: ${editingItem?.item_name || ''}`}
+			variant="blue"
+			loading={inventoryStore.loading}
+			confirmText="Save Changes"
+			disabled={!isEditFormValid || !isEditFormChanged}
+			onclose={closeEditModal}
+			oncancel={closeEditModal}
+			onconfirm={confirmEditItem}
+		>
+			<form
+				class="space-y-4"
+				onsubmit={(e) => {
+					e.preventDefault()
+					confirmEditItem()
+				}}
+			>
+				<FormField
+					bind:value={editForm.item_name}
+					type="text"
+					label="Item Name"
+					placeholder="Enter item name"
+					required={true}
+				/>
+				<div class="grid grid-cols-2 gap-4">
+					<FormField
+						bind:value={editForm.unit}
+						type="text"
+						label="Unit"
+						placeholder="Enter unit"
+						required={true}
+					/>
+					<FormField
+						bind:value={editForm.reorder_level}
+						type="number"
+						label="Reorder Level"
+						required={true}
+						min={-1}
+						selectOnFocus
+					/>
+				</div>
+				<FormField
+					bind:value={editForm.remark}
+					type="textarea"
+					label="Remark"
+					rows={2}
+					placeholder="Enter remark..."
+				/>
+				<div class="flex items-start gap-3">
+					<input
+						id="edit-not-track"
+						bind:checked={editForm.not_track}
+						type="checkbox"
+						class="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+					/>
+					<div class="flex-1">
+						<label for="edit-not-track" class="text-sm font-medium text-gray-700">
+							Not tracked
+						</label>
+						<p class="mt-1 text-xs text-gray-500">
+							Untracked items are left out of the stock totals and low-stock alerts.
+						</p>
+					</div>
+				</div>
+				<p class="text-xs text-gray-500">
+					Current stock is {editingItem?.quantity ?? 0}
+					{editingItem?.unit}. Use Stock In, Stock Out or the batch editor to change it.
+				</p>
+			</form>
+		</ActionModal>
+
+		<!-- Batches & Expiry Modal -->
+		<ActionModal
+			bind:open={showBatchesModal}
+			title={`Batches: ${batchesItem?.item_name || ''}`}
+			variant="blue"
+			loading={stockBatchesStore.loading}
+			confirmText="Save Batch"
+			cancelText="Close"
+			disabled={!editingBatch || !isBatchFormChanged}
+			onclose={closeBatchesModal}
+			oncancel={closeBatchesModal}
+			onconfirm={confirmSaveBatch}
+		>
+			<div class="space-y-4">
+				<div class="rounded-md border border-blue-200 bg-blue-50 p-3">
+					<div class="mb-1 flex items-center gap-2">
+						<ClockIcon class="h-4 w-4 text-blue-500" />
+						<span class="text-sm font-medium text-blue-800">
+							Total stock: {batchesItem?.quantity ?? 0}
+							{batchesItem?.unit} across {batchesForModal.length}
+							{batchesForModal.length === 1 ? 'batch' : 'batches'}
+						</span>
+					</div>
+					<p class="text-sm text-blue-700">
+						Stock out takes from the oldest received batch first. Batches expiring within {EXPIRY_WARNING_DAYS}
+						days are highlighted. Changing a quantity is logged as a stock movement.
+					</p>
+				</div>
+
+				{#if stockBatchesStore.error}
+					<ErrorAlert title="Batch update failed" message={stockBatchesStore.error} />
+				{/if}
+
+				{#if batchesForModal.length === 0}
+					<p class="py-4 text-center text-sm text-gray-500">No stock on hand for this item.</p>
+				{:else}
+					<div
+						class="max-h-80 divide-y divide-gray-200 overflow-y-auto rounded-md border border-gray-200"
+					>
+						{#each batchesForModal as batch, index (batch.id)}
+							{@const badge = expiryBadge(batch.expiry_date)}
+							<div class="p-3 {editingBatchId === batch.id ? 'bg-blue-50' : 'bg-white'}">
+								{#if editingBatchId === batch.id}
+									<form
+										class="space-y-3"
+										onsubmit={(e) => {
+											e.preventDefault()
+											confirmSaveBatch()
+										}}
+									>
+										<p class="text-xs font-medium text-gray-700">
+											Batch {index + 1} · received {formatReceived(batch.created_at)}
+										</p>
+										<div class="grid grid-cols-2 gap-3">
+											<div>
+												<label
+													class="mb-1 block text-xs font-medium text-gray-700"
+													for="batch-quantity"
+												>
+													Quantity ({batchesItem?.unit})
+												</label>
+												<input
+													id="batch-quantity"
+													bind:value={batchForm.quantity}
+													type="number"
+													min="0"
+													step="1"
+													class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+													{@attach selectOnFocus()}
+												/>
+											</div>
+											<div>
+												<label
+													class="mb-1 block text-xs font-medium text-gray-700"
+													for="batch-expiry"
+												>
+													Expiry Date
+												</label>
+												<input
+													id="batch-expiry"
+													bind:value={batchForm.expiry_date}
+													type="date"
+													class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+												/>
+											</div>
+										</div>
+										<div class="flex justify-end">
+											<Button type="button" variant="ghost" size="xs" onclick={cancelEditBatch}>
+												Cancel edit
+											</Button>
+										</div>
+									</form>
+								{:else}
+									<div class="flex items-center justify-between gap-3">
+										<div class="min-w-0 text-sm">
+											<div class="font-medium text-gray-900">
+												{batch.quantity}
+												{batchesItem?.unit}
+												<span class="font-normal text-gray-500">· Batch {index + 1}</span>
+											</div>
+											<div
+												class="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500"
+											>
+												<span>Received {formatReceived(batch.created_at)}</span>
+												<span>·</span>
+												<span>Expires {formatExpiry(batch.expiry_date)}</span>
+												{#if badge && badge.variant !== 'green'}
+													<StatusBadge variant={badge.variant} text={badge.text} />
+												{/if}
+											</div>
+										</div>
+										<Button
+											type="button"
+											variant="soft-blue"
+											size="xs"
+											disabled={stockBatchesStore.loading}
+											onclick={() => startEditBatch(batch)}
+										>
+											Edit
+										</Button>
+									</div>
+								{/if}
+							</div>
+						{/each}
+					</div>
+				{/if}
 			</div>
 		</ActionModal>
 
@@ -891,7 +1341,7 @@
 					}}
 				>
 					<div class="space-y-4 sm:grid sm:grid-cols-6 sm:gap-6 sm:space-y-0">
-						<div class="col-span-3">
+						<div class="col-span-2">
 							<FormField
 								bind:ref={itemNameInputRef}
 								bind:value={newItem.item_name}
@@ -928,6 +1378,14 @@
 								label="Unit"
 								placeholder="Enter unit"
 								required={true}
+							/>
+						</div>
+						<div class="col-span-1">
+							<FormField
+								bind:value={newItem.expiry_date}
+								type="date"
+								label="Expiry Date"
+								disabled={Number(newItem.quantity ?? 0) <= 0}
 							/>
 						</div>
 					</div>
@@ -999,6 +1457,8 @@
 				{:else}
 					<div class="divide-y divide-gray-200">
 						{#each pagination.paginatedItems as item (item.id)}
+							{@const nearest = getNearestExpiry(item)}
+							{@const badge = expiryBadge(nearest)}
 							<div class="px-4 py-4">
 								<div class="space-y-3">
 									<!-- Item Header -->
@@ -1037,6 +1497,13 @@
 												{item.reorder_level}
 												{item.unit}
 											</span>
+										</div>
+										<div class="flex flex-wrap items-center gap-2">
+											<span class="flex-shrink-0 text-gray-500">Nearest Expiry:</span>
+											<span class="font-medium text-gray-900">{formatExpiry(nearest)}</span>
+											{#if badge && badge.variant !== 'green'}
+												<StatusBadge variant={badge.variant} text={badge.text} />
+											{/if}
 										</div>
 									</div>
 
@@ -1114,6 +1581,8 @@
 						<SortableTableHeader columns={tableColumns} {sortConfig} onsortchange={toggleSort} />
 						<Table.Body>
 							{#each pagination.paginatedItems as item (item.id)}
+								{@const nearest = getNearestExpiry(item)}
+								{@const badge = expiryBadge(nearest)}
 								<Table.Row>
 									<Table.Cell
 										class="max-w-xs min-w-0 px-6 py-4 text-sm font-medium whitespace-normal text-gray-900"
@@ -1150,6 +1619,14 @@
 									<Table.Cell class="px-6 py-4 text-sm whitespace-nowrap text-gray-900">
 										{item.reorder_level}
 										{item.unit}
+									</Table.Cell>
+									<Table.Cell class="px-6 py-4 text-sm whitespace-nowrap text-gray-900">
+										<div>{formatExpiry(nearest)}</div>
+										{#if badge && badge.variant !== 'green'}
+											<div class="mt-1">
+												<StatusBadge variant={badge.variant} text={badge.text} />
+											</div>
+										{/if}
 									</Table.Cell>
 									<Table.Cell class="px-6 py-4 whitespace-nowrap">
 										<StatusBadge
