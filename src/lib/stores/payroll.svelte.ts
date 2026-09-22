@@ -16,6 +16,9 @@ interface EmployeeInsert {
 }
 type EmployeeUpdate = Partial<EmployeeInsert>
 
+/** Contribution tables are in ringgit and sen; drop binary float noise (9.500000000000002). */
+const toCents = (amount: number): number => Math.round(amount * 100) / 100
+
 class PayrollStore {
 	// State
 	employees = $state<Employee[]>([])
@@ -189,8 +192,8 @@ class PayrollStore {
 		}
 
 		return {
-			employee: employeeContribution,
-			employer: employerContribution,
+			employee: toCents(employeeContribution),
+			employer: toCents(employerContribution),
 		}
 	}
 
@@ -222,6 +225,7 @@ class PayrollStore {
 			contribution = Math.ceil(cappedSalary / 100) * 0.2 - 0.1
 		}
 
+		contribution = toCents(contribution)
 		return {
 			employee: contribution,
 			employer: contribution,
@@ -265,7 +269,7 @@ class PayrollStore {
 			addOn += 0.8
 		}
 
-		return 1.85 + addOn
+		return toCents(1.85 + addOn)
 	}
 
 	generatePayrollData = (period: { year: number; month: number }): PayrollData[] => {
@@ -306,7 +310,7 @@ class PayrollStore {
 			(payrollItem.eisEmployee || 0) +
 			(payrollItem.lindung24 || 0)
 
-		return payrollItem.basicSalary - totalDeductions
+		return toCents(payrollItem.basicSalary - totalDeductions)
 	}
 
 	// Subscription lifecycle

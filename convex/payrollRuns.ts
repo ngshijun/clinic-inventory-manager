@@ -1,6 +1,6 @@
 import { ConvexError, v } from 'convex/values'
-import { mutation, query } from './_generated/server'
-import type { Id } from './_generated/dataModel'
+import { internalMutation, mutation, query } from './_generated/server'
+import type { Doc, Id } from './_generated/dataModel'
 import { requireRole } from './lib/auth'
 import { payrollRunDoc, payrollRunItemDoc, payrollRunItemNumberFields } from './schema'
 
@@ -9,6 +9,22 @@ const runItemInput = v.object({
 	employee_name: v.string(),
 	...payrollRunItemNumberFields,
 })
+
+type NumberField = keyof typeof payrollRunItemNumberFields
+const NUMBER_FIELDS = Object.keys(payrollRunItemNumberFields) as NumberField[]
+
+/** Amounts are ringgit and sen; store them free of binary float noise. */
+const toCents = (amount: number): number => Math.round(amount * 100) / 100
+
+/** Every amount rounded to sen, or null when nothing needed changing. */
+function roundedAmounts(item: Pick<Doc<'payroll_run_items'>, NumberField>) {
+	const patch: Partial<Pick<Doc<'payroll_run_items'>, NumberField>> = {}
+	for (const key of NUMBER_FIELDS) {
+		const rounded = toCents(item[key])
+		if (rounded !== item[key]) patch[key] = rounded
+	}
+	return Object.keys(patch).length > 0 ? patch : null
+}
 
 function assertPeriod(year: number, month: number): void {
 	if (!Number.isInteger(year) || year < 2000 || year > 2100) {
@@ -62,9 +78,7 @@ export const save = mutation({
 		requireRole(args.auth, ['manager'])
 		assertPeriod(args.year, args.month)
 		for (const item of args.items) {
-			for (const key of Object.keys(payrollRunItemNumberFields) as Array<
-				keyof typeof payrollRunItemNumberFields
-			>) {
+			for (const key of NUMBER_FIELDS) {
 				if (!Number.isFinite(item[key])) {
 					throw new ConvexError({
 						code: 'INVALID_ARGUMENT',
@@ -105,6 +119,7 @@ export const save = mutation({
 				run_id,
 				employee_id: employee_id ?? undefined,
 				...rest,
+				...roundedAmounts(rest),
 				updated_at: now,
 			})
 		}
@@ -112,6 +127,28 @@ export const save = mutation({
 		const run = await ctx.db.get(run_id)
 		if (!run) throw new ConvexError({ code: 'NOT_FOUND', message: 'Payroll run not found' })
 		return run
+	},
+})
+
+/**
+ * One-off repair for rows saved before amounts were rounded, e.g. an EIS of
+ * 9.500000000000002. Bounded: a handful of employees per monthly run.
+ *
+ *   npx convex run payrollRuns:roundStoredAmounts '{}' [--prod]
+ */
+export const roundStoredAmounts = internalMutation({
+	args: {},
+	returns: v.number(),
+	handler: async (ctx) => {
+		let fixed = 0
+		for (const item of await ctx.db.query('payroll_run_items').collect()) {
+			const patch = roundedAmounts(item)
+			if (!patch) continue
+			await ctx.db.patch(item._id, { ...patch, updated_at: Date.now() })
+			fixed++
+		}
+		console.log(`rounded amounts on ${fixed} payroll run item(s)`)
+		return fixed
 	},
 })
 
