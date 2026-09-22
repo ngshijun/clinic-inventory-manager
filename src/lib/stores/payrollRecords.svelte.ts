@@ -1,12 +1,20 @@
-// stores/payrollRecords.ts
-import { supabase } from '$lib/supabase'
-import type { Database } from '$lib/types/database.types'
+// stores/payrollRecords.svelte.ts
+import { api } from '../../../convex/_generated/api'
+import type { Doc, Id } from '../../../convex/_generated/dataModel'
+import { convex } from '$lib/convex'
 import type { PayrollData } from '$lib/types/payroll'
-import type { RealtimeChannel } from '@supabase/supabase-js'
+import { errorMessage, withLegacy, type WithLegacy } from '$lib/types/legacy'
+import { authStore } from './auth.svelte'
 
-type PayrollRun = Database['public']['Tables']['payroll_runs']['Row']
-type PayrollRunItem = Database['public']['Tables']['payroll_run_items']['Row']
+type PayrollRun = WithLegacy<Doc<'payroll_runs'>>
+type PayrollRunItem = WithLegacy<Doc<'payroll_run_items'>>
+type PayrollRunId = Id<'payroll_runs'>
 
+/*
+ * Saved monthly payroll records. The list of runs is a live subscription;
+ * the items of a run are subscribed to on demand the first time a period is
+ * opened and stay live after that.
+ */
 class PayrollRecordsStore {
 	// State
 	runs = $state<PayrollRun[]>([])
@@ -14,18 +22,13 @@ class PayrollRecordsStore {
 	itemsByRun = $state<Record<string, PayrollRunItem[]>>({})
 	#loadingCount = $state(0)
 	error = $state<string | null>(null)
-	#channel: RealtimeChannel | null = null
+	#unsubscribeRuns: (() => void) | null = null
+	#settle: (() => void) | null = null
+	#itemSubscriptions = new Map<string, () => void>()
 	#isInitialized = false
-	// A save rewrites every item row at once, so refetches are debounced per run
-	#pendingItemRefetch = new Map<string, ReturnType<typeof setTimeout>>()
 
 	get loading(): boolean {
 		return this.#loadingCount > 0
-	}
-
-	// Newest period first
-	#sortRuns = () => {
-		this.runs.sort((a, b) => b.year - a.year || b.month - a.month)
 	}
 
 	// Getters (computed)
@@ -44,49 +47,53 @@ class PayrollRecordsStore {
 		this.#loadingCount++
 		this.error = null
 		try {
-			const { data, error: supabaseError } = await supabase
-				.from('payroll_runs')
-				.select('*')
-				.order('year', { ascending: false })
-				.order('month', { ascending: false })
-
-			if (supabaseError) throw supabaseError
-			this.runs = data || []
+			const docs = await convex.query(api.payrollRuns.list, { auth: authStore.token })
+			this.runs = docs.map(withLegacy)
 		} catch (err) {
-			this.error =
-				err instanceof Error ? err.message : 'An error occurred while fetching payroll records'
+			this.error = errorMessage(err, 'An error occurred while fetching payroll records')
 			console.error('Error fetching payroll runs:', err)
 		} finally {
 			this.#loadingCount--
 		}
 	}
 
-	fetchRunItems = async (runId: string): Promise<PayrollRunItem[]> => {
+	/** Load a run's items and keep them live. Resolves with the first result. */
+	fetchRunItems = async (runId: PayrollRunId): Promise<PayrollRunItem[]> => {
+		if (this.#itemSubscriptions.has(runId)) return this.getItems(runId)
+
 		this.#loadingCount++
 		this.error = null
-		try {
-			const { data, error: supabaseError } = await supabase
-				.from('payroll_run_items')
-				.select('*')
-				.eq('run_id', runId)
-				.order('employee_name', { ascending: true })
+		return await new Promise<PayrollRunItem[]>((resolve) => {
+			let settled = false
+			const settle = (items: PayrollRunItem[]) => {
+				if (settled) return
+				settled = true
+				this.#loadingCount--
+				resolve(items)
+			}
 
-			if (supabaseError) throw supabaseError
-			this.itemsByRun = { ...this.itemsByRun, [runId]: data || [] }
-			return data || []
-		} catch (err) {
-			this.error =
-				err instanceof Error ? err.message : 'An error occurred while fetching payroll record items'
-			console.error('Error fetching payroll run items:', err)
-			return []
-		} finally {
-			this.#loadingCount--
-		}
+			const unsubscribe = convex.onUpdate(
+				api.payrollRuns.items,
+				{ auth: authStore.token, run_id: runId },
+				(docs) => {
+					const items = docs.map(withLegacy)
+					this.itemsByRun = { ...this.itemsByRun, [runId]: items }
+					settle(items)
+				},
+				(err) => {
+					this.error = errorMessage(err, 'An error occurred while fetching payroll record items')
+					console.error('Error fetching payroll run items:', err)
+					settle([])
+				},
+			)
+			this.#itemSubscriptions.set(runId, unsubscribe)
+		})
 	}
 
 	/**
 	 * Freeze a month's payroll. Re-saving an already saved period replaces its
-	 * items, so a correction can be made without leaving a duplicate behind.
+	 * items in one server transaction, so a correction can be made without
+	 * leaving a duplicate behind.
 	 */
 	savePayrollRun = async (
 		year: number,
@@ -98,7 +105,7 @@ class PayrollRecordsStore {
 		this.error = null
 		try {
 			const items = payrollData.map((item) => ({
-				employee_id: item.employeeId,
+				employee_id: item.employeeId as Id<'payroll'>,
 				employee_name: item.employeeName,
 				basic_salary: item.basicSalary,
 				epf_employee: item.epfEmployee,
@@ -113,32 +120,17 @@ class PayrollRecordsStore {
 				net_salary: netSalaryOf(item),
 			}))
 
-			// Replacing an existing period's items has to be atomic, otherwise a
-			// failed re-insert would leave the previously saved record destroyed
-			const { data: run, error: supabaseError } = await supabase.rpc('save_payroll_run', {
-				p_year: year,
-				p_month: month,
-				p_items: items,
+			const run = await convex.mutation(api.payrollRuns.save, {
+				auth: authStore.token,
+				year,
+				month,
+				items,
 			})
 
-			if (supabaseError) throw supabaseError
-			if (!run) throw new Error('Payroll record could not be saved')
-
-			// Optimistic local update
-			const index = this.runs.findIndex((r) => r.id === run.id)
-			if (index === -1) {
-				this.runs.push(run)
-			} else {
-				this.runs[index] = run
-			}
-			this.#sortRuns()
-
-			await this.fetchRunItems(run.id)
-
-			return run
+			await this.fetchRunItems(run._id)
+			return withLegacy(run)
 		} catch (err) {
-			this.error =
-				err instanceof Error ? err.message : 'An error occurred while saving the payroll record'
+			this.error = errorMessage(err, 'An error occurred while saving the payroll record')
 			console.error('Error saving payroll run:', err)
 			return null
 		} finally {
@@ -146,25 +138,15 @@ class PayrollRecordsStore {
 		}
 	}
 
-	deletePayrollRun = async (runId: string): Promise<boolean> => {
+	deletePayrollRun = async (runId: PayrollRunId): Promise<boolean> => {
 		this.#loadingCount++
 		this.error = null
 		try {
-			// Items are removed by the cascade on payroll_run_items.run_id
-			const { error: supabaseError } = await supabase.from('payroll_runs').delete().eq('id', runId)
-
-			if (supabaseError) throw supabaseError
-
-			// Optimistic local removal
-			const index = this.runs.findIndex((run) => run.id === runId)
-			if (index !== -1) this.runs.splice(index, 1)
-
+			await convex.mutation(api.payrollRuns.remove, { auth: authStore.token, run_id: runId })
 			this.#dropItems(runId)
-
 			return true
 		} catch (err) {
-			this.error =
-				err instanceof Error ? err.message : 'An error occurred while deleting the payroll record'
+			this.error = errorMessage(err, 'An error occurred while deleting the payroll record')
 			console.error('Error deleting payroll run:', err)
 			return false
 		} finally {
@@ -174,85 +156,62 @@ class PayrollRecordsStore {
 
 	// Subscription lifecycle
 	#dropItems = (runId: string) => {
-		const timer = this.#pendingItemRefetch.get(runId)
-		if (timer) {
-			clearTimeout(timer)
-			this.#pendingItemRefetch.delete(runId)
-		}
+		this.#itemSubscriptions.get(runId)?.()
+		this.#itemSubscriptions.delete(runId)
 		if (runId in this.itemsByRun) {
 			const { [runId]: _removed, ...rest } = this.itemsByRun
 			this.itemsByRun = rest
 		}
 	}
 
-	#scheduleItemsRefetch = (runId: string) => {
-		const timer = this.#pendingItemRefetch.get(runId)
-		if (timer) clearTimeout(timer)
-		this.#pendingItemRefetch.set(
-			runId,
-			setTimeout(() => {
-				this.#pendingItemRefetch.delete(runId)
-				// Only periods the user has actually opened are worth keeping current
-				if (runId in this.itemsByRun) this.fetchRunItems(runId)
-			}, 300),
+	#startSubscription = () => {
+		if (this.#unsubscribeRuns) return
+
+		let settled = false
+		const settle = () => {
+			if (settled) return
+			settled = true
+			this.#loadingCount--
+		}
+		this.#settle = settle
+		this.#loadingCount++
+
+		this.#unsubscribeRuns = convex.onUpdate(
+			api.payrollRuns.list,
+			{ auth: authStore.token },
+			(docs) => {
+				this.runs = docs.map(withLegacy)
+				// Forget items of runs that no longer exist
+				const live = new Set<string>(docs.map((run) => run._id))
+				for (const runId of [...this.#itemSubscriptions.keys()]) {
+					if (!live.has(runId)) this.#dropItems(runId)
+				}
+				this.error = null
+				settle()
+			},
+			(err) => {
+				this.error = errorMessage(err, 'An error occurred while fetching payroll records')
+				console.error('Payroll runs subscription error:', err)
+				settle()
+			},
 		)
 	}
 
-	#startSubscription = () => {
-		if (this.#channel) return
-
-		this.#channel = supabase
-			.channel('update-payroll-runs')
-			.on(
-				'postgres_changes',
-				{ event: '*', schema: 'public', table: 'payroll_runs' },
-				(payload) => {
-					if (payload.eventType === 'INSERT') {
-						// Dedup: skip if already in local state
-						const exists = this.runs.some((run) => run.id === payload.new.id)
-						if (!exists) this.runs.push(payload.new as PayrollRun)
-					} else if (payload.eventType === 'UPDATE') {
-						const index = this.runs.findIndex((run) => run.id === payload.new.id)
-						if (index !== -1) this.runs[index] = payload.new as PayrollRun
-					} else if (payload.eventType === 'DELETE') {
-						const index = this.runs.findIndex((run) => run.id === payload.old.id)
-						if (index !== -1) this.runs.splice(index, 1)
-
-						this.#dropItems(payload.old.id as string)
-					}
-
-					this.#sortRuns()
-				},
-			)
-			.on(
-				'postgres_changes',
-				{ event: '*', schema: 'public', table: 'payroll_run_items' },
-				(payload) => {
-					const runId = (
-						payload.eventType === 'DELETE' ? payload.old.run_id : payload.new.run_id
-					) as string | undefined
-					if (runId) this.#scheduleItemsRefetch(runId)
-				},
-			)
-			.subscribe()
-	}
-
-	// Initialize store by fetching runs and starting subscription
+	// Initialize store by subscribing to the runs list
 	initializeStore = async (): Promise<void> => {
 		if (this.#isInitialized) return
 		this.#isInitialized = true
-		await this.fetchRuns()
 		this.#startSubscription()
 	}
 
 	// Cleanup: unsubscribe and reset state
 	cleanup = () => {
-		if (this.#channel) {
-			this.#channel.unsubscribe()
-			this.#channel = null
-		}
-		this.#pendingItemRefetch.forEach((timer) => clearTimeout(timer))
-		this.#pendingItemRefetch.clear()
+		this.#settle?.()
+		this.#settle = null
+		this.#unsubscribeRuns?.()
+		this.#unsubscribeRuns = null
+		this.#itemSubscriptions.forEach((unsubscribe) => unsubscribe())
+		this.#itemSubscriptions.clear()
 		this.runs = []
 		this.itemsByRun = {}
 		this.error = null

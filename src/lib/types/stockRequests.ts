@@ -1,11 +1,13 @@
-import type { Database } from '$lib/types/database.types'
+import type { Doc, Id } from '../../../convex/_generated/dataModel'
+import type { WithLegacy } from '$lib/types/legacy'
 
-// Extend database types with additional fields used in the app
-export type StockRequest = Database['public']['Tables']['stock_requests']['Row'] & {
-	unit: string
+export type StockRequestId = Id<'stock_requests'>
+
+// The server joins the item's current unit onto each request
+export type StockRequest = WithLegacy<Doc<'stock_requests'> & { unit: string }>
+
+export interface NewStockRequest {
+	item_id: Id<'inventory'>
+	quantity: number
+	remark?: string
 }
-
-export type NewStockRequest = Omit<
-	Database['public']['Tables']['stock_requests']['Insert'],
-	'unit' | 'status'
->

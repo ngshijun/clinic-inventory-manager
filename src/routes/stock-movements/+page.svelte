@@ -11,7 +11,6 @@
 	import SearchInput from '$lib/components/app/SearchInput.svelte'
 	import SortableTableHeader from '$lib/components/app/SortableTableHeader.svelte'
 	import StatusBadge from '$lib/components/app/StatusBadge.svelte'
-	import TablePagination from '$lib/components/app/TablePagination.svelte'
 	import CloseIcon from '$lib/components/icons/CloseIcon.svelte'
 	import CogIcon from '$lib/components/icons/CogIcon.svelte'
 	import FilterIcon from '$lib/components/icons/FilterIcon.svelte'
@@ -20,10 +19,10 @@
 	import {
 		emptyMovementFilters,
 		type MovementFilters,
-		type MovementSortKey,
 		type MovementsQuery,
 		type StockMovement,
 	} from '$lib/types/stockMovements'
+	import { Button } from '$lib/components/ui/button/index.js'
 
 	const SEARCH_DEBOUNCE_MS = 300
 	const PAGE_SIZE_OPTIONS = [25, 50, 100, 500]
@@ -45,12 +44,11 @@
 	// Advanced search filters (as typed; text fields are debounced before querying)
 	let advancedFilters = $state<MovementFilters>(emptyMovementFilters())
 
-	// Server-side paging state
-	let currentPage = $state<number>(1)
+	// Server-side paging state (the cursor bookkeeping lives in the store)
 	let pageSize = $state<number>(25)
 
-	// Sorting configuration. Newest first by default, as before.
-	let sortConfig = $state<{ key: MovementSortKey; direction: 'asc' | 'desc' }>({
+	// Only the date column sorts on the server: newest first by default.
+	let sortConfig = $state<{ key: 'created_at'; direction: 'asc' | 'desc' }>({
 		key: 'created_at',
 		direction: 'desc',
 	})
@@ -82,9 +80,8 @@
 		const names = [searchQuery, advancedFilters.itemName].map((n) => n.trim()).filter(Boolean)
 		return {
 			...advancedFilters,
-			// Postgres ilike takes one pattern, so both terms are joined with a
-			// wildcard when the user has typed in both boxes.
-			itemName: names.join('%'),
+			// Both boxes feed the same full-text search on item name
+			itemName: names.join(' '),
 			quantityMin,
 			quantityMax,
 		}
@@ -100,51 +97,20 @@
 		return () => clearTimeout(timer)
 	})
 
-	// Any change to the filters or sort restarts from page one
-	$effect(() => {
-		debouncedFilters
-		sortConfig.key
-		sortConfig.direction
-		untrack(() => {
-			currentPage = 1
-		})
-	})
-
-	// Fetch the page whenever the query changes. The store call is untracked:
-	// it touches its own loading state, which must not become a dependency of
-	// this effect or it would re-run itself indefinitely.
+	// Any change to the filters, sort or page size re-queries from page one.
+	// The store call is untracked: it touches its own loading state, which
+	// must not become a dependency of this effect or it would re-run itself.
 	$effect(() => {
 		const query: MovementsQuery = {
-			page: currentPage,
 			pageSize,
-			sortKey: sortConfig.key,
 			sortDirection: sortConfig.direction,
 			filters: $state.snapshot(debouncedFilters),
 		}
-		untrack(() => stockMovementsStore.fetchMovements(query))
+		untrack(() => stockMovementsStore.setQuery(query))
 	})
-
-	const totalPages = $derived(Math.max(1, Math.ceil(stockMovementsStore.totalCount / pageSize)))
-	const startIndex = $derived((currentPage - 1) * pageSize)
-	const endIndex = $derived(startIndex + stockMovementsStore.movements.length)
-
-	// If rows disappear (a filter, a delete) and the page no longer exists, step back
-	$effect(() => {
-		const tp = totalPages
-		untrack(() => {
-			if (currentPage > tp) currentPage = tp
-		})
-	})
-
-	const goToPage = (page: number): void => {
-		if (page >= 1 && page <= totalPages && page !== currentPage) currentPage = page
-	}
 
 	const updatePageSize = (size: number): void => {
-		if (PAGE_SIZE_OPTIONS.includes(size)) {
-			pageSize = size
-			currentPage = 1
-		}
+		if (PAGE_SIZE_OPTIONS.includes(size)) pageSize = size
 	}
 
 	// Clear functions
@@ -154,30 +120,34 @@
 
 	const clearAllFilters = (): void => {
 		clearAdvancedFilters()
-		currentPage = 1
 	}
+
+	// "Showing X to Y of Z" only when the server can count the active filters
+	const rangeLabel = $derived.by((): string => {
+		const store = stockMovementsStore
+		if (store.movements.length === 0) return 'No movements'
+		const from = store.startIndex + 1
+		const to = store.endIndex
+		return store.countIsExact
+			? `Showing ${from} to ${to} of ${store.totalCount} results`
+			: `Showing ${from} to ${to}`
+	})
 
 	// Table column configuration
 	const tableColumns = [
-		{ key: 'item_name', label: 'Item Name', sortable: true },
-		{ key: 'quantity', label: 'Quantity', sortable: true },
-		{ key: 'movement_type', label: 'Movement', sortable: true },
-		{ key: 'expiry_date', label: 'Batch Expiry', sortable: true },
+		{ key: 'item_name', label: 'Item Name', sortable: false },
+		{ key: 'quantity', label: 'Quantity', sortable: false },
+		{ key: 'movement_type', label: 'Movement', sortable: false },
+		{ key: 'expiry_date', label: 'Batch Expiry', sortable: false },
 		{ key: 'created_at', label: 'Date/Time', sortable: true },
 		{ key: 'remark', label: 'Remark', sortable: false },
 		{ key: 'actions', label: 'Actions', sortable: false },
 	]
 
-	// Sorting function
+	// Sorting function: only the date column is sortable, so a click flips it
 	const toggleSort = (key: string): void => {
-		if (sortConfig.key === key) {
-			// Same column clicked - toggle direction
-			sortConfig.direction = sortConfig.direction === 'asc' ? 'desc' : 'asc'
-		} else {
-			// New column clicked - set ascending
-			sortConfig.key = key as MovementSortKey
-			sortConfig.direction = 'asc'
-		}
+		if (key !== 'created_at') return
+		sortConfig.direction = sortConfig.direction === 'asc' ? 'desc' : 'asc'
 	}
 
 	// Action button configurations
@@ -237,7 +207,7 @@
 		return `${dateStr}\n${timeStr}`
 	}
 
-	const formatExpiry = (expiryDate: string | null): string => {
+	const formatExpiry = (expiryDate: string | null | undefined): string => {
 		if (!expiryDate) return '—'
 		return new Date(`${expiryDate}T00:00:00`).toLocaleDateString('en-US', {
 			month: 'short',
@@ -356,7 +326,11 @@
 					<!-- Filter Actions -->
 					<div class="mt-4 flex items-center justify-between">
 						<div class="text-xs text-gray-600">
-							{stockMovementsStore.totalCount} matching movements
+							{#if stockMovementsStore.countIsExact}
+								{stockMovementsStore.totalCount} matching movements
+							{:else}
+								Text, remark and quantity filters are applied page by page, so no total is shown
+							{/if}
 						</div>
 					</div>
 				</div>
@@ -374,7 +348,11 @@
 			<div class="overflow-hidden bg-white shadow sm:rounded-md">
 				<div class="border-b border-gray-200 px-4 py-5 sm:px-6">
 					<h3 class="text-lg leading-6 font-medium text-gray-900">
-						Movements ({stockMovementsStore.totalCount})
+						{#if stockMovementsStore.countIsExact}
+							Movements ({stockMovementsStore.totalCount})
+						{:else}
+							Movements
+						{/if}
 					</h3>
 				</div>
 
@@ -452,19 +430,8 @@
 				{/if}
 
 				<!-- Mobile Pagination -->
-				{#if totalPages > 1}
-					<TablePagination
-						{currentPage}
-						{totalPages}
-						itemsPerPage={pageSize}
-						totalItems={stockMovementsStore.totalCount}
-						{startIndex}
-						{endIndex}
-						showItemsPerPageSelector={false}
-						itemsPerPageOptions={PAGE_SIZE_OPTIONS}
-						onpagechange={goToPage}
-						onitemsperpagechange={updatePageSize}
-					/>
+				{#if stockMovementsStore.currentPage > 1 || !stockMovementsStore.isDone}
+					{@render pager(false)}
 				{/if}
 			</div>
 		</div>
@@ -474,7 +441,11 @@
 			<div class="overflow-hidden bg-white shadow sm:rounded-md">
 				<div class="border-b border-gray-200 px-4 py-5 sm:px-6">
 					<h3 class="text-lg leading-6 font-medium text-gray-900">
-						Movements ({stockMovementsStore.totalCount})
+						{#if stockMovementsStore.countIsExact}
+							Movements ({stockMovementsStore.totalCount})
+						{:else}
+							Movements
+						{/if}
 					</h3>
 				</div>
 
@@ -537,18 +508,7 @@
 				{/if}
 
 				<!-- Desktop Pagination -->
-				<TablePagination
-					{currentPage}
-					{totalPages}
-					itemsPerPage={pageSize}
-					totalItems={stockMovementsStore.totalCount}
-					{startIndex}
-					{endIndex}
-					showItemsPerPageSelector={true}
-					itemsPerPageOptions={PAGE_SIZE_OPTIONS}
-					onpagechange={goToPage}
-					onitemsperpagechange={updatePageSize}
-				/>
+				{@render pager(true)}
 			</div>
 		</div>
 	</div>
@@ -586,4 +546,59 @@
 			/>
 		</div>
 	</ActionModal>
+
+	<!-- Cursor paging: Previous / Next only, since the server pages by cursor -->
+	{#snippet pager(showPageSize: boolean)}
+		<div class="border-t border-gray-200 bg-gray-50 px-4 py-3 sm:px-6">
+			<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+				<div class="text-sm text-gray-700">
+					{rangeLabel}
+					{#if stockMovementsStore.countIsExact}
+						· Page {stockMovementsStore.currentPage} of {stockMovementsStore.totalPages}
+					{:else}
+						· Page {stockMovementsStore.currentPage}
+					{/if}
+				</div>
+				<div class="flex items-center gap-2">
+					{#if showPageSize}
+						<label for="movements-page-size" class="text-sm text-gray-700">Items per page:</label>
+						<select
+							id="movements-page-size"
+							value={pageSize}
+							onchange={(event) => updatePageSize(Number(event.currentTarget.value))}
+							class="rounded border border-gray-300 px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+						>
+							{#each PAGE_SIZE_OPTIONS as option (option)}
+								<option value={option}>{option}</option>
+							{/each}
+						</select>
+					{/if}
+					<Button
+						variant="outline"
+						size="sm"
+						disabled={stockMovementsStore.currentPage <= 1 || stockMovementsStore.loading}
+						onclick={stockMovementsStore.firstPage}
+					>
+						First
+					</Button>
+					<Button
+						variant="outline"
+						size="sm"
+						disabled={stockMovementsStore.currentPage <= 1 || stockMovementsStore.loading}
+						onclick={stockMovementsStore.previousPage}
+					>
+						Previous
+					</Button>
+					<Button
+						variant="outline"
+						size="sm"
+						disabled={stockMovementsStore.isDone || stockMovementsStore.loading}
+						onclick={stockMovementsStore.nextPage}
+					>
+						Next
+					</Button>
+				</div>
+			</div>
+		</div>
+	{/snippet}
 </div>

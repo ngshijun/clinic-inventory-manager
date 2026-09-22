@@ -20,7 +20,7 @@
 	import * as Table from '$lib/components/ui/table/index.js'
 	import { createPagination } from '$lib/composables/pagination.svelte'
 	import { inventoryStore } from '$lib/stores/inventory.svelte'
-	import type { InventoryItem } from '$lib/types/inventory'
+	import type { InventoryId, InventoryItem } from '$lib/types/inventory'
 
 	let searchQuery = $state<string>('')
 	let newRemark = $state<string>('')
@@ -91,19 +91,19 @@
 		}
 	}
 
-	const clearOrderDate = async (itemId: string): Promise<void> => {
+	const clearOrderDate = async (itemId: InventoryId): Promise<void> => {
 		await inventoryStore.clearOrderDate(itemId)
 	}
 
 	// Removed toggleOrderActionDropdown as ActionButtonGroup handles this internally
 
 	// Set non-order reason for an item
-	const setItemNonOrderReason = async (itemId: string, reason: string): Promise<void> => {
+	const setItemNonOrderReason = async (itemId: InventoryId, reason: string): Promise<void> => {
 		await inventoryStore.setNonOrderReason(itemId, reason)
 	}
 
 	// Clear non-order reason for an item
-	const clearItemNonOrderReason = async (itemId: string): Promise<void> => {
+	const clearItemNonOrderReason = async (itemId: InventoryId): Promise<void> => {
 		await inventoryStore.setNonOrderReason(itemId, null)
 	}
 
@@ -281,17 +281,11 @@
 	}
 
 	// Remark editing functions
-	const saveRemark = async (itemId: string): Promise<void> => {
+	const saveRemark = async (itemId: InventoryId): Promise<void> => {
 		const item = inventoryStore.items.find((item) => item.id === itemId)
 		if (!item) return
 
-		const updatedItem: InventoryItem = {
-			...item,
-			remark: newRemark.trim(),
-			updated_at: new Date().toISOString(),
-		}
-
-		await inventoryStore.updateItem(itemId, updatedItem)
+		await inventoryStore.updateItem(itemId, { remark: newRemark.trim() })
 	}
 
 	// ReasonBadge centralizes the presentation for non_order_reason

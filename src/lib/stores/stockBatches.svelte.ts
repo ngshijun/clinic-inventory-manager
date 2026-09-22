@@ -1,26 +1,28 @@
-import { supabase } from '$lib/supabase'
-import type { InventoryItem } from '$lib/types/inventory'
-import type { StockBatch } from '$lib/types/stockBatches'
-import type { RealtimeChannel } from '@supabase/supabase-js'
-import { inventoryStore } from './inventory.svelte'
+import { api } from '../../../convex/_generated/api'
+import { convex } from '$lib/convex'
+import { fefoOrder, type StockBatch, type StockBatchId } from '$lib/types/stockBatches'
+import { errorMessage, withLegacy } from '$lib/types/legacy'
+import { authStore } from './auth.svelte'
 
 /**
- * Batches with stock remaining, for every item. Emptied batches are dropped
- * from this list (their history lives in stock_movements). Ordered in FIFO
- * order, which is the order stock_out consumes them.
+ * Batches with stock remaining, for every item, as a live subscription.
+ * Emptied batches are not returned by the server (their history lives in
+ * stock_movements). Per item they are kept in FEFO order, which is the order
+ * stock out consumes them.
  */
 class StockBatchesStore {
 	batches = $state<StockBatch[]>([])
 	#loadingCount = $state(0)
 	error = $state<string | null>(null)
-	#channel: RealtimeChannel | null = null
+	#unsubscribe: (() => void) | null = null
+	#settle: (() => void) | null = null
 	#isInitialized = false
 
 	get loading(): boolean {
 		return this.#loadingCount > 0
 	}
 
-	/** Item id -> its batches with stock remaining, oldest received first */
+	/** Item id -> its batches with stock remaining, in stock-out (FEFO) order */
 	get batchesByItem(): Map<string, StockBatch[]> {
 		const map = new Map<string, StockBatch[]>()
 		for (const batch of this.batches) {
@@ -28,6 +30,7 @@ class StockBatchesStore {
 			if (list) list.push(batch)
 			else map.set(batch.item_id, [batch])
 		}
+		for (const [itemId, list] of map) map.set(itemId, fefoOrder(list))
 		return map
 	}
 
@@ -46,82 +49,27 @@ class StockBatchesStore {
 		return this.batchesByItem.get(itemId) ?? []
 	}
 
-	#sort = () => {
-		this.batches.sort(
-			(a, b) =>
-				new Date(a.created_at).getTime() - new Date(b.created_at).getTime() ||
-				a.id.localeCompare(b.id),
-		)
-	}
-
-	#upsert = (batch: StockBatch) => {
-		const index = this.batches.findIndex((b) => b.id === batch.id)
-		if (batch.quantity <= 0) {
-			if (index !== -1) this.batches.splice(index, 1)
-			return
-		}
-		if (index === -1) this.batches.push(batch)
-		else this.batches[index] = batch
-		this.#sort()
-	}
-
-	fetchBatches = async (): Promise<void> => {
-		this.#loadingCount++
-		this.error = null
-		try {
-			const { data, error: supabaseError } = await supabase
-				.from('stock_batches')
-				.select('*')
-				.gt('quantity', 0)
-				.order('created_at', { ascending: true })
-				.order('id', { ascending: true })
-
-			if (supabaseError) throw supabaseError
-			this.batches = data || []
-		} catch (err) {
-			this.error = err instanceof Error ? err.message : 'An error occurred while fetching batches'
-			console.error('Error fetching batches:', err)
-		} finally {
-			this.#loadingCount--
-		}
-	}
-
 	/**
 	 * Edit a batch's remaining quantity and expiry date. The server logs any
-	 * quantity change as a stock movement and returns the recomputed item.
+	 * quantity change as a stock movement and recomputes the item total; the
+	 * subscription delivers the new state.
 	 */
 	updateBatch = async (
-		batchId: string,
+		batchId: StockBatchId,
 		quantity: number,
 		expiryDate: string | null,
 	): Promise<void> => {
 		this.#loadingCount++
 		this.error = null
 		try {
-			const { data, error: rpcError } = await supabase
-				.rpc('update_stock_batch', {
-					p_batch_id: batchId,
-					p_quantity: Math.max(0, Math.floor(quantity)),
-					p_expiry_date: expiryDate || null,
-				})
-				.single()
-
-			if (rpcError) throw rpcError
-
-			if (data) inventoryStore.applyServerItem(data as InventoryItem)
-
-			// Optimistic local update; realtime will confirm it
-			const index = this.batches.findIndex((b) => b.id === batchId)
-			if (index !== -1) {
-				this.#upsert({
-					...this.batches[index],
-					quantity: Math.max(0, Math.floor(quantity)),
-					expiry_date: expiryDate || null,
-					updated_at: new Date().toISOString(),
-				})
-			}
+			await convex.mutation(api.stock.updateBatch, {
+				auth: authStore.token,
+				batch_id: batchId,
+				quantity: Math.max(0, Math.floor(quantity)),
+				expiry_date: expiryDate || undefined,
+			})
 		} catch (err) {
-			this.error = err instanceof Error ? err.message : 'An error occurred while updating batch'
+			this.error = errorMessage(err, 'An error occurred while updating batch')
 			console.error('Error updating batch:', err)
 		} finally {
 			this.#loadingCount--
@@ -129,37 +77,44 @@ class StockBatchesStore {
 	}
 
 	#startSubscription = () => {
-		if (this.#channel) return
+		if (this.#unsubscribe) return
 
-		this.#channel = supabase
-			.channel('update-stock-batches')
-			.on(
-				'postgres_changes',
-				{ event: '*', schema: 'public', table: 'stock_batches' },
-				(payload) => {
-					if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-						this.#upsert(payload.new as StockBatch)
-					} else if (payload.eventType === 'DELETE') {
-						const index = this.batches.findIndex((b) => b.id === payload.old.id)
-						if (index !== -1) this.batches.splice(index, 1)
-					}
-				},
-			)
-			.subscribe()
+		let settled = false
+		const settle = () => {
+			if (settled) return
+			settled = true
+			this.#loadingCount--
+		}
+		this.#settle = settle
+		this.#loadingCount++
+
+		this.#unsubscribe = convex.onUpdate(
+			api.stock.listBatches,
+			{ auth: authStore.token },
+			(docs) => {
+				this.batches = docs.map(withLegacy)
+				this.error = null
+				settle()
+			},
+			(err) => {
+				this.error = errorMessage(err, 'An error occurred while fetching batches')
+				console.error('Batches subscription error:', err)
+				settle()
+			},
+		)
 	}
 
 	initializeStore = async (): Promise<void> => {
 		if (this.#isInitialized) return
 		this.#isInitialized = true
-		await this.fetchBatches()
 		this.#startSubscription()
 	}
 
 	cleanup = () => {
-		if (this.#channel) {
-			this.#channel.unsubscribe()
-			this.#channel = null
-		}
+		this.#settle?.()
+		this.#settle = null
+		this.#unsubscribe?.()
+		this.#unsubscribe = null
 		this.batches = []
 		this.error = null
 		this.#isInitialized = false

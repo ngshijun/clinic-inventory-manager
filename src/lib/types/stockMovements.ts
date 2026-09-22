@@ -1,17 +1,16 @@
-import type { Database } from '$lib/types/database.types'
+import type { Doc, Id } from '../../../convex/_generated/dataModel'
+import type { WithLegacy } from '$lib/types/legacy'
 
-// Extend database types with additional fields used in the app
-export type StockMovement = Database['public']['Tables']['stock_movements']['Row'] & {
-	unit: string
-}
+// The server joins the item's current unit onto each movement
+export type StockMovement = WithLegacy<Doc<'stock_movements'> & { unit: string }>
 
 export type MovementType = 'stock_in' | 'stock_out'
 
-export type MovementSortKey =
-	'item_name' | 'quantity' | 'movement_type' | 'expiry_date' | 'created_at'
-
 export interface MovementFilters {
+	/** Free-text item name search (relevance ordered when set) */
 	itemName: string
+	/** Narrow to one item; the item picker on the page sets this */
+	itemId: Id<'inventory'> | null
 	quantityMin: number | null
 	quantityMax: number | null
 	movementType: MovementType | ''
@@ -23,15 +22,14 @@ export interface MovementFilters {
 }
 
 export interface MovementsQuery {
-	page: number
 	pageSize: number
-	sortKey: MovementSortKey
 	sortDirection: 'asc' | 'desc'
 	filters: MovementFilters
 }
 
 export const emptyMovementFilters = (): MovementFilters => ({
 	itemName: '',
+	itemId: null,
 	quantityMin: null,
 	quantityMax: null,
 	movementType: '',

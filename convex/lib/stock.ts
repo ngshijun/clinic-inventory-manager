@@ -112,8 +112,27 @@ export async function applyStockIn(
 }
 
 /**
- * FIFO stock out: drains batches oldest-first, one stock_out movement per
- * batch touched. Asking for more than is on hand simply empties the item.
+ * Orders batches for stock out: first expired, first out. Batches with an
+ * expiry date come first, earliest expiry first; batches without one follow,
+ * oldest received first. Ties break on received time.
+ */
+export function fefoOrder<T extends { expiry_date?: string; _creationTime: number }>(
+	batches: T[],
+): T[] {
+	return [...batches].sort((a, b) => {
+		if (a.expiry_date && b.expiry_date && a.expiry_date !== b.expiry_date) {
+			return a.expiry_date < b.expiry_date ? -1 : 1
+		}
+		if (a.expiry_date && !b.expiry_date) return -1
+		if (!a.expiry_date && b.expiry_date) return 1
+		return a._creationTime - b._creationTime
+	})
+}
+
+/**
+ * FEFO stock out: drains the earliest-expiring batches first, one stock_out
+ * movement per batch touched. Asking for more than is on hand simply empties
+ * the item.
  */
 export async function applyStockOut(
 	ctx: MutationCtx,
@@ -123,12 +142,13 @@ export async function applyStockOut(
 	const item = await requireItem(ctx, args.item_id)
 	const now = Date.now()
 
-	// Bounded: one item has a handful of batches. Index order is _creationTime asc.
-	const batches = await ctx.db
-		.query('stock_batches')
-		.withIndex('by_item', (q) => q.eq('item_id', item._id))
-		.order('asc')
-		.collect()
+	// Bounded: one item has a handful of batches.
+	const batches = fefoOrder(
+		await ctx.db
+			.query('stock_batches')
+			.withIndex('by_item', (q) => q.eq('item_id', item._id))
+			.collect(),
+	)
 
 	let remaining = args.quantity
 	for (const batch of batches) {

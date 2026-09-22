@@ -20,7 +20,7 @@
 	import StatusBadge from '$lib/components/app/StatusBadge.svelte'
 	import { inventoryStore } from '$lib/stores/inventory.svelte'
 	import { stockBatchesStore } from '$lib/stores/stockBatches.svelte'
-	import type { InventoryItem } from '$lib/types/inventory'
+	import type { InventoryId, InventoryItem } from '$lib/types/inventory'
 	import { EXPIRY_WARNING_DAYS, daysUntilExpiry, type StockBatch } from '$lib/types/stockBatches'
 
 	// Order modal variables
@@ -73,17 +73,17 @@
 	}
 
 	// Set non-order reason for an item
-	const setItemNonOrderReason = async (itemId: string, reason: string): Promise<void> => {
+	const setItemNonOrderReason = async (itemId: InventoryId, reason: string): Promise<void> => {
 		await inventoryStore.setNonOrderReason(itemId, reason)
 	}
 
 	// Clear non-order reason for an item
-	const clearItemNonOrderReason = async (itemId: string): Promise<void> => {
+	const clearItemNonOrderReason = async (itemId: InventoryId): Promise<void> => {
 		await inventoryStore.setNonOrderReason(itemId, null)
 	}
 
 	// Clear order date for an item
-	const clearOrderDate = async (itemId: string): Promise<void> => {
+	const clearOrderDate = async (itemId: InventoryId): Promise<void> => {
 		await inventoryStore.clearOrderDate(itemId)
 	}
 

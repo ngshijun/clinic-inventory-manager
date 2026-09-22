@@ -14,7 +14,7 @@
 		error = ''
 		loading = true
 
-		if (authStore.login(String(password ?? ''))) {
+		if (await authStore.login(String(password ?? ''))) {
 			if (authStore.user) await goto(HOME_FOR_ROLE[authStore.user.role])
 		} else {
 			error = 'Invalid password. Please try again.'

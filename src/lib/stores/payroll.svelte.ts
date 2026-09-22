@@ -1,19 +1,28 @@
 // stores/payroll.svelte.ts
-import { supabase } from '$lib/supabase'
-import type { Database } from '$lib/types/database.types'
+import { api } from '../../../convex/_generated/api'
+import type { Doc, Id } from '../../../convex/_generated/dataModel'
+import { convex } from '$lib/convex'
 import type { PayrollData } from '$lib/types/payroll'
-import type { RealtimeChannel } from '@supabase/supabase-js'
+import { errorMessage, withLegacy, type WithLegacy } from '$lib/types/legacy'
+import { authStore } from './auth.svelte'
 
-type Employee = Database['public']['Tables']['payroll']['Row']
-type EmployeeInsert = Database['public']['Tables']['payroll']['Insert']
-type EmployeeUpdate = Database['public']['Tables']['payroll']['Update']
+type Employee = WithLegacy<Doc<'payroll'>>
+type EmployeeId = Id<'payroll'>
+interface EmployeeInsert {
+	name: string
+	basic_salary: number
+	epf_employer: number
+	lindung_24_jam?: boolean
+}
+type EmployeeUpdate = Partial<EmployeeInsert>
 
 class PayrollStore {
 	// State
 	employees = $state<Employee[]>([])
 	private loadingCount = $state(0)
 	error = $state<string | null>(null)
-	private channel: RealtimeChannel | null = null
+	private unsubscribe: (() => void) | null = null
+	private settleFirst: (() => void) | null = null
 	private isInitialized = false
 
 	get loading(): boolean {
@@ -34,99 +43,58 @@ class PayrollStore {
 		this.loadingCount++
 		this.error = null
 		try {
-			const { data, error: supabaseError } = await supabase
-				.from('payroll')
-				.select('*')
-				.order('name', { ascending: true })
-
-			if (supabaseError) throw supabaseError
-			this.employees = data || []
+			const docs = await convex.query(api.payroll.list, { auth: authStore.token })
+			this.employees = docs.map(withLegacy)
 		} catch (err) {
-			this.error = err instanceof Error ? err.message : 'An error occurred while fetching employees'
+			this.error = errorMessage(err, 'An error occurred while fetching employees')
 			console.error('Error fetching employees:', err)
 		} finally {
 			this.loadingCount--
 		}
 	}
 
-	addEmployee = async (newEmployee: EmployeeInsert): Promise<Employee | null> => {
+	addEmployee = async (newEmployee: EmployeeInsert): Promise<boolean> => {
 		this.loadingCount++
 		this.error = null
 		try {
-			const { data, error: supabaseError } = await supabase
-				.from('payroll')
-				.insert([newEmployee])
-				.select()
-				.single()
-
-			if (supabaseError) throw supabaseError
-
-			// Optimistic local update
-			if (data) {
-				const exists = this.employees.some((e) => e.id === data.id)
-				if (!exists) {
-					this.employees.push(data)
-					this.employees.sort((a, b) => a.name.localeCompare(b.name))
-				}
-			}
-
-			return data
-		} catch (err) {
-			this.error = err instanceof Error ? err.message : 'An error occurred while adding employee'
-			console.error('Error adding employee:', err)
-			return null
-		} finally {
-			this.loadingCount--
-		}
-	}
-
-	updateEmployee = async (
-		employeeId: string,
-		updates: EmployeeUpdate,
-	): Promise<Employee | null> => {
-		this.loadingCount++
-		this.error = null
-		try {
-			const { data, error: supabaseError } = await supabase
-				.from('payroll')
-				.update(updates)
-				.eq('id', employeeId)
-				.select()
-				.single()
-
-			if (supabaseError) throw supabaseError
-
-			// Optimistic local update
-			if (data) {
-				const index = this.employees.findIndex((e) => e.id === employeeId)
-				if (index !== -1) this.employees[index] = data
-			}
-
-			return data
-		} catch (err) {
-			this.error = err instanceof Error ? err.message : 'An error occurred while updating employee'
-			console.error('Error updating employee:', err)
-			return null
-		} finally {
-			this.loadingCount--
-		}
-	}
-
-	deleteEmployee = async (employeeId: string): Promise<boolean> => {
-		this.loadingCount++
-		this.error = null
-		try {
-			const { error: supabaseError } = await supabase.from('payroll').delete().eq('id', employeeId)
-
-			if (supabaseError) throw supabaseError
-
-			// Optimistic local removal
-			const index = this.employees.findIndex((e) => e.id === employeeId)
-			if (index !== -1) this.employees.splice(index, 1)
-
+			await convex.mutation(api.payroll.add, { auth: authStore.token, ...newEmployee })
 			return true
 		} catch (err) {
-			this.error = err instanceof Error ? err.message : 'An error occurred while deleting employee'
+			this.error = errorMessage(err, 'An error occurred while adding employee')
+			console.error('Error adding employee:', err)
+			return false
+		} finally {
+			this.loadingCount--
+		}
+	}
+
+	updateEmployee = async (employeeId: EmployeeId, updates: EmployeeUpdate): Promise<boolean> => {
+		this.loadingCount++
+		this.error = null
+		try {
+			await convex.mutation(api.payroll.update, {
+				auth: authStore.token,
+				id: employeeId,
+				...updates,
+			})
+			return true
+		} catch (err) {
+			this.error = errorMessage(err, 'An error occurred while updating employee')
+			console.error('Error updating employee:', err)
+			return false
+		} finally {
+			this.loadingCount--
+		}
+	}
+
+	deleteEmployee = async (employeeId: EmployeeId): Promise<boolean> => {
+		this.loadingCount++
+		this.error = null
+		try {
+			await convex.mutation(api.payroll.remove, { auth: authStore.token, id: employeeId })
+			return true
+		} catch (err) {
+			this.error = errorMessage(err, 'An error occurred while deleting employee')
 			console.error('Error deleting employee:', err)
 			return false
 		} finally {
@@ -343,45 +311,46 @@ class PayrollStore {
 
 	// Subscription lifecycle
 	private startSubscription = () => {
-		if (this.channel) return
+		if (this.unsubscribe) return
 
-		this.channel = supabase
-			.channel('update-payroll')
-			.on('postgres_changes', { event: '*', schema: 'public', table: 'payroll' }, (payload) => {
-				if (payload.eventType === 'INSERT') {
-					// Dedup: skip if already in local state
-					const exists = this.employees.some((e) => e.id === payload.new.id)
-					if (!exists) {
-						this.employees.push(payload.new as Employee)
-					}
-				} else if (payload.eventType === 'UPDATE') {
-					const index = this.employees.findIndex((employee) => employee.id === payload.new.id)
-					if (index !== -1) this.employees[index] = payload.new as Employee
-				} else if (payload.eventType === 'DELETE') {
-					const index = this.employees.findIndex((employee) => employee.id === payload.old.id)
-					if (index !== -1) this.employees.splice(index, 1)
-				}
+		let settled = false
+		const settle = () => {
+			if (settled) return
+			settled = true
+			this.loadingCount--
+		}
+		this.settleFirst = settle
+		this.loadingCount++
 
-				// Sort by name ascending
-				this.employees.sort((a, b) => a.name.localeCompare(b.name))
-			})
-			.subscribe()
+		this.unsubscribe = convex.onUpdate(
+			api.payroll.list,
+			{ auth: authStore.token },
+			(docs) => {
+				this.employees = docs.map(withLegacy)
+				this.error = null
+				settle()
+			},
+			(err) => {
+				this.error = errorMessage(err, 'An error occurred while fetching employees')
+				console.error('Payroll subscription error:', err)
+				settle()
+			},
+		)
 	}
 
-	// Initialize store by fetching employees and starting subscription
+	// Initialize store by subscribing to the employee list
 	initializeStore = async (): Promise<void> => {
 		if (this.isInitialized) return
 		this.isInitialized = true
-		await this.fetchEmployees()
 		this.startSubscription()
 	}
 
 	// Cleanup: unsubscribe and reset state
 	cleanup = () => {
-		if (this.channel) {
-			this.channel.unsubscribe()
-			this.channel = null
-		}
+		this.settleFirst?.()
+		this.settleFirst = null
+		this.unsubscribe?.()
+		this.unsubscribe = null
 		this.employees = []
 		this.error = null
 		this.isInitialized = false

@@ -18,7 +18,8 @@
 	import { inventoryStore } from '$lib/stores/inventory.svelte'
 	import { stockRequestsStore } from '$lib/stores/stockRequests.svelte'
 	import type { InventoryItem } from '$lib/types/inventory'
-	import type { NewStockRequest, StockRequest } from '$lib/types/stockRequests'
+	import type { StockRequest, StockRequestId } from '$lib/types/stockRequests'
+	import type { InventoryId } from '$lib/types/inventory'
 	import { tick, untrack } from 'svelte'
 
 	// Component imports
@@ -67,16 +68,22 @@
 
 	// Remove confirmation modal
 	let showRemoveModal = $state<boolean>(false)
-	let removeRequestId = $state<string | null>(null)
+	let removeRequestId = $state<StockRequestId | null>(null)
 	let removeLoading = $state<boolean>(false)
 
 	// Edit modal
 	let showEditModal = $state<boolean>(false)
 	let editingRequest = $state<StockRequest | null>(null)
 
-	// New request form
-	let newRequest = $state<NewStockRequest & { quantity: number }>({
-		item_id: '',
+	// New request form; item_id is null until an item is picked
+	interface NewRequestForm {
+		item_id: InventoryId | null
+		item_name: string
+		quantity: number
+		remark: string | undefined
+	}
+	let newRequest = $state<NewRequestForm>({
+		item_id: null,
 		item_name: '',
 		quantity: 1,
 		remark: undefined,
@@ -299,7 +306,7 @@
 		}
 	}
 
-	const saveEdit = async (requestId: string): Promise<void> => {
+	const saveEdit = async (requestId: StockRequestId): Promise<void> => {
 		if (!isEditFormValid) return
 
 		await stockRequestsStore.updateRequest(requestId, editForm.quantity, editForm.remark)
@@ -381,9 +388,9 @@
 	const createNewRequest = async (): Promise<void> => {
 		if (!isFormValid) return
 
+		if (!newRequest.item_id) return
 		await stockRequestsStore.addRequest({
 			item_id: newRequest.item_id,
-			item_name: newRequest.item_name,
 			quantity: newRequest.quantity,
 			remark: newRequest.remark || '',
 		})
@@ -405,7 +412,7 @@
 		itemSearchQuery = ''
 		selectedItemIndex = -1
 		newRequest = {
-			item_id: '',
+			item_id: null,
 			item_name: '',
 			quantity: 1,
 			remark: '',
@@ -413,7 +420,7 @@
 	}
 
 	// Action functions
-	const removeRequest = (requestId: string): void => {
+	const removeRequest = (requestId: StockRequestId): void => {
 		removeRequestId = requestId
 		showRemoveModal = true
 	}

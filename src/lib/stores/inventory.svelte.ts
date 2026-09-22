@@ -1,15 +1,44 @@
-// stores/inventory.ts
-import { supabase } from '$lib/supabase'
-import type { Database } from '$lib/types/database.types'
-import type { InventoryItem, NewInventoryItem } from '$lib/types/inventory'
-import type { RealtimeChannel } from '@supabase/supabase-js'
+// stores/inventory.svelte.ts
+import { api } from '../../../convex/_generated/api'
+import { convex } from '$lib/convex'
+import type {
+	InventoryId,
+	InventoryItem,
+	InventoryItemUpdate,
+	NewInventoryItem,
+} from '$lib/types/inventory'
+import { errorMessage, withLegacy } from '$lib/types/legacy'
+import { authStore } from './auth.svelte'
 
+/** One row of an Excel import, as the sheet provides it */
+export interface InventoryImportRow {
+	item_name: string
+	quantity: number
+	reorder_level: number
+	unit: string
+	remark: string
+	order_date: string
+}
+
+export interface InventoryImportResult {
+	imported: number
+	updated: number
+	deleted: number
+	total: number
+}
+
+/*
+ * `items` is a live subscription to the inventory list: every mutation, from
+ * this tab or another, arrives through the same callback, so there is no
+ * optimistic patching or dedup here any more.
+ */
 class InventoryStore {
 	// State
 	items = $state<InventoryItem[]>([])
 	#loadingCount = $state(0)
 	error = $state<string | null>(null)
-	#channel: RealtimeChannel | null = null
+	#unsubscribe: (() => void) | null = null
+	#settle: (() => void) | null = null
 	#isInitialized = false
 
 	get loading(): boolean {
@@ -39,313 +68,151 @@ class InventoryStore {
 		)
 	}
 
+	// Runs a mutation with the shared loading/error bookkeeping
+	#run = async <T>(fallback: string, work: () => Promise<T>): Promise<T | undefined> => {
+		this.#loadingCount++
+		this.error = null
+		try {
+			return await work()
+		} catch (err) {
+			this.error = errorMessage(err, fallback)
+			console.error(fallback, err)
+			return undefined
+		} finally {
+			this.#loadingCount--
+		}
+	}
+
 	// Actions
 	fetchItems = async (): Promise<void> => {
-		this.#loadingCount++
-		this.error = null
-		try {
-			const { data, error: supabaseError } = await supabase
-				.from('inventory')
-				.select('*')
-				.order('item_name', { ascending: true })
-
-			if (supabaseError) throw supabaseError
-			this.items = data || []
-		} catch (err) {
-			this.error = err instanceof Error ? err.message : 'An error occurred while fetching items'
-			console.error('Error fetching items:', err)
-		} finally {
-			this.#loadingCount--
-		}
+		await this.#run('An error occurred while fetching items', async () => {
+			const docs = await convex.query(api.inventory.list, { auth: authStore.token })
+			this.items = docs.map(withLegacy)
+		})
 	}
 
-	/**
-	 * Replace the local copy of an item with the row the server returned.
-	 * Exposed for the batches store, whose RPC also returns the item.
-	 */
-	applyServerItem = (item: InventoryItem): void => {
-		const index = this.items.findIndex((i) => i.id === item.id)
-		if (index !== -1) this.items[index] = item
-	}
-
-	// Stock is only ever held in batches, so the row is created empty and the
-	// opening quantity goes through stock_in, which creates the first batch and
-	// logs the movement.
 	addItem = async (newItem: NewInventoryItem, expiryDate?: string | null): Promise<void> => {
-		this.#loadingCount++
-		this.error = null
-		try {
-			const { data, error: supabaseError } = await supabase
-				.from('inventory')
-				.insert([
-					{
-						item_name: newItem.item_name,
-						quantity: 0,
-						reorder_level: Math.max(-1, newItem.reorder_level),
-						unit: newItem.unit,
-						remark: newItem.remark || '',
-						order_date: newItem.order_date || null,
-						non_order_reason: newItem.non_order_reason || null,
-						back_order: false,
-						not_track: newItem.not_track || false,
-					},
-				])
-				.select()
-				.single()
-
-			if (supabaseError) throw supabaseError
-
-			if (data) {
-				// Optimistic local update (dedup check in realtime handler)
-				const exists = this.items.some((i) => i.id === data.id)
-				if (!exists) {
-					this.items.push(data)
-					this.items.sort((a, b) => a.item_name.localeCompare(b.item_name))
-				}
-
-				const openingQuantity = Math.max(0, Math.floor(newItem.quantity))
-				if (openingQuantity > 0) {
-					await this.stockIn(
-						data.id,
-						openingQuantity,
-						false,
-						undefined,
-						expiryDate,
-						'Initial stock',
-					)
-				}
-			}
-		} catch (err) {
-			this.error = err instanceof Error ? err.message : 'An error occurred while adding item'
-			console.error('Error adding item:', err)
-		} finally {
-			this.#loadingCount--
-		}
+		await this.#run('An error occurred while adding item', () =>
+			convex.mutation(api.inventory.add, {
+				auth: authStore.token,
+				item_name: newItem.item_name,
+				quantity: Math.max(0, Math.floor(newItem.quantity)),
+				reorder_level: Math.max(-1, newItem.reorder_level),
+				unit: newItem.unit,
+				remark: newItem.remark || '',
+				order_date: newItem.order_date || undefined,
+				non_order_reason: newItem.non_order_reason || undefined,
+				not_track: newItem.not_track || false,
+				expiry_date: expiryDate || undefined,
+			}),
+		)
 	}
 
-	// Stock In - Atomic RPC: creates a batch (with optional expiry date),
-	// increments the quantity and logs the movement server-side.
+	// Stock In: creates a batch (with optional expiry date), increments the
+	// quantity and logs the movement, all in one server transaction.
 	stockIn = async (
-		itemId: string,
+		itemId: InventoryId,
 		quantity: number,
 		clearOrderDate: boolean = true,
 		notTrackStatus?: boolean,
 		expiryDate?: string | null,
 		remark?: string,
 	): Promise<void> => {
-		this.#loadingCount++
-		this.error = null
-		try {
-			const item = this.items.find((item) => item.id === itemId)
-			if (!item) throw new Error('Item not found')
-
-			const { data, error: rpcError } = await supabase
-				.rpc('stock_in', {
-					p_item_id: itemId,
-					p_quantity: Math.max(0, Math.floor(quantity)),
-					p_clear_order_date: clearOrderDate,
-					p_not_track: notTrackStatus ?? null,
-					p_expiry_date: expiryDate || null,
-					p_remark: remark || '',
-				})
-				.single()
-
-			if (rpcError) throw rpcError
-
-			// Optimistic local update with server-returned data
-			if (data) this.applyServerItem(data as InventoryItem)
-		} catch (err) {
-			this.error = err instanceof Error ? err.message : 'An error occurred while adding stock'
-			console.error('Error adding stock:', err)
-		} finally {
-			this.#loadingCount--
-		}
+		await this.#run('An error occurred while adding stock', () =>
+			convex.mutation(api.stock.stockIn, {
+				auth: authStore.token,
+				item_id: itemId,
+				quantity: Math.max(0, Math.floor(quantity)),
+				clear_order_date: clearOrderDate,
+				not_track: notTrackStatus,
+				expiry_date: expiryDate || undefined,
+				remark: remark || '',
+			}),
+		)
 	}
 
-	// Stock Out - Atomic RPC: consumes batches first-in-first-out, decrements
-	// the quantity (clamped at 0) and logs one movement per batch touched.
-	stockOut = async (itemId: string, quantity: number, remark?: string): Promise<void> => {
-		this.#loadingCount++
-		this.error = null
-		try {
-			const item = this.items.find((item) => item.id === itemId)
-			if (!item) throw new Error('Item not found')
-
-			const { data, error: rpcError } = await supabase
-				.rpc('stock_out', {
-					p_item_id: itemId,
-					p_quantity: Math.max(0, Math.floor(quantity)),
-					p_remark: remark || '',
-				})
-				.single()
-
-			if (rpcError) throw rpcError
-
-			// Optimistic local update with server-returned data
-			if (data) this.applyServerItem(data as InventoryItem)
-		} catch (err) {
-			this.error = err instanceof Error ? err.message : 'An error occurred while removing stock'
-			console.error('Error removing stock:', err)
-		} finally {
-			this.#loadingCount--
-		}
+	// Stock Out: consumes the earliest-expiring batches first and logs one movement
+	// per batch touched.
+	stockOut = async (itemId: InventoryId, quantity: number, remark?: string): Promise<void> => {
+		await this.#run('An error occurred while removing stock', () =>
+			convex.mutation(api.stock.stockOut, {
+				auth: authStore.token,
+				item_id: itemId,
+				quantity: Math.max(0, Math.floor(quantity)),
+				remark: remark || '',
+			}),
+		)
 	}
 
 	// Mark item as ordered
 	markAsOrdered = async (
-		itemId: string,
+		itemId: InventoryId,
 		orderDate?: string,
 		backOrder?: boolean,
 	): Promise<void> => {
-		this.#loadingCount++
-		this.error = null
-		try {
-			const dateToUse = orderDate || new Date().toISOString()
-			const { data, error: supabaseError } = await supabase
-				.from('inventory')
-				.update({
-					order_date: dateToUse,
-					non_order_reason: null,
-					back_order: backOrder ?? false,
-					updated_at: new Date().toISOString(),
-				})
-				.eq('id', itemId)
-				.select()
-				.single()
-
-			if (supabaseError) throw supabaseError
-
-			// Optimistic local update
-			if (data) {
-				const index = this.items.findIndex((i) => i.id === itemId)
-				if (index !== -1) this.items[index] = data as InventoryItem
-			}
-		} catch (err) {
-			this.error =
-				err instanceof Error ? err.message : 'An error occurred while marking item as ordered'
-			console.error('Error marking item as ordered:', err)
-		} finally {
-			this.#loadingCount--
-		}
+		await this.#run('An error occurred while marking item as ordered', () =>
+			convex.mutation(api.inventory.markOrdered, {
+				auth: authStore.token,
+				id: itemId,
+				order_date: orderDate || new Date().toISOString(),
+				back_order: backOrder ?? false,
+			}),
+		)
 	}
 
 	// Clear order date
-	clearOrderDate = async (itemId: string): Promise<void> => {
-		this.#loadingCount++
-		this.error = null
-		try {
-			const { data, error: supabaseError } = await supabase
-				.from('inventory')
-				.update({
-					order_date: null,
-					updated_at: new Date().toISOString(),
-				})
-				.eq('id', itemId)
-				.select()
-				.single()
-
-			if (supabaseError) throw supabaseError
-
-			// Optimistic local update
-			if (data) {
-				const index = this.items.findIndex((i) => i.id === itemId)
-				if (index !== -1) this.items[index] = data as InventoryItem
-			}
-		} catch (err) {
-			this.error =
-				err instanceof Error ? err.message : 'An error occurred while clearing order date'
-			console.error('Error clearing order date:', err)
-		} finally {
-			this.#loadingCount--
-		}
+	clearOrderDate = async (itemId: InventoryId): Promise<void> => {
+		await this.#run('An error occurred while clearing order date', () =>
+			convex.mutation(api.inventory.clearOrderDate, { auth: authStore.token, id: itemId }),
+		)
 	}
 
-	// Set non-order reason (combined with not_track update when 'Alternative ordered')
-	setNonOrderReason = async (itemId: string, reason: string | null): Promise<void> => {
-		this.#loadingCount++
-		this.error = null
-		try {
-			const updateData: Database['public']['Tables']['inventory']['Update'] = {
-				non_order_reason: reason,
-				order_date: null,
-				updated_at: new Date().toISOString(),
-			}
-
-			if (reason === 'Alternative ordered') {
-				updateData.not_track = true
-			}
-
-			const { data, error: supabaseError } = await supabase
-				.from('inventory')
-				.update(updateData)
-				.eq('id', itemId)
-				.select()
-				.single()
-
-			if (supabaseError) throw supabaseError
-
-			// Optimistic local update
-			if (data) {
-				const index = this.items.findIndex((i) => i.id === itemId)
-				if (index !== -1) this.items[index] = data as InventoryItem
-			}
-		} catch (err) {
-			this.error =
-				err instanceof Error ? err.message : 'An error occurred while setting non-order reason'
-			console.error('Error setting non-order reason:', err)
-		} finally {
-			this.#loadingCount--
-		}
+	// Set non-order reason ('Alternative ordered' also marks the item untracked)
+	setNonOrderReason = async (itemId: InventoryId, reason: string | null): Promise<void> => {
+		await this.#run('An error occurred while setting non-order reason', () =>
+			convex.mutation(api.inventory.setNonOrderReason, {
+				auth: authStore.token,
+				id: itemId,
+				reason,
+			}),
+		)
 	}
 
 	// Quantity is deliberately not accepted here: stock lives in batches, so
 	// it only changes through stockIn / stockOut / the batch editor.
-	updateItem = async (
-		itemId: string,
-		item: Omit<Database['public']['Tables']['inventory']['Update'], 'quantity' | 'id'>,
-	): Promise<void> => {
-		this.#loadingCount++
-		this.error = null
-		try {
-			const { data, error: supabaseError } = await supabase
-				.from('inventory')
-				.update({ ...item, updated_at: new Date().toISOString() })
-				.eq('id', itemId)
-				.select()
-				.single()
-
-			if (supabaseError) throw supabaseError
-
-			// Optimistic local update
-			if (data) {
-				const index = this.items.findIndex((i) => i.id === itemId)
-				if (index !== -1) this.items[index] = data as InventoryItem
-			}
-		} catch (err) {
-			this.error = err instanceof Error ? err.message : 'An error occurred while updating item'
-			console.error('Error updating item:', err)
-		} finally {
-			this.#loadingCount--
-		}
+	updateItem = async (itemId: InventoryId, item: InventoryItemUpdate): Promise<void> => {
+		await this.#run('An error occurred while updating item', () =>
+			convex.mutation(api.inventory.update, {
+				auth: authStore.token,
+				id: itemId,
+				item_name: item.item_name,
+				unit: item.unit,
+				reorder_level: item.reorder_level,
+				remark: item.remark,
+				not_track: item.not_track,
+				order_date: item.order_date,
+				non_order_reason: item.non_order_reason,
+			}),
+		)
 	}
 
-	deleteItem = async (itemId: string): Promise<void> => {
-		this.#loadingCount++
-		this.error = null
-		try {
-			const { error: supabaseError } = await supabase.from('inventory').delete().eq('id', itemId)
+	deleteItem = async (itemId: InventoryId): Promise<void> => {
+		await this.#run('An error occurred while deleting item', () =>
+			convex.mutation(api.inventory.remove, { auth: authStore.token, id: itemId }),
+		)
+	}
 
-			if (supabaseError) throw supabaseError
-
-			// Optimistic local removal
-			const index = this.items.findIndex((i) => i.id === itemId)
-			if (index !== -1) this.items.splice(index, 1)
-		} catch (err) {
-			this.error = err instanceof Error ? err.message : 'An error occurred while deleting item'
-			console.error('Error deleting item:', err)
-		} finally {
-			this.#loadingCount--
-		}
+	/**
+	 * Sync the inventory with an Excel sheet in one transaction: details are
+	 * updated, quantity differences move through batches, new items are
+	 * created, and items missing from the sheet are deleted.
+	 */
+	importFromRows = async (
+		rows: InventoryImportRow[],
+	): Promise<InventoryImportResult | undefined> => {
+		return await this.#run('An error occurred while importing inventory', () =>
+			convex.mutation(api.stock.importInventory, { auth: authStore.token, rows }),
+		)
 	}
 
 	getItemById = (itemId: string): InventoryItem | undefined => {
@@ -359,45 +226,47 @@ class InventoryStore {
 
 	// Subscription lifecycle
 	#startSubscription = () => {
-		if (this.#channel) return // Already subscribed
+		if (this.#unsubscribe) return
 
-		this.#channel = supabase
-			.channel('update-inventory')
-			.on('postgres_changes', { event: '*', schema: 'public', table: 'inventory' }, (payload) => {
-				if (payload.eventType === 'INSERT') {
-					// Dedup: skip if already added by optimistic update
-					const exists = this.items.some((i) => i.id === payload.new.id)
-					if (!exists) {
-						this.items.push(payload.new as InventoryItem)
-					}
-				} else if (payload.eventType === 'UPDATE') {
-					const index = this.items.findIndex((item) => item.id === payload.new.id)
-					if (index !== -1) this.items[index] = payload.new as InventoryItem
-				} else if (payload.eventType === 'DELETE') {
-					const index = this.items.findIndex((item) => item.id === payload.old.id)
-					if (index !== -1) this.items.splice(index, 1)
-				}
+		// Counts as loading until the first result lands
+		let settled = false
+		const settle = () => {
+			if (settled) return
+			settled = true
+			this.#loadingCount--
+		}
+		this.#settle = settle
+		this.#loadingCount++
 
-				// Sort by item_name ascending
-				this.items.sort((a, b) => a.item_name.localeCompare(b.item_name))
-			})
-			.subscribe()
+		this.#unsubscribe = convex.onUpdate(
+			api.inventory.list,
+			{ auth: authStore.token },
+			(docs) => {
+				this.items = docs.map(withLegacy)
+				this.error = null
+				settle()
+			},
+			(err) => {
+				this.error = errorMessage(err, 'An error occurred while fetching items')
+				console.error('Inventory subscription error:', err)
+				settle()
+			},
+		)
 	}
 
-	// Initialize store by fetching items and starting subscription
+	// Initialize store by subscribing to the inventory list
 	initializeStore = async (): Promise<void> => {
 		if (this.#isInitialized) return
 		this.#isInitialized = true
-		await this.fetchItems()
 		this.#startSubscription()
 	}
 
 	// Cleanup: unsubscribe and reset state
 	cleanup = () => {
-		if (this.#channel) {
-			this.#channel.unsubscribe()
-			this.#channel = null
-		}
+		this.#settle?.()
+		this.#settle = null
+		this.#unsubscribe?.()
+		this.#unsubscribe = null
 		this.items = []
 		this.error = null
 		this.#isInitialized = false

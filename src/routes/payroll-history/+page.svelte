@@ -108,7 +108,7 @@
 	const formatPeriodLabel = (run: Pick<PayrollRun, 'month' | 'year'>): string =>
 		`${monthNames[run.month - 1]} ${run.year}`
 
-	const formatTimestamp = (timestamp: string): string =>
+	const formatTimestamp = (timestamp: string | number): string =>
 		new Date(timestamp).toLocaleString('en-GB', {
 			day: '2-digit',
 			month: 'short',

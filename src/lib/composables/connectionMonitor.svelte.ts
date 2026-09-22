@@ -1,10 +1,5 @@
 // composables/connectionMonitor.svelte.ts
-import { supabase } from '$lib/supabase'
-import type { RealtimeChannel } from '@supabase/supabase-js'
-
-interface SystemPayload {
-	status: 'ONLINE' | 'OFFLINE' | string
-}
+import { convex } from '$lib/convex'
 
 export interface ConnectionMonitor {
 	readonly isConnected: boolean
@@ -14,7 +9,10 @@ export interface ConnectionMonitor {
 }
 
 /**
- * Monitors the Supabase connection and reloads the page if it stays down.
+ * Watches the Convex WebSocket and reloads the page if it stays down.
+ *
+ * The client reconnects on its own and replays subscriptions, so this is
+ * only a backstop for a tab that has been asleep long enough to be stuck.
  *
  * NOTE: this must be called during component initialisation — it creates an
  * `$effect`, which can only be created inside a component or an effect root.
@@ -23,112 +21,55 @@ export interface ConnectionMonitor {
 export function createConnectionMonitor(): ConnectionMonitor {
 	let isConnected = $state(true)
 	let lastHeartbeat = $state(Date.now())
-	let heartbeatInterval: number | null = null
 	let checkInterval: number | null = null
+	let unsubscribe: (() => void) | null = null
 
 	// Configuration
-	const HEARTBEAT_INTERVAL = 30000 // 30 seconds
 	const CONNECTION_TIMEOUT = 120000 // 2 minutes
 	const CHECK_INTERVAL = 10000 // Check every 10 seconds
-
-	let channel: RealtimeChannel | null = null
 
 	const refreshPage = () => {
 		console.warn('Connection lost for too long, refreshing page...')
 		window.location.reload()
 	}
 
-	const checkConnection = () => {
-		const now = Date.now()
-		const timeSinceLastHeartbeat = now - lastHeartbeat
-
-		if (timeSinceLastHeartbeat > CONNECTION_TIMEOUT) {
-			console.warn(`No heartbeat for ${timeSinceLastHeartbeat}ms, refreshing page`)
-			refreshPage()
-		}
+	const noteState = (connected: boolean) => {
+		isConnected = connected
+		if (connected) lastHeartbeat = Date.now()
 	}
 
-	const sendHeartbeat = async () => {
-		try {
-			// Simple query to test connection
-			const { error } = await supabase.from('inventory').select('id').limit(1)
-
-			if (!error) {
-				lastHeartbeat = Date.now()
-				isConnected = true
-			} else {
-				console.warn('Heartbeat failed:', error)
-				isConnected = false
-			}
-		} catch (err) {
-			console.warn('Heartbeat error:', err)
-			isConnected = false
-		}
+	const checkConnection = () => {
+		noteState(convex.connectionState().isWebSocketConnected)
+		if (Date.now() - lastHeartbeat > CONNECTION_TIMEOUT) refreshPage()
 	}
 
 	const startMonitoring = () => {
-		// Send initial heartbeat
-		sendHeartbeat()
+		noteState(convex.connectionState().isWebSocketConnected)
 
-		// Set up heartbeat interval
-		heartbeatInterval = window.setInterval(sendHeartbeat, HEARTBEAT_INTERVAL)
+		unsubscribe = convex.subscribeToConnectionState((state) => {
+			noteState(state.isWebSocketConnected)
+		})
 
-		// Set up connection check interval
 		checkInterval = window.setInterval(checkConnection, CHECK_INTERVAL)
 
-		// Monitor Supabase realtime connection status
-		channel = supabase.channel('connection_monitor')
-
-		// Listen for connection status changes
-		channel
-			.on('system', {}, (payload: SystemPayload) => {
-				if (payload.status === 'ONLINE') {
-					lastHeartbeat = Date.now()
-					isConnected = true
-				} else if (payload.status === 'OFFLINE') {
-					isConnected = false
-				}
-			})
-			.subscribe((status: string) => {
-				if (status === 'SUBSCRIBED') {
-					lastHeartbeat = Date.now()
-					isConnected = true
-				} else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
-					isConnected = false
-				}
-			})
-
-		// Listen for page visibility changes
+		// A tab coming back from the background gets checked straight away
 		const handleVisibilityChange = () => {
-			if (!document.hidden) {
-				// Page became visible, send immediate heartbeat
-				sendHeartbeat()
-			}
+			if (!document.hidden) checkConnection()
 		}
-
 		document.addEventListener('visibilitychange', handleVisibilityChange)
 
-		// Cleanup function
 		return () => {
 			document.removeEventListener('visibilitychange', handleVisibilityChange)
 		}
 	}
 
 	const stopMonitoring = () => {
-		if (heartbeatInterval) {
-			clearInterval(heartbeatInterval)
-			heartbeatInterval = null
-		}
-
 		if (checkInterval) {
 			clearInterval(checkInterval)
 			checkInterval = null
 		}
-
-		if (channel) {
-			channel.unsubscribe()
-			channel = null
-		}
+		unsubscribe?.()
+		unsubscribe = null
 	}
 
 	$effect(() => {

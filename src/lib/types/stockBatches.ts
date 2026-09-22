@@ -1,6 +1,25 @@
-import type { Database } from '$lib/types/database.types'
+import type { Doc, Id } from '../../../convex/_generated/dataModel'
+import type { WithLegacy } from '$lib/types/legacy'
 
-export type StockBatch = Database['public']['Tables']['stock_batches']['Row']
+export type StockBatchId = Id<'stock_batches'>
+
+export type StockBatch = WithLegacy<Doc<'stock_batches'>>
+
+/**
+ * The order stock out consumes batches: earliest expiry first, then batches
+ * with no expiry date, oldest received first. Mirrors fefoOrder on the server.
+ */
+export const fefoOrder = <T extends { expiry_date?: string; _creationTime: number }>(
+	batches: T[],
+): T[] =>
+	[...batches].sort((a, b) => {
+		if (a.expiry_date && b.expiry_date && a.expiry_date !== b.expiry_date) {
+			return a.expiry_date < b.expiry_date ? -1 : 1
+		}
+		if (a.expiry_date && !b.expiry_date) return -1
+		if (!a.expiry_date && b.expiry_date) return 1
+		return a._creationTime - b._creationTime
+	})
 
 /** Days before expiry at which a batch counts as "expiring soon" */
 export const EXPIRY_WARNING_DAYS = 30

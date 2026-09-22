@@ -25,13 +25,32 @@ function requirePendingUnlessManager(request: Doc<'stock_requests'>, role: strin
 	}
 }
 
+const HISTORY_LIMIT = 500
+
+/**
+ * Every pending request plus the newest `HISTORY_LIMIT` decided ones, newest
+ * first. The table holds years of history (10k+ rows), so the decided part is
+ * capped; the pending part is small by nature.
+ */
 export const list = query({
 	args: { auth: v.string() },
 	returns: v.array(requestRow),
 	handler: async (ctx, args) => {
 		requireRole(args.auth, ['manager', 'requester'])
-		// Bounded: requests are cleared as they are approved/rejected, so this stays small.
-		const requests = await ctx.db.query('stock_requests').order('desc').collect()
+		const pending = await ctx.db
+			.query('stock_requests')
+			.withIndex('by_status', (q) => q.eq('status', 'Pending'))
+			.order('desc')
+			.collect()
+		const recent = await ctx.db
+			.query('stock_requests')
+			.withIndex('by_creation_time')
+			.order('desc')
+			.take(HISTORY_LIMIT)
+		const seen = new Set<Id<'stock_requests'>>()
+		const requests = [...pending, ...recent]
+			.filter((request) => (seen.has(request._id) ? false : (seen.add(request._id), true)))
+			.sort((a, b) => b._creationTime - a._creationTime)
 		const units = new Map<Id<'inventory'>, string>()
 		const rows = []
 		for (const request of requests) {

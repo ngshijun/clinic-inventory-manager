@@ -1,177 +1,226 @@
-import { supabase } from '$lib/supabase'
+import { api } from '../../../convex/_generated/api'
+import { convex } from '$lib/convex'
 import type { MovementsQuery, StockMovement } from '$lib/types/stockMovements'
-import type { RealtimeChannel } from '@supabase/supabase-js'
+import { errorMessage, withLegacy } from '$lib/types/legacy'
+import { authStore } from './auth.svelte'
 
-/** Escape the LIKE wildcards in user input so they match literally */
-const escapeLike = (value: string): string => value.replace(/[\\%_]/g, (match) => `\\${match}`)
+/** Start of a local calendar day in ms */
+const startOfLocalDay = (date: string): number => new Date(`${date}T00:00:00`).getTime()
 
-/** Start of a local calendar day as an ISO timestamp */
-const startOfLocalDay = (date: string): string => new Date(`${date}T00:00:00`).toISOString()
-
-/** End of a local calendar day as an ISO timestamp */
-const endOfLocalDay = (date: string): string => new Date(`${date}T23:59:59.999`).toISOString()
+/** End of a local calendar day in ms */
+const endOfLocalDay = (date: string): number => new Date(`${date}T23:59:59.999`).getTime()
 
 /**
- * Stock movements are paginated on the server: this store only ever holds
- * the page that is currently on screen, plus the total row count for the
- * active filters. Realtime changes re-run the last query rather than
- * patching rows, because an insert can push a row off (or onto) the page.
+ * Stock movements are paginated on the server with cursors: this store holds
+ * the page on screen and the cursor of every page visited, so Previous and
+ * Next work but jumping to an arbitrary page does not. Both the page and the
+ * count are live subscriptions, so a stock out elsewhere shows up here at
+ * once.
+ *
+ * The count comes from an aggregate that only knows movement type and date,
+ * so it is exact for those filters and unavailable for the others.
  */
 class StockMovementsStore {
 	// State
 	movements = $state<StockMovement[]>([])
 	totalCount = $state(0)
+	countIsExact = $state(true)
+	currentPage = $state(1)
+	isDone = $state(true)
 	#loadingCount = $state(0)
 	error = $state<string | null>(null)
-	#channel: RealtimeChannel | null = null
-	#isInitialized = false
-	#lastQuery: MovementsQuery | null = null
-	#requestSequence = 0
-	#refreshTimer: ReturnType<typeof setTimeout> | null = null
+
+	#query: MovementsQuery | null = null
+	/** Cursor that fetches page n is `#cursors[n - 1]`; page 1 starts at null */
+	#cursors: (string | null)[] = [null]
+	#continueCursor: string | null = null
+	#unsubscribePage: (() => void) | null = null
+	#unsubscribeCount: (() => void) | null = null
+	/** Ends the loading state of the current page subscription, if it has not yet */
+	#settlePage: (() => void) | null = null
 
 	get loading(): boolean {
 		return this.#loadingCount > 0
 	}
 
-	// Actions
-	fetchMovements = async (query: MovementsQuery): Promise<void> => {
-		this.#lastQuery = query
-		const sequence = ++this.#requestSequence
+	get pageSize(): number {
+		return this.#query?.pageSize ?? 25
+	}
 
-		this.#loadingCount++
-		this.error = null
-		try {
-			const { filters } = query
-			let request = supabase
-				.from('stock_movements')
-				.select('*, inventory!stock_movements_item_id_fkey(unit)', { count: 'exact' })
+	/** Index of the first row on screen, zero based */
+	get startIndex(): number {
+		return (this.currentPage - 1) * this.pageSize
+	}
 
-			const itemName = filters.itemName.trim()
-			if (itemName) request = request.ilike('item_name', `%${escapeLike(itemName)}%`)
-			if (filters.quantityMin !== null) request = request.gte('quantity', filters.quantityMin)
-			if (filters.quantityMax !== null) request = request.lte('quantity', filters.quantityMax)
-			if (filters.movementType) request = request.eq('movement_type', filters.movementType)
-			if (filters.startDate) request = request.gte('created_at', startOfLocalDay(filters.startDate))
-			if (filters.endDate) request = request.lte('created_at', endOfLocalDay(filters.endDate))
-			const remark = filters.remark.trim()
-			if (remark) request = request.ilike('remark', `%${escapeLike(remark)}%`)
+	get endIndex(): number {
+		return this.startIndex + this.movements.length
+	}
 
-			const ascending = query.sortDirection === 'asc'
-			request = request.order(query.sortKey, { ascending, nullsFirst: false })
-			// Stable secondary order so paging never repeats or skips a row
-			if (query.sortKey !== 'created_at') {
-				request = request.order('created_at', { ascending: false })
-			}
-			request = request.order('id', { ascending: false })
+	/** Number of pages, only meaningful when the count is exact */
+	get totalPages(): number {
+		return Math.max(1, Math.ceil(this.totalCount / this.pageSize))
+	}
 
-			const from = (query.page - 1) * query.pageSize
-			const {
-				data,
-				error: supabaseError,
-				count,
-			} = await request.range(from, from + query.pageSize - 1)
-
-			// A newer request has been issued since; let it win.
-			if (sequence !== this.#requestSequence) return
-
-			if (supabaseError) throw supabaseError
-
-			this.movements =
-				data?.map((row) => ({
-					...row,
-					unit: row.inventory?.unit || '',
-				})) ?? []
-			this.totalCount = count ?? 0
-		} catch (err) {
-			if (sequence !== this.#requestSequence) return
-			this.error = err instanceof Error ? err.message : 'An error occurred while fetching movements'
-			console.error('Error fetching movements:', err)
-		} finally {
-			this.#loadingCount--
+	#serverFilters = () => {
+		const { filters } = this.#query!
+		const search = filters.itemName.trim()
+		const remark = filters.remark.trim()
+		return {
+			movement_type: filters.movementType || undefined,
+			item_id: filters.itemId ?? undefined,
+			start_ms: filters.startDate ? startOfLocalDay(filters.startDate) : undefined,
+			end_ms: filters.endDate ? endOfLocalDay(filters.endDate) : undefined,
+			search: search || undefined,
+			remark: remark || undefined,
+			quantity_min: filters.quantityMin ?? undefined,
+			quantity_max: filters.quantityMax ?? undefined,
 		}
 	}
 
-	/** Re-run the last query (after a realtime change or an edit) */
-	refresh = async (): Promise<void> => {
-		if (this.#lastQuery) await this.fetchMovements(this.#lastQuery)
+	#subscribePage = () => {
+		// A replaced subscription may never deliver its first result, so settle
+		// it here rather than leaving the loading counter raised forever.
+		this.#settlePage?.()
+		this.#settlePage = null
+		// Convex throws if an unsubscribe handle is called twice, so drop it
+		this.#unsubscribePage?.()
+		this.#unsubscribePage = null
+		if (!this.#query) return
+
+		let settled = false
+		const settle = () => {
+			if (settled) return
+			settled = true
+			this.#loadingCount--
+		}
+		this.#settlePage = settle
+		this.#loadingCount++
+
+		this.#unsubscribePage = convex.onUpdate(
+			api.movements.page,
+			{
+				auth: authStore.token,
+				paginationOpts: {
+					cursor: this.#cursors[this.currentPage - 1] ?? null,
+					numItems: this.#query.pageSize,
+				},
+				sort_direction: this.#query.sortDirection,
+				...this.#serverFilters(),
+			},
+			(result) => {
+				this.movements = result.page.map(withLegacy)
+				this.isDone = result.isDone
+				this.#continueCursor = result.continueCursor
+				this.error = null
+				settle()
+			},
+			(err) => {
+				this.error = errorMessage(err, 'An error occurred while fetching movements')
+				console.error('Movements subscription error:', err)
+				settle()
+			},
+		)
 	}
 
-	// Several realtime events arrive in a burst for one stock out (one row per
-	// batch consumed), so collapse them into a single refetch.
-	#scheduleRefresh = () => {
-		if (this.#refreshTimer) clearTimeout(this.#refreshTimer)
-		this.#refreshTimer = setTimeout(() => {
-			this.#refreshTimer = null
-			this.refresh()
-		}, 250)
+	#subscribeCount = () => {
+		this.#unsubscribeCount?.()
+		this.#unsubscribeCount = null
+		if (!this.#query) return
+
+		const filters = this.#serverFilters()
+		this.countIsExact =
+			filters.search === undefined &&
+			filters.remark === undefined &&
+			filters.item_id === undefined &&
+			filters.quantity_min === undefined &&
+			filters.quantity_max === undefined
+		if (!this.countIsExact) {
+			this.totalCount = 0
+			return
+		}
+
+		this.#unsubscribeCount = convex.onUpdate(
+			api.movements.count,
+			{
+				auth: authStore.token,
+				movement_type: filters.movement_type,
+				start_ms: filters.start_ms,
+				end_ms: filters.end_ms,
+			},
+			(count) => {
+				this.totalCount = count
+			},
+			(err) => console.error('Movements count error:', err),
+		)
 	}
 
-	updateRemark = async (movementId: string, newRemark: string): Promise<void> => {
+	// Actions
+
+	/** Apply new filters, sort or page size and go back to the first page */
+	setQuery = (query: MovementsQuery): void => {
+		this.#query = query
+		this.#cursors = [null]
+		this.#continueCursor = null
+		this.currentPage = 1
+		this.#subscribePage()
+		this.#subscribeCount()
+	}
+
+	nextPage = (): void => {
+		if (this.isDone || this.#continueCursor === null) return
+		this.#cursors[this.currentPage] = this.#continueCursor
+		this.currentPage++
+		this.#subscribePage()
+	}
+
+	previousPage = (): void => {
+		if (this.currentPage <= 1) return
+		this.currentPage--
+		this.#subscribePage()
+	}
+
+	firstPage = (): void => {
+		if (this.currentPage === 1) return
+		this.currentPage = 1
+		this.#subscribePage()
+	}
+
+	updateRemark = async (movementId: StockMovement['id'], newRemark: string): Promise<void> => {
 		this.#loadingCount++
 		this.error = null
 		try {
-			const { data, error: supabaseError } = await supabase
-				.from('stock_movements')
-				.update({
-					remark: newRemark,
-					updated_at: new Date().toISOString(),
-				})
-				.eq('id', movementId)
-				.select()
-				.single()
-
-			if (supabaseError) throw supabaseError
-
-			// Optimistic local update
-			if (data) {
-				const index = this.movements.findIndex((m) => m.id === movementId)
-				if (index !== -1) {
-					this.movements[index] = { ...this.movements[index], ...data }
-				}
-			}
+			await convex.mutation(api.movements.updateRemark, {
+				auth: authStore.token,
+				id: movementId,
+				remark: newRemark,
+			})
 		} catch (err) {
-			this.error = err instanceof Error ? err.message : 'An error occurred while updating remark'
+			this.error = errorMessage(err, 'An error occurred while updating remark')
 			console.error('Error updating remark:', err)
 		} finally {
 			this.#loadingCount--
 		}
 	}
 
-	// Subscription lifecycle
-	#startSubscription = () => {
-		if (this.#channel) return
-
-		this.#channel = supabase
-			.channel('update-stock-movements')
-			.on('postgres_changes', { event: '*', schema: 'public', table: 'stock_movements' }, () => {
-				this.#scheduleRefresh()
-			})
-			.subscribe()
-	}
-
-	// The subscription is started at login; the page issues the first query
-	// once it knows its filters.
-	initializeStore = async (): Promise<void> => {
-		if (this.#isInitialized) return
-		this.#isInitialized = true
-		this.#startSubscription()
-	}
+	// The page issues the first query once it knows its filters.
+	initializeStore = async (): Promise<void> => {}
 
 	cleanup = () => {
-		if (this.#channel) {
-			this.#channel.unsubscribe()
-			this.#channel = null
-		}
-		if (this.#refreshTimer) {
-			clearTimeout(this.#refreshTimer)
-			this.#refreshTimer = null
-		}
-		this.#requestSequence++
-		this.#lastQuery = null
+		this.#settlePage?.()
+		this.#settlePage = null
+		this.#unsubscribePage?.()
+		this.#unsubscribeCount?.()
+		this.#unsubscribePage = null
+		this.#unsubscribeCount = null
+		this.#query = null
+		this.#cursors = [null]
+		this.#continueCursor = null
 		this.movements = []
 		this.totalCount = 0
+		this.countIsExact = true
+		this.currentPage = 1
+		this.isDone = true
 		this.error = null
-		this.#isInitialized = false
 	}
 }
 

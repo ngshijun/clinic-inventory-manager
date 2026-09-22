@@ -67,7 +67,7 @@
 
 	// Edit modal variables
 	let showEditModal = $state(false)
-	let editEmployee = $state<(EmployeeForm & { id: string }) | null>(null)
+	let editEmployee = $state<(EmployeeForm & { id: Employee['id'] }) | null>(null)
 	let useDefaultEpfEdit = $state(true)
 
 	// Save payroll record modal variables
@@ -130,7 +130,9 @@
 				}
 
 				let result = 0
-				if (aValue < bValue) result = -1
+				if (aValue === undefined || bValue === undefined) {
+					result = aValue === bValue ? 0 : aValue === undefined ? 1 : -1
+				} else if (aValue < bValue) result = -1
 				else if (aValue > bValue) result = 1
 
 				return sortConfig.direction === 'desc' ? -result : result

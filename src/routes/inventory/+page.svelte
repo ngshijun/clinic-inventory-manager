@@ -141,7 +141,7 @@
 		stockBatchesStore.nearestExpiryByItem.get(item.id) ?? null
 
 	const expiryBadge = (
-		expiryDate: string | null,
+		expiryDate: string | null | undefined,
 	): { variant: 'red' | 'yellow' | 'green' | 'gray'; text: string } | null => {
 		const status: ExpiryStatus = getExpiryStatus(expiryDate)
 		if (status === 'none' || !expiryDate) return null
@@ -155,7 +155,7 @@
 		return { variant: 'green', text: 'OK' }
 	}
 
-	const formatExpiry = (expiryDate: string | null): string =>
+	const formatExpiry = (expiryDate: string | null | undefined): string =>
 		expiryDate ? formatDate(`${expiryDate}T00:00:00`) : '—'
 
 	const formatReceived = (createdAt: string): string => formatDate(createdAt)
@@ -180,8 +180,8 @@
 		const key = sortConfig.key
 		if (key) {
 			items = [...items].sort((a, b) => {
-				let aValue: string | number | boolean | null
-				let bValue: string | number | boolean | null
+				let aValue: string | number | boolean | null | undefined
+				let bValue: string | number | boolean | null | undefined
 
 				if (key === 'status') {
 					aValue = getStockStatusValue(a)
@@ -194,7 +194,9 @@
 					bValue = b[key as keyof InventoryItem]
 				}
 
-				// Handle null values (put them at the end)
+				// Handle missing values (put them at the end)
+				aValue ??= null
+				bValue ??= null
 				if (aValue === null && bValue === null) return 0
 				if (aValue === null) return sortConfig.direction === 'asc' ? 1 : -1
 				if (bValue === null) return sortConfig.direction === 'asc' ? -1 : 1
@@ -376,7 +378,7 @@
 		stockQuantity = 1
 	}
 
-	// Which batches a stock out of `stockQuantity` would draw from, oldest first
+	// Which batches a stock out of `stockQuantity` would draw from, earliest expiry first
 	const stockOutPlan = $derived.by((): Array<{ batch: StockBatch; take: number }> => {
 		if (!stockManageItem) return []
 		let remaining = Math.max(0, Math.floor(Number(stockQuantity) || 0))
@@ -442,6 +444,12 @@
 	// ---------- Batches & expiry ----------
 	const batchesForModal = $derived(
 		batchesItem ? stockBatchesStore.getBatchesForItem(batchesItem.id) : [],
+	)
+
+	// The modal keeps a snapshot of the item it was opened for; read the live
+	// row so the total updates after a batch is saved.
+	const batchesLiveItem = $derived(
+		batchesItem ? (inventoryStore.getItemById(batchesItem.id) ?? batchesItem) : null,
 	)
 
 	const openBatchesModal = (item: InventoryItem): void => {
@@ -655,121 +663,41 @@
 	}
 
 	const importInventoryData = async (data: ExcelData[]): Promise<void> => {
-		let importedCount = 0
-		let updatedCount = 0
-		let deletedCount = 0
-
-		try {
-			// Validate all rows first
-			for (const row of data) {
-				if (
-					!row.item_name ||
-					typeof row.quantity !== 'number' ||
-					typeof row.reorder_level !== 'number' ||
-					!row.unit ||
-					!row.remark ||
-					!row.order_date
-				) {
-					throw new Error(
-						'Invalid data format. Please ensure all rows have: item_name, quantity, reorder_level, unit, remark, order_date',
-					)
-				}
-			}
-
-			// Get current items from the store
-			const currentItems = [...inventoryStore.items]
-
-			// Create a map of Excel items (lowercase for case-insensitive comparison)
-			const excelItemsMap = new Map<string, ExcelData>()
-			data.forEach((row) => {
-				excelItemsMap.set(row.item_name.toLowerCase(), row)
-			})
-
-			// Step 1: Update existing items and add new items from Excel
-			for (const row of data) {
-				const itemNameLower = row.item_name.toLowerCase()
-
-				// Check if item already exists
-				const existingItem = currentItems.find(
-					(item) => item.item_name.toLowerCase() === itemNameLower,
+		// Validate all rows first
+		for (const row of data) {
+			if (
+				!row.item_name ||
+				typeof row.quantity !== 'number' ||
+				typeof row.reorder_level !== 'number' ||
+				!row.unit ||
+				!row.remark ||
+				!row.order_date
+			) {
+				throw new Error(
+					'Invalid data format. Please ensure all rows have: item_name, quantity, reorder_level, unit, remark, order_date',
 				)
-
-				if (existingItem) {
-					// Update existing item details
-					let changed = false
-					if (
-						existingItem.reorder_level !== row.reorder_level ||
-						existingItem.unit !== row.unit ||
-						existingItem.remark !== row.remark ||
-						existingItem.order_date !== row.order_date
-					) {
-						await inventoryStore.updateItem(existingItem.id, {
-							reorder_level: Math.max(0, row.reorder_level),
-							unit: row.unit,
-							remark: row.remark,
-							order_date: row.order_date,
-						})
-						changed = !inventoryStore.error
-					}
-
-					// Stock lives in batches, so a quantity difference is applied as
-					// a stock in (new batch, no expiry) or a FIFO stock out.
-					const delta = Math.max(0, row.quantity) - existingItem.quantity
-					if (delta > 0) {
-						await inventoryStore.stockIn(
-							existingItem.id,
-							delta,
-							false,
-							undefined,
-							null,
-							'Excel import',
-						)
-						changed = changed || !inventoryStore.error
-					} else if (delta < 0) {
-						await inventoryStore.stockOut(existingItem.id, -delta, 'Excel import')
-						changed = changed || !inventoryStore.error
-					}
-
-					if (changed) updatedCount++
-				} else {
-					// Add new item
-					await inventoryStore.addItem({
-						item_name: row.item_name,
-						quantity: Math.max(0, row.quantity),
-						reorder_level: Math.max(0, row.reorder_level),
-						unit: row.unit,
-						remark: row.remark,
-						order_date: row.order_date,
-					})
-
-					if (!inventoryStore.error) {
-						importedCount++
-					}
-				}
 			}
-
-			// Step 2: Delete items that are not in the Excel file
-			for (const currentItem of currentItems) {
-				const itemNameLower = currentItem.item_name.toLowerCase()
-
-				// If item is not in Excel file, delete it
-				if (!excelItemsMap.has(itemNameLower)) {
-					await inventoryStore.deleteItem(currentItem.id)
-
-					if (!inventoryStore.error) {
-						deletedCount++
-					}
-				}
-			}
-
-			// Update import status with detailed counts
-			importStatus.importedCount = importedCount
-			importStatus.updatedCount = updatedCount
-			importStatus.deletedCount = deletedCount
-			importStatus.totalProcessed = data.length
-		} catch (error) {
-			throw error
 		}
+
+		// One server transaction: details are updated, quantity differences move
+		// through batches, new items are added, and items missing from the sheet
+		// are deleted.
+		const result = await inventoryStore.importFromRows(
+			data.map((row) => ({
+				item_name: String(row.item_name),
+				quantity: Math.max(0, row.quantity),
+				reorder_level: Math.max(0, row.reorder_level),
+				unit: String(row.unit),
+				remark: String(row.remark),
+				order_date: String(row.order_date),
+			})),
+		)
+		if (!result) throw new Error(inventoryStore.error || 'Import failed')
+
+		importStatus.importedCount = result.imported
+		importStatus.updatedCount = result.updated
+		importStatus.deletedCount = result.deleted
+		importStatus.totalProcessed = result.total
 	}
 
 	const exportToExcel = (): void => {
@@ -956,7 +884,8 @@
 						class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-green-500 focus:ring-2 focus:ring-green-500 focus:outline-none"
 					/>
 					<p class="mt-1 text-xs text-gray-500">
-						This stock is recorded as its own batch. Stock out takes from the oldest batch first.
+						This stock is recorded as its own batch. Stock out takes from the earliest-expiring
+						batch first.
 					</p>
 				</div>
 
@@ -1105,7 +1034,7 @@
 				{#if stockOutPlan.length > 0}
 					<div class="rounded-md border border-gray-200 bg-gray-50 p-3">
 						<p class="mb-2 text-xs font-medium text-gray-700">
-							Taken from the oldest batches first (FIFO):
+							Taken from the earliest-expiring batches first (FEFO):
 						</p>
 						<ul class="space-y-1 text-xs text-gray-700">
 							{#each stockOutPlan as { batch, take } (batch.id)}
@@ -1219,13 +1148,14 @@
 					<div class="mb-1 flex items-center gap-2">
 						<ClockIcon class="h-4 w-4 text-blue-500" />
 						<span class="text-sm font-medium text-blue-800">
-							Total stock: {batchesItem?.quantity ?? 0}
-							{batchesItem?.unit} across {batchesForModal.length}
+							Total stock: {batchesLiveItem?.quantity ?? 0}
+							{batchesLiveItem?.unit} across {batchesForModal.length}
 							{batchesForModal.length === 1 ? 'batch' : 'batches'}
 						</span>
 					</div>
 					<p class="text-sm text-blue-700">
-						Stock out takes from the oldest received batch first. Batches expiring within {EXPIRY_WARNING_DAYS}
+						Stock out takes from the earliest-expiring batch first, then batches with no expiry
+						date. Batches expiring within {EXPIRY_WARNING_DAYS}
 						days are highlighted. Changing a quantity is logged as a stock movement.
 					</p>
 				</div>

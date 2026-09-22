@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { inventoryStore } from '$lib/stores/inventory.svelte'
 	import { stockRequestsStore } from '$lib/stores/stockRequests.svelte'
-	import type { StockRequest } from '$lib/types/stockRequests'
+	import type { StockRequest, StockRequestId } from '$lib/types/stockRequests'
 
 	// Component imports
 	import ActionButtonGroup, {
@@ -32,7 +32,7 @@
 	let filterDate = $state<string>(
 		`${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`,
 	)
-	let selectedRequests = $state<string[]>([])
+	let selectedRequests = $state<StockRequestId[]>([])
 	let showOlderPending = $state<boolean>(false)
 
 	// Edit state
@@ -46,7 +46,7 @@
 
 	// Reject modal state
 	let showRejectModal = $state<boolean>(false)
-	let rejectRequestIds = $state<string[]>([])
+	let rejectRequestIds = $state<StockRequestId[]>([])
 	let rejectRemark = $state<string | number | undefined>('')
 
 	// Bulk approval modal
@@ -286,7 +286,7 @@
 		}
 	}
 
-	const saveEdit = async (requestId: string): Promise<void> => {
+	const saveEdit = async (requestId: StockRequestId): Promise<void> => {
 		if (!isEditFormValid) return
 
 		await stockRequestsStore.updateRequest(
@@ -299,7 +299,7 @@
 	}
 
 	// Reject functions
-	const showRejectDialog = (requestId: string): void => {
+	const showRejectDialog = (requestId: StockRequestId): void => {
 		rejectRequestIds = [requestId]
 		rejectRemark = ''
 		showRejectModal = true
@@ -370,7 +370,7 @@
 	}
 
 	// Selection functions
-	const toggleSelection = (requestId: string): void => {
+	const toggleSelection = (requestId: StockRequestId): void => {
 		const index = selectedRequests.indexOf(requestId)
 		if (index > -1) {
 			selectedRequests.splice(index, 1)
@@ -402,7 +402,7 @@
 	}
 
 	// Action functions
-	const approveRequest = async (requestId: string): Promise<void> => {
+	const approveRequest = async (requestId: StockRequestId): Promise<void> => {
 		await stockRequestsStore.approveRequest(requestId)
 		// Remove from selection after approval
 		const index = selectedRequests.indexOf(requestId)

@@ -123,7 +123,7 @@ export default defineSchema({
 		.index('by_legacy_id', ['legacy_id']),
 
 	stock_batches: defineTable(stockBatchFields)
-		// FIFO order = _creationTime ascending within this index.
+		// Stock out drains these in FEFO order (see lib/stock.ts fefoOrder).
 		.index('by_item', ['item_id']),
 
 	stock_movements: defineTable(stockMovementFields)
