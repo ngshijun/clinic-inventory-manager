@@ -110,16 +110,18 @@
 		})
 	})
 
-	// Fetch the page whenever the query changes
+	// Fetch the page whenever the query changes. The store call is untracked:
+	// it touches its own loading state, which must not become a dependency of
+	// this effect or it would re-run itself indefinitely.
 	$effect(() => {
 		const query: MovementsQuery = {
 			page: currentPage,
 			pageSize,
 			sortKey: sortConfig.key,
 			sortDirection: sortConfig.direction,
-			filters: debouncedFilters,
+			filters: $state.snapshot(debouncedFilters),
 		}
-		stockMovementsStore.fetchMovements(query)
+		untrack(() => stockMovementsStore.fetchMovements(query))
 	})
 
 	const totalPages = $derived(Math.max(1, Math.ceil(stockMovementsStore.totalCount / pageSize)))
