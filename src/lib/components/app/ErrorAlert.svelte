@@ -35,7 +35,10 @@
 	const messageSizes = { sm: 'text-xs', md: 'text-sm', lg: 'text-sm sm:text-base' }
 </script>
 
-<Alert.Root {variant} class={cn('has-[>svg]:grid-cols-[auto_1fr_auto]', className)}>
+<Alert.Root
+	variant={variant === 'error' ? 'destructive' : 'default'}
+	class={cn('has-[>svg]:grid-cols-[auto_1fr_auto]', className)}
+>
 	<ExclamationCircleIcon class={iconSizes[size]} />
 	<div class="min-w-0">
 		<Alert.Title class={titleSizes[size]}>{title}</Alert.Title>
@@ -45,14 +48,7 @@
 		{/if}
 	</div>
 	{#if dismissible}
-		<Button
-			variant="ghost"
-			size="icon-sm"
-			onclick={ondismiss}
-			class={variant === 'error'
-				? 'text-red-400 hover:bg-red-100 hover:text-red-500 focus-visible:ring-red-600'
-				: 'text-yellow-400 hover:bg-yellow-100 hover:text-yellow-500 focus-visible:ring-yellow-600'}
-		>
+		<Button variant="ghost" size="icon-sm" onclick={ondismiss}>
 			<span class="sr-only">Dismiss</span>
 			<CloseIcon class="h-5 w-5" />
 		</Button>

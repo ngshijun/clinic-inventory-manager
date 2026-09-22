@@ -1,5 +1,8 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
+@import 'shadcn-svelte/tailwind.css';
+@import '@fontsource-variable/figtree';
+@import '@fontsource-variable/jetbrains-mono';
 
 @custom-variant dark (&:is(.dark *));
 
@@ -7,77 +10,87 @@
  * bits-ui reports open/closed through `data-state`, while the shadcn component
  * sources are written against `data-open:` / `data-closed:` variants. Without
  * these definitions Tailwind compiles them to `[data-open]` / `[data-closed]`,
- * which never match — so the exit animation never runs, and bits-ui (which waits
- * for `animationend` before unmounting) leaves closed dialogs on screen with
- * `pointer-events: none` still set on <body>, freezing the page.
+ * which never match, so exit animations never run and bits-ui (which waits for
+ * `animationend` before unmounting) leaves closed dialogs on screen.
  */
 @custom-variant data-open (&[data-state='open']);
 @custom-variant data-closed (&[data-state='closed']);
 
 /*
- * shadcn's semantic tokens are mapped onto the palette the Vue app already used,
- * so an unstyled shadcn component renders in the existing look:
- *   primary  = green-600 (the app's confirm/save colour)
- *   ring     = blue-500  (every focus ring in the Vue source)
- *   border   = gray-200, input border = gray-300
+ * Clinic Inventory theme. Light only, by decision.
  *
- * --radius is 0.5rem so the derived scale lands exactly on Tailwind's stock
- * values: sm 4px, md 6px (rounded-md — buttons, inputs, modals),
- * lg 8px (rounded-lg — cards), xl 12px. Utility classes in the views therefore
- * measure the same as they did under Vue.
+ * Deep teal brand framing a cool grey ground with white cards. Green is kept
+ * free to mean "in stock / approved"; amber means "needs attention"; red means
+ * "out / expired / rejected"; blue means "on order". Radius is 8px at the
+ * control and grows with the container: controls xl (12px), cards 2xl (16px),
+ * the sidebar frame 3xl (20px). Nested shapes stay concentric.
  */
 :root {
 	--radius: 0.5rem;
 
-	--background: #ffffff;
-	--foreground: #111827; /* gray-900 */
-
+	--background: #f1f4f6;
+	--foreground: #152028;
 	--card: #ffffff;
-	--card-foreground: #111827;
-
+	--card-foreground: #152028;
 	--popover: #ffffff;
-	--popover-foreground: #111827;
+	--popover-foreground: #152028;
 
-	--primary: #16a34a; /* green-600 */
+	--primary: #0f5c6e;
 	--primary-foreground: #ffffff;
-
-	--secondary: #f3f4f6; /* gray-100 */
-	--secondary-foreground: #111827;
-
-	--muted: #f9fafb; /* gray-50 */
-	--muted-foreground: #6b7280; /* gray-500 */
-
-	--accent: #f3f4f6; /* gray-100 */
-	--accent-foreground: #111827;
-
-	--destructive: #dc2626; /* red-600 */
+	--secondary: #e6ecf0;
+	--secondary-foreground: #3b4a55;
+	--muted: #e6ecf0;
+	--muted-foreground: #5f6f7a;
+	--accent: #dff0f3;
+	--accent-foreground: #0b4a59;
+	--destructive: #b3352b;
 	--destructive-foreground: #ffffff;
 
-	--border: #e5e7eb; /* gray-200 */
-	--input: #d1d5db; /* gray-300 */
-	--ring: #3b82f6; /* blue-500 */
+	--border: #e0e7ec;
+	--border-strong: #7d8d98;
+	--input: #d3dde4;
+	--ring: #0f5c6e;
 
-	--chart-1: #2563eb; /* blue-600 */
-	--chart-2: #16a34a; /* green-600 */
-	--chart-3: #d97706; /* amber-600 */
-	--chart-4: #dc2626; /* red-600 */
-	--chart-5: #0891b2; /* cyan-600 */
+	--chart-1: #0f5c6e;
+	--chart-2: #2b57a8;
+	--chart-3: #9a5b00;
+	--chart-4: #b3352b;
+	--chart-5: #5b3fb8;
 
-	--sidebar: #ffffff;
-	--sidebar-foreground: #111827;
-	--sidebar-primary: #16a34a;
-	--sidebar-primary-foreground: #ffffff;
-	--sidebar-accent: #f3f4f6;
-	--sidebar-accent-foreground: #111827;
-	--sidebar-border: #e5e7eb;
-	--sidebar-ring: #3b82f6;
+	/* Status tints: each pair is a foreground on its soft background at 4.5:1. */
+	--success: #1f7a4d;
+	--success-soft: #e2f4ea;
+	--warning: #9a5b00;
+	--warning-soft: #fdf1dc;
+	--info: #2b57a8;
+	--info-soft: #e6eefb;
+	--violet: #5b3fb8;
+	--violet-soft: #f0e9fb;
+
+	/* The brand teal: the login band and the sidebar frame. */
+	--brand: #0f5c6e;
+	--brand-foreground: #ffffff;
+	--sidebar: #0f5c6e;
+	--sidebar-foreground: #ffffff;
+	--sidebar-primary: #ffffff;
+	--sidebar-primary-foreground: #0f5c6e;
+	--sidebar-accent: rgba(255, 255, 255, 0.14);
+	--sidebar-accent-foreground: #ffffff;
+	--sidebar-border: rgba(255, 255, 255, 0.18);
+	--sidebar-ring: rgba(255, 255, 255, 0.7);
 }
 
 @theme inline {
+	--font-sans: 'Figtree Variable', 'Helvetica Neue', Arial, sans-serif;
+	--font-mono: 'JetBrains Mono Variable', ui-monospace, SFMono-Regular, Menlo, monospace;
+
 	--radius-sm: calc(var(--radius) - 4px);
 	--radius-md: calc(var(--radius) - 2px);
 	--radius-lg: var(--radius);
 	--radius-xl: calc(var(--radius) + 4px);
+	--radius-2xl: calc(var(--radius) + 8px);
+	--radius-3xl: calc(var(--radius) + 12px);
+	--radius-4xl: calc(var(--radius) + 16px);
 
 	--color-background: var(--background);
 	--color-foreground: var(--foreground);
@@ -96,6 +109,7 @@
 	--color-destructive: var(--destructive);
 	--color-destructive-foreground: var(--destructive-foreground);
 	--color-border: var(--border);
+	--color-border-strong: var(--border-strong);
 	--color-input: var(--input);
 	--color-ring: var(--ring);
 	--color-chart-1: var(--chart-1);
@@ -103,6 +117,16 @@
 	--color-chart-3: var(--chart-3);
 	--color-chart-4: var(--chart-4);
 	--color-chart-5: var(--chart-5);
+	--color-success: var(--success);
+	--color-success-soft: var(--success-soft);
+	--color-warning: var(--warning);
+	--color-warning-soft: var(--warning-soft);
+	--color-info: var(--info);
+	--color-info-soft: var(--info-soft);
+	--color-violet: var(--violet);
+	--color-violet-soft: var(--violet-soft);
+	--color-brand: var(--brand);
+	--color-brand-foreground: var(--brand-foreground);
 	--color-sidebar: var(--sidebar);
 	--color-sidebar-foreground: var(--sidebar-foreground);
 	--color-sidebar-primary: var(--sidebar-primary);
@@ -114,15 +138,27 @@
 }
 
 @layer base {
-	*,
-	::after,
-	::before,
-	::backdrop,
-	::file-selector-button {
-		border-color: var(--border);
+	* {
+		@apply border-border outline-ring/50;
 	}
-
+	html {
+		@apply font-sans;
+	}
 	body {
 		@apply bg-background text-foreground;
+	}
+	/* Search fields carry their own Clear button; hide WebKit's unstyled one. */
+	input[type='search']::-webkit-search-cancel-button {
+		appearance: none;
+	}
+	/* Respect the OS reduce-motion setting: keep state changes, drop the choreography. */
+	@media (prefers-reduced-motion: reduce) {
+		*,
+		::before,
+		::after {
+			animation-duration: 0.01ms !important;
+			animation-iteration-count: 1 !important;
+			transition-duration: 0.01ms !important;
+		}
 	}
 }

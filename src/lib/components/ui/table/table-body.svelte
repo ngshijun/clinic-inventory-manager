@@ -13,7 +13,7 @@
 <tbody
 	bind:this={ref}
 	data-slot="table-body"
-	class={cn('divide-y divide-gray-200 bg-white', className)}
+	class={cn('[&_tr:last-child]:border-0', className)}
 	{...restProps}
 >
 	{@render children?.()}

@@ -1,7 +1,6 @@
 <script lang="ts">
 	import '../app.css'
-	import { goto } from '$app/navigation'
-	import { page } from '$app/state'
+	import { goto, afterNavigate } from '$app/navigation'
 	import { authStore } from '$lib/stores/auth.svelte'
 	import { inventoryStore } from '$lib/stores/inventory.svelte'
 	import { stockMovementsStore } from '$lib/stores/stockMovements.svelte'
@@ -9,40 +8,26 @@
 	import { stockRequestsStore } from '$lib/stores/stockRequests.svelte'
 	import { payrollStore } from '$lib/stores/payroll.svelte'
 	import { payrollRecordsStore } from '$lib/stores/payrollRecords.svelte'
-	import { createConnectionMonitor } from '$lib/composables/connectionMonitor.svelte'
+	import { connection, useConnection } from '$lib/stores/connection.svelte'
 	import { setConvexClientContext } from 'convex-svelte'
 	import { convex } from '$lib/convex'
-	import CloseIcon from '$lib/components/icons/CloseIcon.svelte'
-	import LogoutIcon from '$lib/components/icons/LogoutIcon.svelte'
-	import MenuIcon from '$lib/components/icons/MenuIcon.svelte'
+	import WifiOffIcon from '@lucide/svelte/icons/wifi-off'
+	import * as Sidebar from '$lib/components/ui/sidebar'
+	import * as Breadcrumb from '$lib/components/ui/breadcrumb'
+	import * as Alert from '$lib/components/ui/alert'
+	import { Toaster } from '$lib/components/ui/sonner'
+	import AppSidebar from '$lib/components/app/AppSidebar.svelte'
+	import { breadcrumbs } from '$lib/components/app/breadcrumbs.svelte'
+	import { scrollRegion } from '$lib/components/app/scroll-region.svelte'
 
 	let { children } = $props()
 
 	// Share the app-wide Convex client with any component that uses `useQuery`
 	setConvexClientContext(convex)
-
-	let mobileMenuOpen = $state(false)
-
-	const connectionMonitor = createConnectionMonitor()
+	useConnection()
 
 	const pendingRequestsCount = $derived(
 		stockRequestsStore.requests.filter((request) => request.status === 'Pending').length,
-	)
-
-	const links = $derived(
-		authStore.user?.role === 'manager'
-			? [
-					{ href: '/dashboard', label: 'Dashboard' },
-					{ href: '/inventory', label: 'Inventory' },
-					{ href: '/price-list', label: 'Price List' },
-					{ href: '/stock-movements', label: 'Stock Movements' },
-					{ href: '/stock-approvals', label: 'Stock Approvals', badge: true },
-					{ href: '/payroll', label: 'Payroll' },
-					{ href: '/payroll-history', label: 'Payroll History' },
-				]
-			: authStore.user?.role === 'requester'
-				? [{ href: '/stock-requests', label: 'Stock Requests' }]
-				: [],
 	)
 
 	function initStores() {
@@ -63,133 +48,92 @@
 		payrollRecordsStore.cleanup()
 	}
 
-	async function handleLogout() {
+	async function handleSignOut() {
 		cleanupStores()
 		authStore.logout()
 		await goto('/')
 	}
 
-	// Vue watched `isAuthenticated` and initialised the stores on every
-	// transition into the authenticated state, including the very first one when
-	// the session was restored from localStorage.
+	// The stores are initialised on every transition into the authenticated
+	// state, including the first one when the session is restored from localStorage.
 	$effect(() => {
 		if (authStore.isAuthenticated) initStores()
 	})
 
-	// Close the mobile menu when the click lands outside the nav.
-	function handleOutsideClick(e: MouseEvent) {
-		const nav = document.querySelector('nav')
-		if (nav && !nav.contains(e.target as Node)) mobileMenuOpen = false
-	}
+	/*
+	 * The top bar stays put and only the content scrolls. The scroll edge
+	 * hairline sits under the top bar unless the page pins its own toolbar,
+	 * which then takes it.
+	 */
+	let scroller = $state<HTMLDivElement | null>(null)
+	const edge = $derived(scrollRegion.scrolled && !scrollRegion.pinned)
+
+	afterNavigate(({ type, to }) => {
+		// A new page starts at the top; hash links and back/forward keep SvelteKit's own scrolling.
+		if (type !== 'popstate' && !to?.url.hash && scroller) {
+			scroller.scrollTop = 0
+			scrollRegion.scrolled = false
+		}
+	})
 </script>
 
-<svelte:document onclick={handleOutsideClick} />
+<Toaster richColors closeButton position="top-right" theme="light" />
 
-<div id="app" class="min-h-screen bg-gray-50">
-	{#if authStore.isAuthenticated}
-		<nav class="border-b border-gray-200 bg-white shadow-sm">
-			<div class="mx-auto max-w-[100rem] px-2 sm:px-6 lg:px-8">
-				<div class="flex h-14 justify-between sm:h-16">
-					<div class="flex items-center space-x-3">
-						<div class="flex-shrink-0">
-							<h1 class="text-lg font-bold text-gray-900 sm:text-xl">
-								<span class="block sm:hidden">Inventory</span>
-								<span class="hidden sm:block">Inventory Manager</span>
-							</h1>
-						</div>
-						<!-- Connection Status Indicator -->
-						<div class="flex items-center">
-							<div
-								class="h-2 w-2 rounded-full {connectionMonitor.isConnected
-									? 'bg-green-500'
-									: 'bg-red-500'}"
-								title={connectionMonitor.isConnected ? 'Connected' : 'Connection Lost'}
-							></div>
-						</div>
-					</div>
-
-					<!-- Mobile menu button -->
-					<div class="flex items-center space-x-2 sm:hidden">
-						<button
-							type="button"
-							onclick={handleLogout}
-							class="inline-flex items-center justify-center rounded-md p-2 text-gray-400 hover:bg-red-100 hover:text-red-500 focus:ring-2 focus:ring-red-500 focus:outline-none focus:ring-inset"
-							title="Logout"
-						>
-							<LogoutIcon class="h-5 w-5" />
-						</button>
-
-						<button
-							type="button"
-							onclick={() => (mobileMenuOpen = !mobileMenuOpen)}
-							class="inline-flex items-center justify-center rounded-md p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-500 focus:ring-2 focus:ring-blue-500 focus:outline-none focus:ring-inset"
-						>
-							{#if mobileMenuOpen}
-								<CloseIcon class="h-6 w-6" />
-							{:else}
-								<MenuIcon class="h-6 w-6" />
+{#if authStore.isAuthenticated && authStore.user}
+	<Sidebar.Provider class="h-svh overflow-hidden">
+		<AppSidebar
+			user={authStore.user}
+			pendingCount={pendingRequestsCount}
+			onSignOut={handleSignOut}
+		/>
+		<Sidebar.Inset class="min-h-0 overflow-hidden">
+			<header
+				data-scrolled={edge ? '' : undefined}
+				class="bg-background data-scrolled:border-border flex h-14 shrink-0 items-center gap-2 border-b border-transparent px-4 transition-colors"
+			>
+				<Sidebar.Trigger class="-ms-1 me-2" />
+				<Breadcrumb.Root>
+					<Breadcrumb.List>
+						{#each breadcrumbs.current as crumb, i (i)}
+							{#if i > 0}
+								<Breadcrumb.Separator />
 							{/if}
-						</button>
-					</div>
+							<Breadcrumb.Item>
+								{#if crumb.href}
+									<Breadcrumb.Link href={crumb.href}>{crumb.label}</Breadcrumb.Link>
+								{:else}
+									<Breadcrumb.Page class="font-semibold">{crumb.label}</Breadcrumb.Page>
+								{/if}
+							</Breadcrumb.Item>
+						{/each}
+					</Breadcrumb.List>
+				</Breadcrumb.Root>
+			</header>
 
-					<!-- Desktop Navigation -->
-					<div class="hidden sm:flex sm:items-center sm:space-x-8">
-						<div class="flex space-x-8">
-							{#each links as link (link.href)}
-								<a
-									href={link.href}
-									class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium {page.url
-										.pathname === link.href
-										? 'border-blue-500 text-gray-900'
-										: 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'}"
-								>
-									{link.label}
-									{#if link.badge && pendingRequestsCount > 0}
-										<span
-											class="m-0.5 ml-2 inline-flex items-center justify-center rounded-full bg-red-600 px-2 py-1 text-xs leading-none font-bold text-white"
-										>
-											{pendingRequestsCount}
-										</span>
-									{/if}
-								</a>
-							{/each}
-						</div>
-
-						<button
-							type="button"
-							onclick={handleLogout}
-							class="inline-flex items-center rounded-md border border-transparent px-3 py-2 text-sm leading-4 font-medium text-gray-500 hover:text-red-500 focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:outline-none"
-						>
-							<LogoutIcon class="mr-2 h-4 w-4" />
-							Logout
-						</button>
-					</div>
+			{#if !connection.isConnected}
+				<div class="px-4 pb-2 sm:px-6">
+					<Alert.Root>
+						<WifiOffIcon />
+						<Alert.Title>Offline</Alert.Title>
+						<Alert.Description>
+							Reconnecting. Changes made now are sent once the connection is back.
+						</Alert.Description>
+					</Alert.Root>
 				</div>
+			{/if}
 
-				<!-- Mobile Navigation Menu -->
-				{#if mobileMenuOpen}
-					<div class="sm:hidden">
-						<div class="space-y-1 pt-2 pb-3">
-							{#each links as link (link.href)}
-								<a
-									href={link.href}
-									onclick={() => (mobileMenuOpen = false)}
-									class="block border-l-4 py-2 pr-4 pl-3 text-base font-medium {page.url
-										.pathname === link.href
-										? 'border-blue-500 bg-blue-50 text-blue-700'
-										: 'border-transparent text-gray-500 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-700'}"
-								>
-									{link.label}
-								</a>
-							{/each}
-						</div>
-					</div>
-				{/if}
+			<!-- A size container, so a page can size itself to the visible region with cqh. -->
+			<div
+				bind:this={scroller}
+				class="[container-type:size] flex min-h-0 flex-1 flex-col overflow-y-auto"
+				onscroll={() => (scrollRegion.scrolled = (scroller?.scrollTop ?? 0) > 0)}
+			>
+				<div class="flex flex-1 flex-col gap-4 p-4 sm:p-6">
+					{@render children?.()}
+				</div>
 			</div>
-		</nav>
-	{/if}
-
-	<main class="mx-auto max-w-[100rem] px-2 py-3 sm:px-6 sm:py-6 lg:px-8">
-		{@render children?.()}
-	</main>
-</div>
+		</Sidebar.Inset>
+	</Sidebar.Provider>
+{:else}
+	{@render children?.()}
+{/if}
