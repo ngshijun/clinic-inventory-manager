@@ -25,6 +25,7 @@
 	import PageHeader from '$lib/components/app/PageHeader.svelte'
 	import ReasonBadge from '$lib/components/app/ReasonBadge.svelte'
 	import SortHeader from '$lib/components/app/SortHeader.svelte'
+	import StatusDot from '$lib/components/app/StatusDot.svelte'
 	import StockOutDialog from '$lib/components/app/StockOutDialog.svelte'
 	import type { SortState } from '$lib/components/app/sort'
 	import ToneBadge, { type Tone } from '$lib/components/app/ToneBadge.svelte'
@@ -36,7 +37,6 @@
 	import * as Field from '$lib/components/ui/field'
 	import { Input } from '$lib/components/ui/input'
 	import * as InputGroup from '$lib/components/ui/input-group'
-	import { Progress } from '$lib/components/ui/progress'
 	import { Skeleton } from '$lib/components/ui/skeleton'
 	import { Spinner } from '$lib/components/ui/spinner'
 	import * as Table from '$lib/components/ui/table'
@@ -734,7 +734,14 @@
 		</Empty.Content>
 	</Empty.Root>
 {:else}
-	<Table.Root>
+	<!--
+		Borders sit on the cells rather than the rows so an open item can lift
+		into a rounded card: each item is its own tbody, and the open one gets
+		an outline, a shadow and a card ground.
+	-->
+	<Table.Root
+		class="border-separate border-spacing-0 [&_td]:border-b [&_th]:border-b [&_tr]:border-0 [&>tbody:last-child>tr:last-child>td]:border-b-0"
+	>
 		<Table.Header>
 			<Table.Row>
 				<Table.Head class="w-9"><span class="sr-only">Batches</span></Table.Head>
@@ -746,15 +753,25 @@
 				<Table.Head><span class="sr-only">Actions</span></Table.Head>
 			</Table.Row>
 		</Table.Header>
-		<Table.Body>
-			{#each list.visible as item (item.id)}
-				{@const status = stockStatus(item)}
-				{@const nearest = getNearestExpiry(item)}
-				{@const badge = expiryBadge(nearest)}
-				{@const batches = batchCount(item)}
-				{@const showBar = !item.not_track && item.reorder_level > 0}
-				{@const open = expandedIds.has(item.id)}
-				<Table.Row class={cn(open && 'bg-muted/40 hover:bg-muted/40')}>
+		{#each list.visible as item (item.id)}
+			{@const status = stockStatus(item)}
+			{@const nearest = getNearestExpiry(item)}
+			{@const badge = expiryBadge(nearest)}
+			{@const batches = batchCount(item)}
+			{@const open = expandedIds.has(item.id)}
+			<Table.Body
+				class={cn(
+					open &&
+						'[&_td]:bg-card outline-border-strong rounded-xl shadow-[0_8px_24px_-16px_rgba(21,32,40,0.35)] outline -outline-offset-1 [&>tr:first-child>td:first-child]:rounded-tl-xl [&>tr:first-child>td:last-child]:rounded-tr-xl [&>tr:last-child>td]:border-b-0 [&>tr:last-child>td:first-child]:rounded-bl-xl [&>tr:last-child>td:last-child]:rounded-br-xl',
+				)}
+			>
+				<!-- Status is a stripe on the leading edge; it steps aside while the item is open. -->
+				<Table.Row
+					class={cn(
+						!open && status.tone === 'danger' && 'shadow-[inset_3px_0_0_var(--destructive)]',
+						!open && status.tone === 'warning' && 'shadow-[inset_3px_0_0_var(--warning)]',
+					)}
+				>
 					<Table.Cell class="w-9 py-2.5 ps-1 pe-0">
 						<Button
 							variant="ghost"
@@ -785,32 +802,15 @@
 							<ReasonBadge reason={item.non_order_reason} class="mt-1" />
 						{:else if batches > 0}
 							<div class="text-muted-foreground mt-0.5 text-xs">
-								{plural(batches, 'batch', 'batches')}
+								{plural(batches, 'batch', 'batches')}{open && batches > 1
+									? ' · Stock Out takes the earliest expiry first'
+									: ''}
 							</div>
+						{:else if !item.not_track}
+							<div class="text-muted-foreground mt-0.5 text-xs">No stock</div>
 						{/if}
 					</Table.Cell>
-					<Table.Cell class="py-2.5">
-						<div
-							class={cn(
-								'flex flex-col gap-1 tabular-nums',
-								status.tone === 'danger' && 'text-destructive',
-								status.tone === 'warning' && 'text-warning',
-							)}
-						>
-							<span>{item.quantity} {item.unit}</span>
-							{#if showBar}
-								<Progress
-									value={Math.min(100, (item.quantity / item.reorder_level) * 100)}
-									class={cn(
-										'w-16',
-										status.tone === 'danger' && '[&>[data-slot=progress-indicator]]:bg-destructive',
-										status.tone === 'warning' && '[&>[data-slot=progress-indicator]]:bg-warning',
-									)}
-									aria-label="On hand against reorder level"
-								/>
-							{/if}
-						</div>
-					</Table.Cell>
+					<Table.Cell class="py-2.5 tabular-nums">{item.quantity} {item.unit}</Table.Cell>
 					<Table.Cell class="py-2.5 tabular-nums">
 						{#if item.reorder_level < 0 || item.not_track}
 							<span class="text-muted-foreground">—</span>
@@ -829,7 +829,7 @@
 						{/if}
 					</Table.Cell>
 					<Table.Cell class="py-2.5">
-						<ToneBadge tone={status.tone}>{status.text}</ToneBadge>
+						<StatusDot tone={status.tone}>{status.text}</StatusDot>
 					</Table.Cell>
 					<Table.Cell class="py-2.5">
 						<div class="flex justify-end gap-1">
@@ -882,8 +882,8 @@
 				{#if open}
 					{@const itemBatches = stockBatchesStore.getBatchesForItem(item.id)}
 					{#if itemBatches.length === 0}
-						<Table.Row class="bg-muted/40 hover:bg-muted/40">
-							<Table.Cell class="border-border-strong border-s-2 py-2"></Table.Cell>
+						<Table.Row>
+							<Table.Cell class="py-2"></Table.Cell>
 							<Table.Cell colspan={6} class="py-2.5 whitespace-normal">
 								<div class="flex flex-wrap items-center justify-between gap-3">
 									<div>
@@ -902,13 +902,8 @@
 						{#each itemBatches as batch, index (batch.id)}
 							{@const editing = editingBatchId === batch.id}
 							{@const batchBadge = expiryBadge(batch.expiry_date)}
-							<Table.Row
-								class={cn(
-									'bg-muted/40 hover:bg-muted/40',
-									editing && 'bg-muted/70 hover:bg-muted/70',
-								)}
-							>
-								<Table.Cell class="border-border-strong border-s-2 py-2"></Table.Cell>
+							<Table.Row class={cn('text-foreground/85', editing && '[&>td]:bg-muted/60!')}>
+								<Table.Cell class="py-2"></Table.Cell>
 								<Table.Cell class="py-2 whitespace-normal">
 									<div class="flex items-center gap-2 text-sm">
 										<span
@@ -916,7 +911,7 @@
 										>
 											{index + 1}
 										</span>
-										<span class="font-medium">Batch {index + 1}</span>
+										<span class="text-foreground font-medium">Batch {index + 1}</span>
 									</div>
 									<div class="text-muted-foreground mt-0.5 ps-7 text-xs">
 										Received {formatDate(batch._creationTime)}
@@ -936,7 +931,7 @@
 											{@attach selectOnFocus()}
 										/>
 									{:else}
-										<span class="font-medium">{batch.quantity} {item.unit}</span>
+										<span class="text-foreground font-medium">{batch.quantity} {item.unit}</span>
 									{/if}
 								</Table.Cell>
 								<Table.Cell class="py-2"></Table.Cell>
@@ -998,8 +993,8 @@
 						{/each}
 					{/if}
 				{/if}
-			{/each}
-		</Table.Body>
+			</Table.Body>
+		{/each}
 	</Table.Root>
 	<div class="text-muted-foreground flex items-center justify-between gap-3 text-sm">
 		<span>Showing {list.shown} of {plural(list.total, 'item')}</span>
