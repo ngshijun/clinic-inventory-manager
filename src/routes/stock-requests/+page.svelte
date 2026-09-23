@@ -1,8 +1,6 @@
 <script lang="ts">
 	import { tick, untrack } from 'svelte'
 	import { toast } from 'svelte-sonner'
-	import CheckIcon from '@lucide/svelte/icons/check'
-	import ChevronsUpDownIcon from '@lucide/svelte/icons/chevrons-up-down'
 	import ClipboardListIcon from '@lucide/svelte/icons/clipboard-list'
 	import PencilIcon from '@lucide/svelte/icons/pencil'
 	import PlusIcon from '@lucide/svelte/icons/plus'
@@ -12,16 +10,15 @@
 	import { selectOnFocus } from '$lib/attachments/focus'
 	import ActionModal from '$lib/components/app/ActionModal.svelte'
 	import EditRequestDialog from '$lib/components/app/EditRequestDialog.svelte'
+	import ItemPicker from '$lib/components/app/ItemPicker.svelte'
 	import PageHeader from '$lib/components/app/PageHeader.svelte'
 	import RequestDayFilter from '$lib/components/app/RequestDayFilter.svelte'
 	import SortHeader from '$lib/components/app/SortHeader.svelte'
 	import type { SortState } from '$lib/components/app/sort'
 	import ToneBadge from '$lib/components/app/ToneBadge.svelte'
 	import { Button } from '$lib/components/ui/button'
-	import * as Command from '$lib/components/ui/command'
 	import * as Empty from '$lib/components/ui/empty'
 	import * as Field from '$lib/components/ui/field'
-	import * as Popover from '$lib/components/ui/popover'
 	import { Input } from '$lib/components/ui/input'
 	import * as InputGroup from '$lib/components/ui/input-group'
 	import { Skeleton } from '$lib/components/ui/skeleton'
@@ -163,11 +160,8 @@
 		showNew = false
 	}
 
-	let itemPickerOpen = $state(false)
-
 	const pickItem = async (item: InventoryItem): Promise<void> => {
 		newItemId = item.id
-		itemPickerOpen = false
 		// The quantity field unlocks on the pick, so hand it focus once it has
 		await tick()
 		quantityInput?.focus()
@@ -436,61 +430,15 @@
 		<Field.Group>
 			<Field.Field>
 				<Field.Label for="new-request-item">Item</Field.Label>
-				<!-- A combobox: the button names the pick, the list opens under it and closes on a choice. -->
-				<Popover.Root bind:open={itemPickerOpen}>
-					<Popover.Trigger>
-						{#snippet child({ props })}
-							<Button
-								{...props}
-								id="new-request-item"
-								variant="outline"
-								role="combobox"
-								aria-expanded={itemPickerOpen}
-								class={cn(
-									'w-full justify-between font-normal',
-									newItem === undefined && 'text-muted-foreground',
-								)}
-							>
-								<span class={cn('truncate', capsClass(newItem?.item_name))}>
-									{newItem?.item_name ?? 'Choose an item'}
-								</span>
-								<ChevronsUpDownIcon data-icon="inline-end" class="opacity-50" />
-							</Button>
-						{/snippet}
-					</Popover.Trigger>
-					<Popover.Content class="w-(--bits-popover-anchor-width) p-0" align="start">
-						<Command.Root class="rounded-3xl" loop>
-							<Command.Input placeholder="Type to find an item" />
-							<Command.List>
-								<Command.Empty>No item found.</Command.Empty>
-								<Command.Group>
-									{#each itemOptions as item (item.id)}
-										<!-- The whole name shows, wrapping when it must; on hand trails as a compact figure. -->
-										<Command.Item
-											class="items-start rounded-xl"
-											value={item.item_name}
-											onSelect={() => pickItem(item)}
-										>
-											<CheckIcon
-												class={cn('mt-0.5', newItemId !== item.id && 'text-transparent')}
-											/>
-											<span class={cn('min-w-0 flex-1', capsClass(item.item_name))}
-												>{item.item_name}</span
-											>
-											<Quantity
-												value={item.quantity}
-												unit={item.unit}
-												pack={false}
-												class="shrink-0 text-xs"
-												valueClass={cn('font-normal', item.quantity === 0 && 'text-destructive')}
-											/>
-										</Command.Item>
-									{/each}
-								</Command.Group>
-							</Command.List>
-						</Command.Root>
-					</Popover.Content>
-				</Popover.Root>
+				<!-- One search field that holds the pick, as HealthOS finds a patient. -->
+				<ItemPicker
+					id="new-request-item"
+					bind:value={newItemId}
+					items={itemOptions}
+					showOnHand
+					autofocus
+					onSelect={pickItem}
+				/>
 			</Field.Field>
 			<Field.Field data-invalid={newOverStock || undefined} data-disabled={!newItem || undefined}>
 				<Field.Label for="new-request-quantity">Quantity</Field.Label>

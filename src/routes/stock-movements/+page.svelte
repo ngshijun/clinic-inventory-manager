@@ -4,8 +4,6 @@
 	import { getLocalTimeZone, parseDate, today, type DateValue } from '@internationalized/date'
 	import type { DateRange } from 'bits-ui'
 	import CalendarIcon from '@lucide/svelte/icons/calendar'
-	import CheckIcon from '@lucide/svelte/icons/check'
-	import ChevronsUpDownIcon from '@lucide/svelte/icons/chevrons-up-down'
 	import HistoryIcon from '@lucide/svelte/icons/history'
 	import PencilIcon from '@lucide/svelte/icons/pencil'
 	import SearchIcon from '@lucide/svelte/icons/search'
@@ -14,12 +12,12 @@
 	import { caretAtEnd } from '$lib/attachments/focus'
 	import ActionModal from '$lib/components/app/ActionModal.svelte'
 	import DialogSubject from '$lib/components/app/DialogSubject.svelte'
+	import ItemPicker from '$lib/components/app/ItemPicker.svelte'
 	import PageHeader from '$lib/components/app/PageHeader.svelte'
 	import SortHeader from '$lib/components/app/SortHeader.svelte'
 	import type { SortState } from '$lib/components/app/sort'
 	import { Badge } from '$lib/components/ui/badge'
 	import { Button } from '$lib/components/ui/button'
-	import * as Command from '$lib/components/ui/command'
 	import * as Empty from '$lib/components/ui/empty'
 	import * as Field from '$lib/components/ui/field'
 	import { Input } from '$lib/components/ui/input'
@@ -261,12 +259,12 @@
 	})
 
 	// Item picker inside the filters popover
-	let itemPickerOpen = $state(false)
 	const itemOptions = $derived(
 		[...inventoryStore.items].sort((a, b) =>
 			a.item_name.toLowerCase().localeCompare(b.item_name.toLowerCase()),
 		),
 	)
+
 	const itemName = (itemId: InventoryItem['id'] | null): string =>
 		itemId === null ? '' : (inventoryStore.getItemById(itemId)?.item_name ?? 'Deleted item')
 
@@ -450,66 +448,12 @@
 						</Field.Field>
 						<Field.Field>
 							<Field.Label for="filter-item">Item</Field.Label>
-							<Popover.Root bind:open={itemPickerOpen}>
-								<Popover.Trigger>
-									{#snippet child({ props })}
-										<Button
-											{...props}
-											id="filter-item"
-											variant="outline"
-											role="combobox"
-											aria-expanded={itemPickerOpen}
-											class={cn(
-												'w-full justify-between font-normal',
-												filterDraft.itemId === null && 'text-muted-foreground',
-											)}
-										>
-											<span class="truncate">
-												{filterDraft.itemId === null ? 'Any item' : itemName(filterDraft.itemId)}
-											</span>
-											<ChevronsUpDownIcon data-icon="inline-end" class="opacity-50" />
-										</Button>
-									{/snippet}
-								</Popover.Trigger>
-								<Popover.Content class="w-(--bits-popover-anchor-width) p-0" align="start">
-									<Command.Root class="rounded-3xl">
-										<Command.Input placeholder="Search items" />
-										<Command.List>
-											<Command.Empty>No item found.</Command.Empty>
-											<Command.Group>
-												<Command.Item
-													class="rounded-xl"
-													value="any item"
-													onSelect={() => {
-														filterDraft.itemId = null
-														itemPickerOpen = false
-													}}
-												>
-													<CheckIcon
-														class={cn(filterDraft.itemId !== null && 'text-transparent')}
-													/>
-													Any item
-												</Command.Item>
-												{#each itemOptions as item (item.id)}
-													<Command.Item
-														class="rounded-xl"
-														value={item.item_name}
-														onSelect={() => {
-															filterDraft.itemId = item.id
-															itemPickerOpen = false
-														}}
-													>
-														<CheckIcon
-															class={cn(filterDraft.itemId !== item.id && 'text-transparent')}
-														/>
-														<span class={capsClass(item.item_name)}>{item.item_name}</span>
-													</Command.Item>
-												{/each}
-											</Command.Group>
-										</Command.List>
-									</Command.Root>
-								</Popover.Content>
-							</Popover.Root>
+							<ItemPicker
+								id="filter-item"
+								bind:value={filterDraft.itemId}
+								items={itemOptions}
+								placeholder="Any item"
+							/>
 						</Field.Field>
 						<p class="text-muted-foreground text-xs">
 							Quantity, remark and item filters apply page by page, so the total is shown only when
