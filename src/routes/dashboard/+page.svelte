@@ -17,6 +17,7 @@
 	import ToneBadge from '$lib/components/app/ToneBadge.svelte'
 	import { Button } from '$lib/components/ui/button'
 	import * as Card from '$lib/components/ui/card'
+	import * as Empty from '$lib/components/ui/empty'
 	import { Skeleton } from '$lib/components/ui/skeleton'
 	import * as Table from '$lib/components/ui/table'
 	import * as Tabs from '$lib/components/ui/tabs'
@@ -196,9 +197,11 @@
 				'/inventory',
 			)}
 			{#if expiring.length === 0}
-				<p class="text-muted-foreground text-sm">
-					No batches expire in the next {EXPIRY_WARNING_DAYS} days.
-				</p>
+				{@render emptyPane(
+					ClockIcon,
+					'Nothing expiring',
+					`No batch with stock expires in the next ${EXPIRY_WARNING_DAYS} days.`,
+				)}
 			{:else}
 				<Table.Root>
 					<Table.Header>
@@ -260,7 +263,11 @@
 		<Tabs.Content value="reorder" class="flex flex-col gap-3">
 			{@render paneSub('Out of stock first, then low.', 'Open Price List', '/price-list')}
 			{#if reorder.length === 0}
-				<p class="text-muted-foreground text-sm">Every tracked item is above its reorder level.</p>
+				{@render emptyPane(
+					BoxIcon,
+					'Nothing to reorder',
+					'Every tracked item is above its reorder level.',
+				)}
 			{:else}
 				<Table.Root>
 					<Table.Header>
@@ -328,9 +335,11 @@
 		<Tabs.Content value="stale" class="flex flex-col gap-3">
 			{@render paneSub('No movement for over a month, oldest first.', null, null)}
 			{#if stale.length === 0}
-				<p class="text-muted-foreground text-sm">
-					Every tracked item with stock has moved in the last {STALE_DAYS} days.
-				</p>
+				{@render emptyPane(
+					ArchiveIcon,
+					'Nothing stale',
+					`Every tracked item with stock has moved in the last ${STALE_DAYS} days.`,
+				)}
 			{:else}
 				<Table.Root>
 					<Table.Header>
@@ -464,6 +473,17 @@
 			</Button>
 		{/if}
 	</div>
+{/snippet}
+
+<!-- An empty queue: the queue's glyph, one title, one sentence, no next step -->
+{#snippet emptyPane(Icon: Component<{ class?: string }>, title: string, description: string)}
+	<Empty.Root class="flex-none py-8">
+		<Empty.Header>
+			<Empty.Media variant="icon"><Icon /></Empty.Media>
+			<Empty.Title>{title}</Empty.Title>
+			<Empty.Description>{description}</Empty.Description>
+		</Empty.Header>
+	</Empty.Root>
 {/snippet}
 
 {#snippet footer(
