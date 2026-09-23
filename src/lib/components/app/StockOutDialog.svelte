@@ -2,6 +2,7 @@
 	import { toast } from 'svelte-sonner'
 	import { selectOnFocus } from '$lib/attachments/focus'
 	import ActionModal from '$lib/components/app/ActionModal.svelte'
+	import DialogSubject from '$lib/components/app/DialogSubject.svelte'
 	import ToneBadge from '$lib/components/app/ToneBadge.svelte'
 	import * as Field from '$lib/components/ui/field'
 	import { Input } from '$lib/components/ui/input'
@@ -26,6 +27,17 @@
 	const max = $derived(live?.quantity ?? 0)
 	const unit = $derived(live?.unit ?? '')
 	const batchCount = $derived(item ? stockBatchesStore.getBatchesForItem(item.id).length : 0)
+	const earliestExpiry = $derived(
+		item ? stockBatchesStore.nearestExpiryByItem.get(item.id) : undefined,
+	)
+	const facts = $derived.by((): Array<{ label: string; value: string }> => {
+		const rows = [
+			{ label: 'On hand', value: `${max} ${unit}` },
+			{ label: 'Batches', value: String(batchCount) },
+		]
+		if (earliestExpiry) rows.push({ label: 'Earliest expiry', value: formatDate(earliestExpiry) })
+		return rows
+	})
 
 	const plural = (count: number, noun: string, many = `${noun}s`): string =>
 		`${count} ${count === 1 ? noun : many}`
@@ -63,6 +75,7 @@
 
 	const overMax = $derived(Number(quantity) > max)
 	const isValid = $derived(Number(quantity) > 0 && !overMax)
+	const left = $derived(max - Math.floor(Number(quantity) || 0))
 
 	const confirm = async (): Promise<void> => {
 		if (!item || !isValid) return
@@ -78,8 +91,7 @@
 
 <ActionModal
 	bind:open={isOpen}
-	title={`Stock Out · ${item?.item_name ?? ''}`}
-	description={`On hand ${max} ${unit} across ${plural(batchCount, 'batch', 'batches')}.`}
+	title="Stock Out"
 	loading={inventoryStore.loading}
 	dirty={Number(quantity) !== 1}
 	disabled={!isValid}
@@ -87,6 +99,9 @@
 	onconfirm={confirm}
 	oncancel={close}
 >
+	{#if item}
+		<DialogSubject name={item.item_name} {facts} />
+	{/if}
 	<form
 		onsubmit={(e) => {
 			e.preventDefault()
@@ -109,8 +124,8 @@
 				/>
 				{#if overMax}
 					<Field.Error>Only {max} {unit} on hand.</Field.Error>
-				{:else}
-					<Field.Description>Up to {max} {unit}.</Field.Description>
+				{:else if isValid}
+					<Field.Description>{left} {unit} left after this stock out.</Field.Description>
 				{/if}
 			</Field.Field>
 			{#if plan.length > 0}

@@ -21,6 +21,7 @@
 	import XIcon from '@lucide/svelte/icons/x'
 	import { selectOnFocus } from '$lib/attachments/focus'
 	import ActionModal from '$lib/components/app/ActionModal.svelte'
+	import DialogSubject from '$lib/components/app/DialogSubject.svelte'
 	import DiscardDialog from '$lib/components/app/DiscardDialog.svelte'
 	import PageHeader from '$lib/components/app/PageHeader.svelte'
 	import ReasonBadge from '$lib/components/app/ReasonBadge.svelte'
@@ -254,6 +255,25 @@
 		keepUntracked = item.not_track
 		showStockInDialog = true
 	}
+
+	// What the person needs to know before typing a quantity; prose says none of it
+	const stockInFacts = $derived.by((): Array<{ label: string; value: string }> => {
+		if (!stockInItem) return []
+		const rows = [
+			{ label: 'On hand', value: `${stockInItem.quantity} ${stockInItem.unit}` },
+			{ label: 'Reorder at', value: String(stockInItem.reorder_level) },
+			{
+				label: 'Batches',
+				value: String(stockBatchesStore.batchesByItem.get(stockInItem.id)?.length ?? 0),
+			},
+		]
+		if (stockInItem.order_date)
+			rows.push({ label: 'Ordered', value: formatDate(stockInItem.order_date) })
+		return rows
+	})
+	const stockInAfter = $derived(
+		(stockInItem?.quantity ?? 0) + Math.max(0, Math.floor(Number(stockInQuantity) || 0)),
+	)
 
 	const isStockInDirty = $derived(
 		stockInItem !== null &&
@@ -1094,8 +1114,7 @@
 <!-- Stock In -->
 <ActionModal
 	bind:open={showStockInDialog}
-	title={`Stock In · ${stockInItem?.item_name ?? ''}`}
-	description={`On hand ${stockInItem?.quantity ?? 0} ${stockInItem?.unit ?? ''}. This stock is recorded as its own batch; stock out takes from the earliest-expiring batch first.`}
+	title="Stock In"
 	loading={inventoryStore.loading}
 	disabled={Number(stockInQuantity) <= 0}
 	dirty={isStockInDirty}
@@ -1103,6 +1122,9 @@
 	onconfirm={confirmStockIn}
 	oncancel={closeStockIn}
 >
+	{#if stockInItem}
+		<DialogSubject name={stockInItem.item_name} facts={stockInFacts} />
+	{/if}
 	<form
 		onsubmit={(e) => {
 			e.preventDefault()
@@ -1122,24 +1144,29 @@
 						required
 						{@attach selectOnFocus()}
 					/>
+					{#if Number(stockInQuantity) > 0}
+						<Field.Description>
+							{stockInAfter}
+							{stockInItem?.unit} after this stock in.
+						</Field.Description>
+					{/if}
 				</Field.Field>
 				<Field.Field>
-					<Field.Label for="stock-in-expiry">Expiry date</Field.Label>
+					<Field.Label for="stock-in-expiry">
+						Expiry date <span class="text-muted-foreground font-normal">optional</span>
+					</Field.Label>
 					<Input
 						id="stock-in-expiry"
 						bind:value={stockInExpiryDate}
 						type="date"
 						min={todayIsoDate()}
 					/>
-					<Field.Description>Leave empty if the batch has no expiry.</Field.Description>
 				</Field.Field>
 			</div>
 			{#if stockInItem?.order_date}
 				<Field.Field orientation="horizontal">
 					<Checkbox id="stock-in-clear-order" bind:checked={clearOrderDate} />
-					<Field.Label for="stock-in-clear-order">
-						Received: clear the order date ({formatDayMonth(stockInItem.order_date)})
-					</Field.Label>
+					<Field.Label for="stock-in-clear-order">Received: clear the order date</Field.Label>
 				</Field.Field>
 			{/if}
 			{#if stockInItem?.not_track}
