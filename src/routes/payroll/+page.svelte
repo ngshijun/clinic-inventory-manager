@@ -596,8 +596,8 @@
 		bind:open={showSave}
 		title={existingRun ? `Overwrite ${periodLabel}?` : `Save ${periodLabel}?`}
 		description={existingRun
-			? `This month was saved on ${formatDate(existingRun.updated_at)}. Saving again replaces the stored figures; the previous version cannot be recovered.`
-			: 'The figures on screen are frozen into a record and payslips unlock.'}
+			? `Saved on ${formatDate(existingRun.updated_at)}. Saving again replaces those figures.`
+			: 'Freezes the figures on screen and unlocks the payslips.'}
 		loading={payrollRecordsStore.loading}
 		confirmText={existingRun ? 'Overwrite Record' : 'Save Record'}
 		onconfirm={confirmSave}
@@ -803,7 +803,6 @@
 	<ActionModal
 		bind:open={showRun}
 		title="Run Payroll"
-		description="Figures are calculated from today's employee records."
 		disabled={!runPeriod}
 		confirmText="Open Payroll"
 		onconfirm={confirmRun}
@@ -852,7 +851,7 @@
 	<!-- Add / edit employee -->
 	<ActionModal
 		bind:open={showEmployeeDialog}
-		title={editing ? `Edit Employee · ${editing.name}` : 'Add Employee'}
+		title={editing ? 'Edit Employee' : 'Add Employee'}
 		loading={payrollStore.loading}
 		disabled={!isFormValid || !isFormChanged}
 		dirty={editing ? isFormChanged : JSON.stringify(form) !== JSON.stringify(emptyForm())}
@@ -910,9 +909,6 @@
 							disabled={form.useDefaultEpf}
 							{@attach selectOnFocus()}
 						/>
-						{#if form.useDefaultEpf}
-							<Field.Description>Auto at the statutory rate. Untick to override.</Field.Description>
-						{/if}
 					</Field.Field>
 				</div>
 				<Field.Field orientation="horizontal">
@@ -927,19 +923,14 @@
 						<Field.Label for="employee-lindung" class="font-normal">
 							Opted in to Lindung 24 Jam (SKBBK)
 						</Field.Label>
-						<Field.Description>
-							Employee-only deduction, calculated from the basic salary.
-							{#if formSalary > 0}
-								{form.lindung_24_jam ? 'Current deduction' : 'Would be'} {formatRM(lindungPreview)}.
-							{/if}
-						</Field.Description>
+						{#if formSalary > 0}
+							<Field.Description>
+								{form.lindung_24_jam ? 'Deducts' : 'Would deduct'}
+								{formatRM(lindungPreview)}.
+							</Field.Description>
+						{/if}
 					</Field.Content>
 				</Field.Field>
-				{#if editing}
-					<p class="text-muted-foreground text-xs">
-						Changes apply to the next payroll run. Saved records are not affected.
-					</p>
-				{/if}
 			</Field.Group>
 			<button type="submit" class="hidden" aria-hidden="true" tabindex="-1"></button>
 		</form>

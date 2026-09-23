@@ -9,6 +9,7 @@
 	import XIcon from '@lucide/svelte/icons/x'
 	import { caretAtEnd } from '$lib/attachments/focus'
 	import ActionModal from '$lib/components/app/ActionModal.svelte'
+	import DialogSubject from '$lib/components/app/DialogSubject.svelte'
 	import MarkOrderedDialog from '$lib/components/app/MarkOrderedDialog.svelte'
 	import OrderStatusMenu from '$lib/components/app/OrderStatusMenu.svelte'
 	import PageHeader from '$lib/components/app/PageHeader.svelte'
@@ -352,8 +353,7 @@
 <!-- Edit Remark -->
 <ActionModal
 	bind:open={showRemarkDialog}
-	title={`Edit Remark · ${remarkItem?.item_name ?? ''}`}
-	description="Last purchase price, supplier, or anything the next person ordering should know."
+	title="Edit Remark"
 	loading={inventoryStore.loading}
 	disabled={!isRemarkChanged}
 	dirty={isRemarkChanged}
@@ -361,6 +361,9 @@
 	onconfirm={confirmRemark}
 	oncancel={closeRemark}
 >
+	{#if remarkItem}
+		<DialogSubject name={remarkItem.item_name} />
+	{/if}
 	<Field.Group>
 		<Field.Field>
 			<Field.Label for="remark">Remark</Field.Label>

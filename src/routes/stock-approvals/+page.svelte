@@ -233,9 +233,10 @@
 
 	const rejectTitle = $derived(
 		rejectTargets.length === 1
-			? `Reject “${rejectTargets[0].item_name}”?`
+			? 'Reject Request?'
 			: `Reject ${plural(rejectTargets.length, 'Request')}?`,
 	)
+	const rejectDescription = $derived(rejectTargets.map((r) => r.item_name).join(', '))
 
 	// ---------- Edit ----------
 	let editDialog = $state<EditRequestDialog | null>(null)
@@ -523,29 +524,24 @@
 <ActionModal
 	bind:open={showReject}
 	title={rejectTitle}
+	description={rejectDescription}
 	loading={stockRequestsStore.loading}
 	dirty={rejectReason.trim() !== ''}
 	confirmText="Reject"
 	onconfirm={confirmReject}
 	oncancel={closeReject}
 >
-	{#if rejectTargets.length > 1}
-		<p class="text-muted-foreground mb-4 text-sm">
-			{rejectTargets.map((r) => r.item_name).join(', ')}.
-		</p>
-	{/if}
 	<Field.Group>
 		<Field.Field>
-			<Field.Label for="reject-reason">Reason</Field.Label>
+			<Field.Label for="reject-reason">
+				Reason <span class="text-muted-foreground font-normal">optional</span>
+			</Field.Label>
 			<Textarea
 				id="reject-reason"
 				bind:value={rejectReason}
 				rows={3}
 				placeholder="e.g. Supplier has no stock, use the alternative in cabinet B"
 			/>
-			<Field.Description
-				>Optional. The requester sees it on their Stock Requests page.</Field.Description
-			>
 		</Field.Field>
 	</Field.Group>
 </ActionModal>

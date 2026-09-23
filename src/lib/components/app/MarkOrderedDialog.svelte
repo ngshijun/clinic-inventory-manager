@@ -1,12 +1,14 @@
 <script lang="ts">
 	import { toast } from 'svelte-sonner'
 	import ActionModal from '$lib/components/app/ActionModal.svelte'
+	import DialogSubject from '$lib/components/app/DialogSubject.svelte'
 	import { Checkbox } from '$lib/components/ui/checkbox'
 	import * as Field from '$lib/components/ui/field'
 	import { Input } from '$lib/components/ui/input'
 	import { inventoryStore } from '$lib/stores/inventory.svelte'
 	import type { InventoryItem } from '$lib/types/inventory'
 	import { todayIsoDate } from '$lib/types/stockBatches'
+	import { formatDate } from '$lib/utils/date'
 
 	/**
 	 * Marks an item as ordered on a chosen date. Shared by Price List and the
@@ -18,6 +20,15 @@
 	let backOrder = $state(false)
 	let openedWith = $state('')
 	const dirty = $derived(orderDate !== openedWith || backOrder)
+	const facts = $derived.by((): Array<{ label: string; value: string }> => {
+		if (!item) return []
+		const rows = [
+			{ label: 'On hand', value: `${item.quantity} ${item.unit}` },
+			{ label: 'Reorder at', value: item.reorder_level < 0 ? '—' : String(item.reorder_level) },
+		]
+		if (item.order_date) rows.push({ label: 'Ordered', value: formatDate(item.order_date) })
+		return rows
+	})
 
 	export function open(target: InventoryItem): void {
 		item = target
@@ -45,7 +56,7 @@
 
 <ActionModal
 	bind:open={isOpen}
-	title={`Mark “${item?.item_name ?? ''}” as Ordered`}
+	title="Mark as Ordered"
 	loading={inventoryStore.loading}
 	{dirty}
 	disabled={!orderDate}
@@ -53,6 +64,9 @@
 	onconfirm={confirm}
 	oncancel={close}
 >
+	{#if item}
+		<DialogSubject name={item.item_name} {facts} />
+	{/if}
 	<form
 		onsubmit={(e) => {
 			e.preventDefault()
@@ -66,12 +80,7 @@
 			</Field.Field>
 			<Field.Field orientation="horizontal">
 				<Checkbox id="order-back-order" bind:checked={backOrder} />
-				<Field.Content>
-					<Field.Label for="order-back-order">Back order</Field.Label>
-					<Field.Description>
-						Tick when the supplier has accepted the order but cannot deliver yet.
-					</Field.Description>
-				</Field.Content>
+				<Field.Label for="order-back-order">Back-ordered</Field.Label>
 			</Field.Field>
 		</Field.Group>
 		<button type="submit" class="hidden" aria-hidden="true" tabindex="-1"></button>

@@ -468,27 +468,24 @@
 					aria-invalid={newOverStock || undefined}
 					{@attach selectOnFocus()}
 				/>
-				{#if !newItem}
-					<Field.Description>
-						Enabled once an item is picked; limited to what is on hand.
-					</Field.Description>
-				{:else if newOverStock}
+				{#if newItem && newOverStock}
 					<Field.Error>Only {withUnit(newOnHand, newUnit)} on hand.</Field.Error>
-				{:else if newOnHand === 0}
+				{:else if newItem && newOnHand === 0}
 					<Field.Error>Nothing on hand.</Field.Error>
-				{:else}
+				{:else if newItem}
 					<Field.Description>Up to {withUnit(newOnHand, newUnit)} on hand.</Field.Description>
 				{/if}
 			</Field.Field>
 			<Field.Field>
-				<Field.Label for="new-request-remark">Remark</Field.Label>
+				<Field.Label for="new-request-remark">
+					Remark <span class="text-muted-foreground font-normal">optional</span>
+				</Field.Label>
 				<Textarea
 					id="new-request-remark"
 					bind:value={newRemark}
 					rows={2}
 					placeholder="e.g. Dispensary running low"
 				/>
-				<Field.Description>Optional.</Field.Description>
 			</Field.Field>
 		</Field.Group>
 		<button type="submit" class="hidden" aria-hidden="true" tabindex="-1"></button>

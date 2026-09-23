@@ -186,6 +186,8 @@
 		item_name: string
 		unit: string
 		reorder_level: number
+		/** Low-stock alert on; off saves a reorder level of −1 */
+		alert: boolean
 		quantity: number
 		expiry_date: string
 		remark: string
@@ -194,6 +196,7 @@
 		item_name: '',
 		unit: '',
 		reorder_level: 0,
+		alert: true,
 		quantity: 0,
 		expiry_date: '',
 		remark: '',
@@ -207,7 +210,7 @@
 		newItem.item_name.trim() !== '' &&
 			newItem.unit.trim() !== '' &&
 			Number(newItem.quantity) >= 0 &&
-			Number(newItem.reorder_level) >= -1,
+			(!newItem.alert || Number(newItem.reorder_level) >= 0),
 	)
 
 	const isNewItemDirty = $derived(JSON.stringify(newItem) !== JSON.stringify(emptyNewItem()))
@@ -229,7 +232,7 @@
 			item_name: newItem.item_name.trim(),
 			unit: newItem.unit.trim(),
 			quantity: Math.max(0, Math.floor(Number(newItem.quantity))),
-			reorder_level: Math.max(-1, Math.floor(Number(newItem.reorder_level))),
+			reorder_level: newItem.alert ? Math.max(0, Math.floor(Number(newItem.reorder_level))) : -1,
 			remark: newItem.remark,
 		}
 		await inventoryStore.addItem(payload, newItem.expiry_date || null)
@@ -312,6 +315,7 @@
 		item_name: string
 		unit: string
 		reorder_level: number
+		alert: boolean
 		remark: string
 		not_track: boolean
 	}
@@ -322,6 +326,7 @@
 		item_name: '',
 		unit: '',
 		reorder_level: 0,
+		alert: true,
 		remark: '',
 		not_track: false,
 	})
@@ -331,7 +336,8 @@
 		editForm = {
 			item_name: item.item_name,
 			unit: item.unit,
-			reorder_level: item.reorder_level,
+			reorder_level: Math.max(0, item.reorder_level),
+			alert: item.reorder_level >= 0,
 			remark: item.remark,
 			not_track: item.not_track,
 		}
@@ -346,7 +352,10 @@
 	const isEditValid = $derived(
 		editForm.item_name.trim() !== '' &&
 			editForm.unit.trim() !== '' &&
-			Number(editForm.reorder_level) >= -1,
+			(!editForm.alert || Number(editForm.reorder_level) >= 0),
+	)
+	const editReorderLevel = $derived(
+		editForm.alert ? Math.max(0, Math.floor(Number(editForm.reorder_level))) : -1,
 	)
 
 	const isEditChanged = $derived.by((): boolean => {
@@ -354,7 +363,7 @@
 		return (
 			editForm.item_name.trim() !== editingItem.item_name ||
 			editForm.unit.trim() !== editingItem.unit ||
-			Number(editForm.reorder_level) !== editingItem.reorder_level ||
+			editReorderLevel !== editingItem.reorder_level ||
 			editForm.remark !== editingItem.remark ||
 			editForm.not_track !== editingItem.not_track
 		)
@@ -366,7 +375,7 @@
 		await inventoryStore.updateItem(item.id, {
 			item_name: editForm.item_name.trim(),
 			unit: editForm.unit.trim(),
-			reorder_level: Math.max(-1, Math.floor(Number(editForm.reorder_level))),
+			reorder_level: editReorderLevel,
 			remark: editForm.remark,
 			not_track: editForm.not_track,
 		})
@@ -1058,20 +1067,24 @@
 					<Field.Label for="add-unit">Unit</Field.Label>
 					<Input id="add-unit" bind:value={newItem.unit} placeholder="e.g. tabs" required />
 				</Field.Field>
-				<Field.Field>
+				<Field.Field data-disabled={!newItem.alert || undefined}>
 					<Field.Label for="add-reorder">Reorder level</Field.Label>
 					<Input
 						id="add-reorder"
 						bind:value={newItem.reorder_level}
 						type="number"
-						min={-1}
+						min={0}
 						step={1}
-						required
+						required={newItem.alert}
+						disabled={!newItem.alert}
 						{@attach selectOnFocus()}
 					/>
-					<Field.Description>Set to −1 for no reorder alert.</Field.Description>
 				</Field.Field>
 			</div>
+			<Field.Field orientation="horizontal">
+				<Checkbox id="add-alert" bind:checked={newItem.alert} />
+				<Field.Label for="add-alert">Low-stock alert</Field.Label>
+			</Field.Field>
 			<div class="grid grid-cols-2 gap-4">
 				<Field.Field>
 					<Field.Label for="add-quantity">Initial quantity</Field.Label>
@@ -1094,7 +1107,6 @@
 						min={todayIsoDate()}
 						disabled={Number(newItem.quantity) <= 0}
 					/>
-					<Field.Description>Enabled once a quantity is entered.</Field.Description>
 				</Field.Field>
 			</div>
 			<Field.Field>
@@ -1185,7 +1197,7 @@
 <!-- Edit Item -->
 <ActionModal
 	bind:open={showEditDialog}
-	title={`Edit Item · ${editingItem?.item_name ?? ''}`}
+	title="Edit Item"
 	loading={inventoryStore.loading}
 	disabled={!isEditValid || !isEditChanged}
 	dirty={isEditChanged}
@@ -1212,34 +1224,31 @@
 					<Field.Label for="edit-unit">Unit</Field.Label>
 					<Input id="edit-unit" bind:value={editForm.unit} required />
 				</Field.Field>
-				<Field.Field>
+				<Field.Field data-disabled={!editForm.alert || undefined}>
 					<Field.Label for="edit-reorder">Reorder level</Field.Label>
 					<Input
 						id="edit-reorder"
 						bind:value={editForm.reorder_level}
 						type="number"
-						min={-1}
+						min={0}
 						step={1}
-						required
+						required={editForm.alert}
+						disabled={!editForm.alert}
 						{@attach selectOnFocus()}
 					/>
-					<Field.Description>Set to −1 for no reorder alert.</Field.Description>
 				</Field.Field>
 			</div>
+			<Field.Field orientation="horizontal">
+				<Checkbox id="edit-alert" bind:checked={editForm.alert} />
+				<Field.Label for="edit-alert">Low-stock alert</Field.Label>
+			</Field.Field>
 			<Field.Field>
 				<Field.Label for="edit-remark">Remark</Field.Label>
 				<Textarea id="edit-remark" bind:value={editForm.remark} rows={2} />
 			</Field.Field>
 			<Field.Field orientation="horizontal">
 				<Checkbox id="edit-not-track" bind:checked={editForm.not_track} />
-				<Field.Content>
-					<Field.Label for="edit-not-track">Not tracked</Field.Label>
-					<Field.Description>
-						Untracked items are left out of stock totals and low-stock alerts. On hand is {editingItem?.quantity ??
-							0}
-						{editingItem?.unit}; use Stock In, Stock Out or Batches to change it.
-					</Field.Description>
-				</Field.Content>
+				<Field.Label for="edit-not-track">Not tracked</Field.Label>
 			</Field.Field>
 		</Field.Group>
 		<button type="submit" class="hidden" aria-hidden="true" tabindex="-1"></button>
@@ -1251,8 +1260,8 @@
 <!-- Delete Item -->
 <ActionModal
 	bind:open={showDeleteDialog}
-	title={`Delete “${deletingItem?.item_name ?? ''}”?`}
-	description="Its movement history stays in Stock Movements. This cannot be undone."
+	title="Delete This Item?"
+	description={`${deletingItem?.item_name ?? ''} and its batches are removed. Its movement history stays in Stock Movements.`}
 	loading={deleteLoading}
 	confirmText="Delete"
 	onconfirm={confirmDelete}

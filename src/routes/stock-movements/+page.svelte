@@ -13,6 +13,7 @@
 	import XIcon from '@lucide/svelte/icons/x'
 	import { caretAtEnd } from '$lib/attachments/focus'
 	import ActionModal from '$lib/components/app/ActionModal.svelte'
+	import DialogSubject from '$lib/components/app/DialogSubject.svelte'
 	import PageHeader from '$lib/components/app/PageHeader.svelte'
 	import SortHeader from '$lib/components/app/SortHeader.svelte'
 	import type { SortState } from '$lib/components/app/sort'
@@ -720,10 +721,7 @@
 <!-- Edit Remark -->
 <ActionModal
 	bind:open={showRemarkDialog}
-	title={`Edit Remark · ${remarkMovement?.item_name ?? ''}`}
-	description={remarkMovement
-		? `${changeLabel(remarkMovement)} on ${formatDateTime(remarkMovement.created_at)}.`
-		: undefined}
+	title="Edit Remark"
 	loading={stockMovementsStore.loading}
 	disabled={!isRemarkChanged}
 	dirty={isRemarkChanged}
@@ -731,6 +729,15 @@
 	onconfirm={confirmRemark}
 	oncancel={closeRemark}
 >
+	{#if remarkMovement}
+		<DialogSubject
+			name={remarkMovement.item_name}
+			facts={[
+				{ label: 'Movement', value: changeLabel(remarkMovement) },
+				{ label: 'When', value: formatDateTime(remarkMovement.created_at) },
+			]}
+		/>
+	{/if}
 	<Field.Group>
 		<Field.Field>
 			<Field.Label for="movement-remark">Remark</Field.Label>

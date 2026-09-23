@@ -2,6 +2,7 @@
 	import { toast } from 'svelte-sonner'
 	import { selectOnFocus } from '$lib/attachments/focus'
 	import ActionModal from '$lib/components/app/ActionModal.svelte'
+	import DialogSubject from '$lib/components/app/DialogSubject.svelte'
 	import * as Field from '$lib/components/ui/field'
 	import { Input } from '$lib/components/ui/input'
 	import { Textarea } from '$lib/components/ui/textarea'
@@ -23,6 +24,7 @@
 		request ? (inventoryStore.getItemById(request.item_id)?.quantity ?? 0) : 0,
 	)
 	const unit = $derived(request?.unit ?? '')
+	const facts = $derived(request ? [{ label: 'On hand', value: withUnit(onHand, unit) }] : [])
 	const parsedQuantity = $derived(Number(quantity))
 	const overStock = $derived(quantity !== '' && parsedQuantity > onHand)
 	const isValid = $derived(
@@ -58,7 +60,7 @@
 
 <ActionModal
 	bind:open={isOpen}
-	title={`Edit Request · ${request?.item_name ?? ''}`}
+	title="Edit Request"
 	loading={stockRequestsStore.loading}
 	dirty={isChanged}
 	disabled={!isValid || !isChanged}
@@ -66,6 +68,9 @@
 	onconfirm={confirm}
 	oncancel={close}
 >
+	{#if request}
+		<DialogSubject name={request.item_name} {facts} />
+	{/if}
 	<form
 		onsubmit={(event) => {
 			event.preventDefault()
@@ -87,14 +92,13 @@
 				/>
 				{#if overStock}
 					<Field.Error>Only {withUnit(onHand, unit)} on hand.</Field.Error>
-				{:else}
-					<Field.Description>Up to {withUnit(onHand, unit)} on hand.</Field.Description>
 				{/if}
 			</Field.Field>
 			<Field.Field>
-				<Field.Label for="edit-request-remark">Remark</Field.Label>
+				<Field.Label for="edit-request-remark">
+					Remark <span class="text-muted-foreground font-normal">optional</span>
+				</Field.Label>
 				<Textarea id="edit-request-remark" bind:value={remark} rows={3} />
-				<Field.Description>Optional.</Field.Description>
 			</Field.Field>
 		</Field.Group>
 		<button type="submit" class="hidden" aria-hidden="true" tabindex="-1"></button>

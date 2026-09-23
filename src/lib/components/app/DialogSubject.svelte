@@ -8,21 +8,24 @@
 	 * they type; a hairline then hands over to the form. Facts replace prose:
 	 * a dialog that shows "On hand 12 BTL" needs no sentence saying so.
 	 */
-	let { name, facts }: { name: string; facts: Array<{ label: string; value: string }> } = $props()
+	let { name, facts = [] }: { name: string; facts?: Array<{ label: string; value: string }> } =
+		$props()
 </script>
 
 <div class="flex flex-col gap-1.5">
 	<p class="leading-snug font-semibold">{name}</p>
-	<dl class="text-muted-foreground flex flex-wrap items-baseline gap-x-2 text-sm">
-		{#each facts as fact, index (fact.label)}
-			{#if index > 0}
-				<span class="text-muted-foreground/60" aria-hidden="true">·</span>
-			{/if}
-			<div class="flex gap-1">
-				<dt>{fact.label}</dt>
-				<dd class="text-foreground font-medium tabular-nums">{fact.value}</dd>
-			</div>
-		{/each}
-	</dl>
+	{#if facts.length > 0}
+		<dl class="text-muted-foreground flex flex-wrap items-baseline gap-x-2 text-sm">
+			{#each facts as fact, index (fact.label)}
+				{#if index > 0}
+					<span class="text-muted-foreground/60" aria-hidden="true">·</span>
+				{/if}
+				<div class="flex gap-1">
+					<dt>{fact.label}</dt>
+					<dd class="text-foreground font-medium tabular-nums">{fact.value}</dd>
+				</div>
+			{/each}
+		</dl>
+	{/if}
 </div>
 <Separator />
