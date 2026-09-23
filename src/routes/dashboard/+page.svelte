@@ -11,7 +11,6 @@
 	import ToneBadge from '$lib/components/app/ToneBadge.svelte'
 	import { Button } from '$lib/components/ui/button'
 	import * as Card from '$lib/components/ui/card'
-	import { Progress } from '$lib/components/ui/progress'
 	import { Skeleton } from '$lib/components/ui/skeleton'
 	import * as Table from '$lib/components/ui/table'
 	import { useErrorToast } from '$lib/composables/errorToast.svelte'
@@ -239,29 +238,10 @@
 								</StatusDot>
 							</Table.Cell>
 							<Table.Cell class="py-2.5">
-								<div
-									class={cn(
-										'flex flex-col gap-1 tabular-nums',
-										out ? 'text-destructive' : 'text-warning',
-									)}
-								>
-									<span>
-										{item.quantity} of {item.reorder_level}
-										{item.unit}
-									</span>
-									{#if item.reorder_level > 0}
-										<Progress
-											value={Math.min(100, (item.quantity / item.reorder_level) * 100)}
-											class={cn(
-												'w-16',
-												out
-													? '[&>[data-slot=progress-indicator]]:bg-destructive'
-													: '[&>[data-slot=progress-indicator]]:bg-warning',
-											)}
-											aria-label="On hand against reorder level"
-										/>
-									{/if}
-								</div>
+								<span class={cn('tabular-nums', out && 'text-destructive')}>
+									{item.quantity} of {item.reorder_level}
+									{item.unit}
+								</span>
 							</Table.Cell>
 							<Table.Cell class="py-2.5">
 								{#if item.order_date}
