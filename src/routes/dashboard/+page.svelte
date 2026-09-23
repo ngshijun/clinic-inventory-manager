@@ -1,193 +1,73 @@
 <script lang="ts">
-	import { goto } from '$app/navigation'
-	import ArrowUpIcon from '$lib/components/icons/ArrowUpIcon.svelte'
-	import BoxIcon from '$lib/components/icons/BoxIcon.svelte'
-	import CalendarIcon from '$lib/components/icons/CalendarIcon.svelte'
-	import ClockIcon from '$lib/components/icons/ClockIcon.svelte'
-	import ClockSolidIcon from '$lib/components/icons/ClockSolidIcon.svelte'
-	import CloseIcon from '$lib/components/icons/CloseIcon.svelte'
-	import ExclamationCircleIcon from '$lib/components/icons/ExclamationCircleIcon.svelte'
-	import WarningIcon from '$lib/components/icons/WarningIcon.svelte'
-	import WarningTriangleIcon from '$lib/components/icons/WarningTriangleIcon.svelte'
-	import ActionButtonGroup, {
-		type ActionButtonGroupAction,
-	} from '$lib/components/app/ActionButtonGroup.svelte'
-	import ActionModal from '$lib/components/app/ActionModal.svelte'
-	import ErrorAlert from '$lib/components/app/ErrorAlert.svelte'
-	import FormField from '$lib/components/app/FormField.svelte'
-	import LoadingSpinner from '$lib/components/app/LoadingSpinner.svelte'
+	import { BarChart } from 'layerchart'
+	import CalendarIcon from '@lucide/svelte/icons/calendar'
+	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right'
+	import ClockIcon from '@lucide/svelte/icons/clock'
+	import HourglassIcon from '@lucide/svelte/icons/hourglass'
+	import MarkOrderedDialog from '$lib/components/app/MarkOrderedDialog.svelte'
+	import OrderStatusMenu from '$lib/components/app/OrderStatusMenu.svelte'
+	import PageHeader from '$lib/components/app/PageHeader.svelte'
 	import ReasonBadge from '$lib/components/app/ReasonBadge.svelte'
-	import StatusBadge from '$lib/components/app/StatusBadge.svelte'
+	import StockOutDialog from '$lib/components/app/StockOutDialog.svelte'
+	import ToneBadge from '$lib/components/app/ToneBadge.svelte'
+	import { Button } from '$lib/components/ui/button'
+	import * as Card from '$lib/components/ui/card'
+	import * as Chart from '$lib/components/ui/chart'
+	import { Progress } from '$lib/components/ui/progress'
+	import { Skeleton } from '$lib/components/ui/skeleton'
+	import * as Table from '$lib/components/ui/table'
+	import { useErrorToast } from '$lib/composables/errorToast.svelte'
+	import { createLoadMore } from '$lib/composables/loadMore.svelte'
+	import { useWeeklyMovements } from '$lib/composables/weeklyMovements.svelte'
 	import { inventoryStore } from '$lib/stores/inventory.svelte'
 	import { stockBatchesStore } from '$lib/stores/stockBatches.svelte'
-	import type { InventoryId, InventoryItem } from '$lib/types/inventory'
+	import { stockRequestsStore } from '$lib/stores/stockRequests.svelte'
+	import type { InventoryItem } from '$lib/types/inventory'
 	import { EXPIRY_WARNING_DAYS, daysUntilExpiry, type StockBatch } from '$lib/types/stockBatches'
+	import type { StockRequest } from '$lib/types/stockRequests'
+	import {
+		daysSince,
+		formatDate,
+		formatDayMonth,
+		formatDuration,
+		formatTime,
+	} from '$lib/utils/date'
+	import { expiryBadge } from '$lib/utils/expiry'
+	import { isOlderPending, localDateKey, withUnit } from '$lib/utils/requests'
+	import { todayIsoDate } from '$lib/types/stockBatches'
+	import { cn } from '$lib/utils'
 
-	// Order modal variables
-	let showOrderModal = $state<boolean>(false)
-	let orderItem = $state<InventoryItem | null>(null)
-	let orderDate = $state<string | number | undefined>('')
-	let backOrder = $state<boolean>(false)
+	const STALE_DAYS = 30
+	const QUEUE_PAGE = 8
 
-	// Dropdown toggle states
-	let isOutOfStockOpen = $state(false)
-	let isLowStockOpen = $state(false)
-	let isStaleInventoryOpen = $state(false)
-	let isExpiringOpen = $state(false)
+	useErrorToast(() => inventoryStore.error)
+	useErrorToast(() => stockBatchesStore.error)
+	useErrorToast(() => stockRequestsStore.error)
 
-	const toggleSection = (section: 'outOfStock' | 'lowStock' | 'staleInventory' | 'expiring') => {
-		switch (section) {
-			case 'expiring':
-				isExpiringOpen = !isExpiringOpen
-				break
-			case 'outOfStock':
-				isOutOfStockOpen = !isOutOfStockOpen
-				break
-			case 'lowStock':
-				isLowStockOpen = !isLowStockOpen
-				break
-			case 'staleInventory':
-				isStaleInventoryOpen = !isStaleInventoryOpen
-				break
-		}
-	}
+	const items = $derived(inventoryStore.items)
+	const initialLoading = $derived(inventoryStore.loading && items.length === 0)
 
-	// Back to top button visibility
-	let showBackToTop = $state<boolean>(false)
+	const plural = (count: number, noun: string, many = `${noun}s`): string =>
+		`${count} ${count === 1 ? noun : many}`
 
-	// Order modal functions
-	const openOrderModal = (item: InventoryItem): void => {
-		orderItem = item
-		orderDate = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
-			.toISOString()
-			.slice(0, 10)
-		showOrderModal = true
-		backOrder = false
-	}
+	// ---------- Headline strip ----------
+	const tracked = $derived(items.filter((item) => !item.not_track))
+	const untrackedCount = $derived(items.length - tracked.length)
+	const outOfStock = $derived(inventoryStore.outOfStockItems)
+	const lowStock = $derived(inventoryStore.lowStockItems)
+	const outOnOrder = $derived(outOfStock.filter((item) => !!item.order_date).length)
 
-	const closeOrderModal = (): void => {
-		showOrderModal = false
-		orderItem = null
-		orderDate = ''
-		backOrder = false
-	}
-
-	// Set non-order reason for an item
-	const setItemNonOrderReason = async (itemId: InventoryId, reason: string): Promise<void> => {
-		await inventoryStore.setNonOrderReason(itemId, reason)
-	}
-
-	// Clear non-order reason for an item
-	const clearItemNonOrderReason = async (itemId: InventoryId): Promise<void> => {
-		await inventoryStore.setNonOrderReason(itemId, null)
-	}
-
-	// Clear order date for an item
-	const clearOrderDate = async (itemId: InventoryId): Promise<void> => {
-		await inventoryStore.clearOrderDate(itemId)
-	}
-
-	// Action button configurations for items
-	const getItemActions = (item: InventoryItem): Array<ActionButtonGroupAction> => {
-		const actions: Array<ActionButtonGroupAction> = []
-
-		if (item.order_date) {
-			// Item is already ordered - show clear date option
-			actions.push({
-				key: 'clear-date',
-				label: 'Clear Date',
-				variant: 'yellow',
-			})
-		} else if (item.non_order_reason) {
-			// Item has a reason - show change dropdown
-			actions.push({
-				key: 'change-action',
-				label: 'Change',
-				variant: 'orange',
-				dropdown: [
-					{ key: 'mark-ordered', label: 'Mark Ordered' },
-					{ key: 'alternative-ordered', label: 'Alternative ordered' },
-					{ key: 'planning-to-order-later', label: 'Planning to order later' },
-					{ key: 'supplier-no-stock', label: 'Supplier has no stock' },
-					{ key: 'clear-reason', label: 'Clear reason' },
-				],
-			})
-		} else {
-			// No status - show dropdown to select action
-			actions.push({
-				key: 'select-action',
-				label: 'Select Action',
-				variant: 'blue',
-				dropdown: [
-					{ key: 'mark-ordered', label: 'Mark Ordered' },
-					{ key: 'alternative-ordered', label: 'Alternative ordered' },
-					{ key: 'planning-to-order-later', label: 'Planning to order later' },
-					{ key: 'supplier-no-stock', label: 'Supplier has no stock' },
-				],
-			})
-		}
-
-		return actions
-	}
-
-	// Handle action button clicks
-	const handleActionClick = async (actionKey: string, item: InventoryItem) => {
-		switch (actionKey) {
-			case 'mark-ordered':
-				openOrderModal(item)
-				return
-			case 'clear-date':
-				await clearOrderDate(item.id)
-				break
-			case 'alternative-ordered':
-				await setItemNonOrderReason(item.id, 'Alternative ordered')
-				break
-			case 'planning-to-order-later':
-				await setItemNonOrderReason(item.id, 'Planning to order later')
-				break
-			case 'supplier-no-stock':
-				await setItemNonOrderReason(item.id, 'Supplier has no stock')
-				break
-			case 'clear-reason':
-				await clearItemNonOrderReason(item.id)
-				break
-		}
-	}
-
-	// Calculate stale items (not updated for more than 30 days)
-	const staleItems = $derived.by(() => {
-		const thirtyDaysAgo = new Date()
-		thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-
-		return inventoryStore.items
-			.map((item) => {
-				const updatedAt = new Date(item.updated_at)
-
-				const daysSinceUpdate = Math.floor(
-					(Date.now() - updatedAt.getTime()) / (1000 * 60 * 60 * 24),
-				)
-
-				return {
-					...item,
-					daysSinceUpdate,
-					isStale: updatedAt < thirtyDaysAgo,
-				}
-			})
-			.filter((item) => !item.not_track && item.isStale && item.quantity !== 0)
-			.sort((a, b) => b.daysSinceUpdate - a.daysSinceUpdate) // Sort by oldest first
-	})
-
-	// Batches that have expired or expire within the warning window, soonest first
-	interface ExpiringBatch {
+	// ---------- Expiring batches ----------
+	interface ExpiringRow {
 		batch: StockBatch
 		item: InventoryItem
 		daysLeft: number
 	}
 
-	const expiringBatches = $derived.by((): ExpiringBatch[] => {
-		const rows: ExpiringBatch[] = []
+	const expiring = $derived.by((): ExpiringRow[] => {
+		const rows: ExpiringRow[] = []
 		for (const batch of stockBatchesStore.batches) {
-			if (!batch.expiry_date) continue
+			if (!batch.expiry_date || batch.quantity <= 0) continue
 			const daysLeft = daysUntilExpiry(batch.expiry_date)
 			if (daysLeft > EXPIRY_WARNING_DAYS) continue
 			const item = inventoryStore.getItemById(batch.item_id)
@@ -198,727 +78,491 @@
 			(a, b) => a.daysLeft - b.daysLeft || a.item.item_name.localeCompare(b.item.item_name),
 		)
 	})
+	const expiredCount = $derived(expiring.filter((row) => row.daysLeft < 0).length)
+	const expiringList = createLoadMore(() => expiring, QUEUE_PAGE)
 
-	const expiredCount = $derived(expiringBatches.filter((row) => row.daysLeft < 0).length)
+	// ---------- Needs reordering ----------
+	const byName = (a: InventoryItem, b: InventoryItem): number =>
+		a.item_name.toLowerCase().localeCompare(b.item_name.toLowerCase())
+	const reorder = $derived([...outOfStock].sort(byName).concat([...lowStock].sort(byName)))
+	const reorderList = createLoadMore(() => reorder, QUEUE_PAGE)
 
-	const formatExpiryCountdown = (daysLeft: number): string => {
-		if (daysLeft < 0) return `Expired ${formatDuration(-daysLeft)} ago`
-		if (daysLeft === 0) return 'Expires today'
-		return `Expires in ${formatDuration(daysLeft)}`
-	}
+	// ---------- Stale items ----------
+	const stale = $derived(
+		tracked
+			.filter((item) => item.quantity > 0 && daysSince(item.updated_at) > STALE_DAYS)
+			.sort((a, b) => a.updated_at - b.updated_at),
+	)
+	const staleList = createLoadMore(() => stale, QUEUE_PAGE)
 
-	const formatExpiryDate = (expiryDate: string): string => formatDate(`${expiryDate}T00:00:00`)
+	// ---------- Movements this week ----------
+	const week = useWeeklyMovements()
+	const weekIn = $derived(week.days.reduce((sum, day) => sum + day.stockIn, 0))
+	const weekOut = $derived(week.days.reduce((sum, day) => sum + day.stockOut, 0))
+	const weekRange = $derived(
+		`${formatDayMonth(week.days[0].date)} to ${formatDate(week.days[6].date)}`,
+	)
+	const chartConfig = {
+		stockIn: { label: 'Stock in', color: 'var(--success)' },
+		stockOut: { label: 'Stock out', color: 'var(--destructive)' },
+	} satisfies Chart.ChartConfig
 
-	// Navigate to inventory page
-	const navigateToInventory = () => {
-		goto('/inventory')
-	}
+	// ---------- Requests awaiting approval ----------
+	const pendingRequests = $derived(
+		stockRequestsStore.requests
+			.filter((request) => request.status === 'Pending')
+			.sort((a, b) => a._creationTime - b._creationTime),
+	)
+	const olderPendingCount = $derived(pendingRequests.filter(isOlderPending).length)
+	const PENDING_SHOWN = 5
 
-	// Scroll to section function
-	const scrollToSection = (sectionId: string) => {
-		const element = document.getElementById(sectionId)
-		if (element) {
-			element.scrollIntoView({
-				behavior: 'smooth',
-				block: 'start',
-			})
-		}
-	}
+	const onHand = (request: StockRequest): number =>
+		inventoryStore.getItemById(request.item_id)?.quantity ?? 0
 
-	// Scroll to top function
-	const scrollToTop = () => {
-		window.scrollTo({
-			top: 0,
-			behavior: 'smooth',
-		})
-	}
+	const requestedAt = (request: StockRequest): string =>
+		localDateKey(request.created_at) === todayIsoDate()
+			? `today ${formatTime(request.created_at)}`
+			: `${formatDayMonth(request.created_at)} ${formatTime(request.created_at)}`
 
-	// Handle scroll event for back to top button
-	const handleScroll = () => {
-		showBackToTop = window.scrollY > 300
-	}
-
-	// Format duration for display
-	const formatDuration = (days: number): string => {
-		if (days < 7) {
-			return `${days} day${days !== 1 ? 's' : ''}`
-		} else if (days < 30) {
-			const weeks = Math.floor(days / 7)
-			return `${weeks} week${weeks !== 1 ? 's' : ''}`
-		} else if (days < 365) {
-			const months = Math.floor(days / 30)
-			return `${months} month${months !== 1 ? 's' : ''}`
-		} else {
-			const years = Math.floor(days / 365)
-			return `${years} year${years !== 1 ? 's' : ''}`
-		}
-	}
-
-	// Format date for display
-	const formatDate = (dateString: string): string => {
-		const date = new Date(dateString)
-		return date.toLocaleDateString('en-US', {
-			month: 'short',
-			day: 'numeric',
-			year: 'numeric',
-		})
-	}
-
-	// ReasonBadge centralizes the presentation for non_order_reason
-
-	const confirmMarkAsOrdered = async (): Promise<void> => {
-		if (!orderItem || !orderDate) return
-
-		// Mark ordered using the store function with selected date
-		await inventoryStore.markAsOrdered(orderItem.id, String(orderDate), backOrder)
-
-		if (!inventoryStore.error) {
-			closeOrderModal()
-		}
-	}
-
-	$effect(() => {
-		window.addEventListener('scroll', handleScroll)
-
-		return () => {
-			window.removeEventListener('scroll', handleScroll)
-		}
-	})
+	// ---------- Dialogs ----------
+	let orderDialog = $state<MarkOrderedDialog | null>(null)
+	let stockOutDialog = $state<StockOutDialog | null>(null)
 </script>
 
-<div class="px-2 py-3 sm:px-0 sm:py-6">
-	<div class="rounded-lg border-4 border-dashed border-gray-200 p-3 sm:p-6">
-		<h2 class="mb-4 text-xl font-bold text-gray-900 sm:mb-6 sm:text-2xl">Inventory Dashboard</h2>
+<PageHeader title="Dashboard" />
 
-		<!-- Mark as Ordered Modal -->
-		<ActionModal
-			bind:open={showOrderModal}
-			title={`Mark Ordered: ${orderItem?.item_name}`}
-			variant="green"
-			loading={inventoryStore.loading}
-			confirmText="Mark Ordered"
-			onclose={closeOrderModal}
-			oncancel={closeOrderModal}
-			onconfirm={confirmMarkAsOrdered}
-		>
-			<div class="space-y-4">
-				<div class="rounded-md border border-green-200 bg-green-50 p-3">
-					<div class="mb-2 flex items-center gap-2">
-						<CalendarIcon class="h-4 w-4 text-green-500" />
-						<span class="text-sm font-medium text-green-800"> Set Order Date </span>
-					</div>
-					<p class="text-sm text-green-700">
-						This will mark the item as ordered and track its pending status.
-					</p>
-				</div>
-
-				<FormField bind:value={orderDate} type="date" label="Order Date" required={true} />
-				<div class="rounded-md border border-green-200 bg-green-50 p-3">
-					<div class="mb-2 flex items-center gap-2">
-						<ClockIcon class="h-4 w-4 text-green-500" />
-						<span class="text-sm font-medium text-green-800"> Back Order Item </span>
-					</div>
-					<div class="flex items-start gap-3">
-						<input
-							id="back-order"
-							bind:checked={backOrder}
-							type="checkbox"
-							class="mt-1 h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
-						/>
-						<div class="flex-1">
-							<label for="back-order" class="text-sm font-medium text-gray-700">
-								Mark as back order
-							</label>
-							<p class="mt-1 text-sm text-gray-500">Check this to mark the item as back order.</p>
-						</div>
-					</div>
-				</div>
-			</div>
-		</ActionModal>
-
-		<!-- Loading State (non-blocking overlay/inline) -->
-		{#if inventoryStore.loading}
-			<LoadingSpinner message="Loading inventory data..." size="lg" />
-		{/if}
-
-		<!-- Error State (independent, does not block content) -->
-		{#if inventoryStore.error}
-			<div class="mb-4 sm:mb-6">
-				<ErrorAlert title="Error loading data" message={inventoryStore.error} size="lg">
-					<button
-						onclick={() => inventoryStore.fetchItems()}
-						class="mt-2 rounded bg-red-100 px-2 py-1 text-xs text-red-800 hover:bg-red-200 sm:px-3 sm:text-sm"
-					>
-						Retry
-					</button>
-				</ErrorAlert>
-			</div>
-		{/if}
-
-		<!-- Dashboard Content (always rendered to preserve scroll position) -->
-		<div>
-			<!-- Stats Cards - Responsive Grid -->
-			<!-- Simplified Enhanced Hover Effects -->
-			<div class="mb-6 grid grid-cols-2 gap-3 sm:mb-8 sm:grid-cols-3 sm:gap-5 lg:grid-cols-5">
-				<!-- Total Products -->
-				<div
-					class="hover:ring-opacity-50 cursor-pointer overflow-hidden rounded-lg bg-white shadow transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-lg hover:ring-2 hover:ring-green-500"
-					onclick={() => navigateToInventory()}
-					title="Click to view full inventory"
-					role="presentation"
-				>
-					<div class="p-3 sm:p-5">
-						<div class="flex items-center">
-							<div class="flex-shrink-0">
-								<div
-									class="flex h-6 w-6 items-center justify-center rounded-md bg-green-500 transition-colors duration-200 hover:bg-green-600 sm:h-8 sm:w-8"
-								>
-									<BoxIcon class="h-3 w-3 text-white sm:h-5 sm:w-5" />
-								</div>
-							</div>
-							<div class="ml-3 w-0 flex-1 sm:ml-5">
-								<dl>
-									<dt class="truncate text-xs font-medium text-gray-500 sm:text-sm">
-										Total Products
-									</dt>
-									<dd class="text-base font-medium text-gray-900 sm:text-lg">
-										{inventoryStore.totalProducts}
-									</dd>
-								</dl>
-							</div>
-						</div>
-					</div>
-				</div>
-
-				<!-- Out of Stock Items -->
-				<div
-					class="hover:ring-opacity-50 cursor-pointer overflow-hidden rounded-lg bg-white shadow transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-lg hover:ring-2 hover:ring-red-500"
-					onclick={() => scrollToSection('out-of-stock')}
-					title={inventoryStore.outOfStockItems.length > 0
-						? 'Click to view out of stock items'
-						: ''}
-					role="presentation"
-				>
-					<div class="p-3 sm:p-5">
-						<div class="flex items-center">
-							<div class="flex-shrink-0">
-								<div
-									class="flex h-6 w-6 items-center justify-center rounded-md bg-red-500 transition-colors duration-200 hover:bg-red-600 sm:h-8 sm:w-8"
-								>
-									<CloseIcon class="h-3 w-3 text-white sm:h-5 sm:w-5" />
-								</div>
-							</div>
-							<div class="ml-3 w-0 flex-1 sm:ml-5">
-								<dl>
-									<dt class="truncate text-xs font-medium text-gray-500 sm:text-sm">
-										Out of Stock
-									</dt>
-									<dd class="text-base font-medium text-gray-900 sm:text-lg">
-										{inventoryStore.outOfStockItems.length}
-									</dd>
-								</dl>
-							</div>
-						</div>
-					</div>
-				</div>
-
-				<!-- Low Stock Items -->
-				<div
-					class="hover:ring-opacity-50 cursor-pointer overflow-hidden rounded-lg bg-white shadow transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-lg hover:ring-2 hover:ring-yellow-500"
-					onclick={() => scrollToSection('low-stock')}
-					title="Click to view low stock items"
-					role="presentation"
-				>
-					<div class="p-3 sm:p-5">
-						<div class="flex items-center">
-							<div class="flex-shrink-0">
-								<div
-									class="flex h-6 w-6 items-center justify-center rounded-md bg-yellow-500 transition-colors duration-200 hover:bg-yellow-600 sm:h-8 sm:w-8"
-								>
-									<WarningIcon class="h-3 w-3 text-white sm:h-5 sm:w-5" />
-								</div>
-							</div>
-							<div class="ml-3 w-0 flex-1 sm:ml-5">
-								<dl>
-									<dt class="truncate text-xs font-medium text-gray-500 sm:text-sm">Low Stock</dt>
-									<dd class="text-base font-medium text-gray-900 sm:text-lg">
-										{inventoryStore.lowStockItems.length}
-									</dd>
-								</dl>
-							</div>
-						</div>
-					</div>
-				</div>
-
-				<!-- Stale Inventory -->
-				<div
-					class="hover:ring-opacity-50 cursor-pointer overflow-hidden rounded-lg bg-white shadow transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-lg hover:ring-2 hover:ring-purple-500"
-					onclick={() => scrollToSection('stale-inventory')}
-					title="Click to view stale inventory items"
-					role="presentation"
-				>
-					<div class="p-3 sm:p-5">
-						<div class="flex items-center">
-							<div class="flex-shrink-0">
-								<div
-									class="flex h-6 w-6 items-center justify-center rounded-md bg-purple-500 transition-colors duration-200 hover:bg-purple-600 sm:h-8 sm:w-8"
-								>
-									<ClockIcon class="h-3 w-3 text-white sm:h-5 sm:w-5" />
-								</div>
-							</div>
-							<div class="ml-3 w-0 flex-1 sm:ml-5">
-								<dl>
-									<dt class="truncate text-xs font-medium text-gray-500 sm:text-sm">Stale Items</dt>
-									<dd class="text-base font-medium text-gray-900 sm:text-lg">
-										{staleItems.length}
-									</dd>
-								</dl>
-							</div>
-						</div>
-					</div>
-				</div>
-
-				<!-- Expiring Soon -->
-				<div
-					class="hover:ring-opacity-50 cursor-pointer overflow-hidden rounded-lg bg-white shadow transition-all duration-200 ease-out hover:-translate-y-1 hover:shadow-lg hover:ring-2 hover:ring-orange-500"
-					onclick={() => scrollToSection('expiring-soon')}
-					title="Click to view batches expiring soon"
-					role="presentation"
-				>
-					<div class="p-3 sm:p-5">
-						<div class="flex items-center">
-							<div class="flex-shrink-0">
-								<div
-									class="flex h-6 w-6 items-center justify-center rounded-md bg-orange-500 transition-colors duration-200 hover:bg-orange-600 sm:h-8 sm:w-8"
-								>
-									<CalendarIcon class="h-3 w-3 text-white sm:h-5 sm:w-5" />
-								</div>
-							</div>
-							<div class="ml-3 w-0 flex-1 sm:ml-5">
-								<dl>
-									<dt class="truncate text-xs font-medium text-gray-500 sm:text-sm">
-										Expiring Soon
-									</dt>
-									<dd class="text-base font-medium text-gray-900 sm:text-lg">
-										{expiringBatches.length}
-										{#if expiredCount > 0}
-											<span class="text-sm font-normal text-red-600">({expiredCount} expired)</span>
-										{/if}
-									</dd>
-								</dl>
-							</div>
-						</div>
-					</div>
-				</div>
-			</div>
-
-			<!-- Expiring Soon Alert -->
-			{#if expiringBatches.length > 0}
-				<div
-					id="expiring-soon"
-					class="mb-4 scroll-mt-4 rounded-md border border-orange-200 bg-orange-50 p-3 sm:mb-6 sm:p-4"
-				>
-					<div
-						class="flex cursor-pointer items-center justify-between"
-						onclick={() => toggleSection('expiring')}
-						role="presentation"
-					>
-						<div class="flex items-center gap-2">
-							<CalendarIcon class="h-4 w-4 text-orange-400 sm:h-5 sm:w-5" />
-							<h3 class="text-sm font-medium text-orange-800">Expiry Alert</h3>
-						</div>
-						<ArrowUpIcon
-							class="h-4 w-4 transform transition-transform duration-200 {!isExpiringOpen
-								? 'rotate-180'
-								: ''}"
-						/>
-					</div>
-
-					{#if isExpiringOpen}
-						<div class="mt-2 text-sm text-orange-700">
-							<p>
-								The following batches have expired or expire within the next {EXPIRY_WARNING_DAYS}
-								days:
-							</p>
-							<div class="mt-1 space-y-1">
-								{#each expiringBatches as row (row.batch.id)}
-									<div class="flex items-start border-b border-orange-200 py-2 last:border-b-0">
-										<div
-											class="mt-1.5 mr-3 h-1.5 w-1.5 flex-shrink-0 rounded-full {row.daysLeft < 0
-												? 'bg-red-500'
-												: 'bg-orange-400'}"
-										></div>
-										<div class="flex-1">
-											<div
-												class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between"
-											>
-												<div class="min-w-0 flex-1">
-													<div class="font-semibold break-words text-gray-900">
-														{row.item.item_name}
-													</div>
-													<div class="mt-0.5 text-sm font-medium text-orange-700">
-														{row.batch.quantity}
-														{row.item.unit} · expires {formatExpiryDate(
-															row.batch.expiry_date ?? '',
-														)}
-													</div>
-												</div>
-												<div class="flex-shrink-0">
-													<StatusBadge
-														variant={row.daysLeft < 0 ? 'red' : 'yellow'}
-														text={formatExpiryCountdown(row.daysLeft)}
-													/>
-												</div>
-											</div>
-										</div>
-									</div>
-								{/each}
-							</div>
-						</div>
-					{/if}
-				</div>
-			{/if}
-
-			<!-- Out of Stock Alert -->
-			{#if inventoryStore.outOfStockItems.length > 0}
-				<div
-					id="out-of-stock"
-					class="mb-4 scroll-mt-4 rounded-md border border-red-200 bg-red-50 p-3 sm:mb-6 sm:p-4"
-				>
-					<div
-						class="flex cursor-pointer items-center justify-between"
-						onclick={() => toggleSection('outOfStock')}
-						role="presentation"
-					>
-						<div class="flex items-center gap-2">
-							<ExclamationCircleIcon class="h-4 w-4 text-red-400 sm:h-5 sm:w-5" />
-							<h3 class="text-sm font-medium text-red-800">Out of Stock Alert</h3>
-						</div>
-						<ArrowUpIcon
-							class="h-4 w-4 transform transition-transform duration-200 {!isOutOfStockOpen
-								? 'rotate-180'
-								: ''}"
-						/>
-					</div>
-
-					{#if isOutOfStockOpen}
-						<div class="mt-2 text-sm text-red-700">
-							<p>The following items are completely out of stock:</p>
-							<div class="mt-1 space-y-1">
-								{#each inventoryStore.outOfStockItems as item (item.id)}
-									<div class="flex items-start border-b border-red-200 py-2 last:border-b-0">
-										<div
-											class="mt-1.5 mr-3 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-red-400"
-										></div>
-										<div class="flex-1">
-											<!-- Mobile: Stack vertically, Desktop: Grid layout -->
-											<div class="block sm:hidden">
-												<div class="font-semibold break-words text-gray-900">
-													{item.item_name}
-												</div>
-												<div class="mt-0.5 text-sm font-medium text-red-700">
-													(0 {item.unit} remaining)
-												</div>
-												<!-- Status text and ActionButtonGroup aligned horizontally -->
-												<div class="mt-1 flex items-center justify-between gap-2">
-													<!-- Status text -->
-													<div class="flex items-center">
-														{#if item.order_date}
-															<div class="text-sm text-blue-600">
-																{#if item.back_order}
-																	<span class="inline-flex items-center gap-1">
-																		<ClockIcon class="h-4 w-4" />
-																		Back Ordered: {formatDate(item.order_date)}
-																	</span>
-																{:else}
-																	<span class="inline-flex items-center gap-1">
-																		<CalendarIcon class="h-4 w-4" />
-																		Ordered: {formatDate(item.order_date)}
-																	</span>
-																{/if}
-															</div>
-														{:else if item.non_order_reason}
-															<div class="text-sm">
-																<ReasonBadge reason={item.non_order_reason} size="sm">
-																	{item.non_order_reason}
-																</ReasonBadge>
-															</div>
-														{/if}
-													</div>
-													<!-- ActionButtonGroup -->
-													<div class="flex-shrink-0">
-														<ActionButtonGroup
-															actions={getItemActions(item)}
-															size="sm"
-															loading={inventoryStore.loading}
-															onactionclick={(actionKey) => handleActionClick(actionKey, item)}
-														/>
-													</div>
-												</div>
-											</div>
-											<div class="hidden sm:flex sm:items-center sm:justify-between">
-												<div class="min-w-0 flex-1">
-													<div class="font-semibold break-words text-gray-900">
-														{item.item_name}
-													</div>
-													<div class="mt-0.5 text-sm font-medium text-red-700">
-														(0 {item.unit} remaining)
-													</div>
-												</div>
-												<div class="ml-4 flex-shrink-0">
-													<!-- Status text and ActionButtonGroup aligned horizontally -->
-													<div class="flex items-center gap-3">
-														<!-- Status text -->
-														<div>
-															{#if item.order_date}
-																<div class="text-sm text-blue-600">
-																	{#if item.back_order}
-																		<span class="inline-flex items-center gap-1">
-																			<ClockIcon class="h-4 w-4" />
-																			Back Ordered: {formatDate(item.order_date)}
-																		</span>
-																	{:else}
-																		<span class="inline-flex items-center gap-1">
-																			<CalendarIcon class="h-4 w-4" />
-																			Ordered: {formatDate(item.order_date)}
-																		</span>
-																	{/if}
-																</div>
-															{:else if item.non_order_reason}
-																<div class="text-sm">
-																	<ReasonBadge reason={item.non_order_reason} size="sm">
-																		{item.non_order_reason}
-																	</ReasonBadge>
-																</div>
-															{/if}
-														</div>
-														<!-- ActionButtonGroup -->
-														<div>
-															<ActionButtonGroup
-																actions={getItemActions(item)}
-																size="sm"
-																loading={inventoryStore.loading}
-																onactionclick={(actionKey) => handleActionClick(actionKey, item)}
-															/>
-														</div>
-													</div>
-												</div>
-											</div>
-										</div>
-									</div>
-								{/each}
-							</div>
-						</div>
-					{/if}
-				</div>
-			{/if}
-
-			<!-- Low Stock Alert -->
-			{#if inventoryStore.lowStockItems.length > 0}
-				<div
-					id="low-stock"
-					class="mb-4 scroll-mt-4 rounded-md border border-yellow-200 bg-yellow-50 p-3 sm:mb-6 sm:p-4"
-				>
-					<div
-						class="flex cursor-pointer items-center justify-between"
-						onclick={() => toggleSection('lowStock')}
-						role="presentation"
-					>
-						<div class="flex items-center gap-2">
-							<WarningTriangleIcon class="h-4 w-4 text-yellow-400 sm:h-5 sm:w-5" />
-							<h3 class="text-sm font-medium text-yellow-800">Low Stock Alert</h3>
-						</div>
-						<ArrowUpIcon
-							class="h-4 w-4 transform transition-transform duration-200 {!isLowStockOpen
-								? 'rotate-180'
-								: ''}"
-						/>
-					</div>
-
-					{#if isLowStockOpen}
-						<div class="mt-2 text-sm text-yellow-700">
-							<p>The following items are running low on stock:</p>
-							<div class="mt-1 space-y-1">
-								{#each inventoryStore.lowStockItems as item (item.id)}
-									<div class="flex items-start border-b border-yellow-200 py-2 last:border-b-0">
-										<div
-											class="mt-1.5 mr-3 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-yellow-400"
-										></div>
-										<div class="flex-1">
-											<!-- Mobile: Stack vertically, Desktop: Grid layout -->
-											<div class="block sm:hidden">
-												<div class="font-semibold break-words text-gray-900">
-													{item.item_name}
-												</div>
-												<div class="mt-0.5 text-sm font-medium text-yellow-700">
-													({item.quantity}
-													{item.unit} remaining)
-												</div>
-												<!-- Status text and ActionButtonGroup aligned horizontally -->
-												<div class="mt-1 flex items-center justify-between gap-2">
-													<!-- Status text -->
-													<div class="flex items-center">
-														{#if item.order_date}
-															<div class="text-sm text-blue-600">
-																{#if item.back_order}
-																	<span class="inline-flex items-center gap-1">
-																		<ClockIcon class="h-4 w-4" />
-																		Back Ordered: {formatDate(item.order_date)}
-																	</span>
-																{:else}
-																	<span class="inline-flex items-center gap-1">
-																		<CalendarIcon class="h-4 w-4" />
-																		Ordered: {formatDate(item.order_date)}
-																	</span>
-																{/if}
-															</div>
-														{:else if item.non_order_reason}
-															<div class="text-sm">
-																<ReasonBadge reason={item.non_order_reason} size="sm">
-																	{item.non_order_reason}
-																</ReasonBadge>
-															</div>
-														{/if}
-													</div>
-													<!-- ActionButtonGroup -->
-													<div class="flex-shrink-0">
-														<ActionButtonGroup
-															actions={getItemActions(item)}
-															size="sm"
-															loading={inventoryStore.loading}
-															onactionclick={(actionKey) => handleActionClick(actionKey, item)}
-														/>
-													</div>
-												</div>
-											</div>
-											<div class="hidden sm:flex sm:items-center sm:justify-between">
-												<div class="min-w-0 flex-1">
-													<div class="font-semibold break-words text-gray-900">
-														{item.item_name}
-													</div>
-													<div class="mt-0.5 text-sm font-medium text-yellow-700">
-														({item.quantity}
-														{item.unit} remaining)
-													</div>
-												</div>
-												<div class="ml-4 flex-shrink-0">
-													<!-- Status text and ActionButtonGroup aligned horizontally -->
-													<div class="flex items-center gap-3">
-														<!-- Status text -->
-														<div>
-															{#if item.order_date}
-																<div class="text-sm text-blue-600">
-																	{#if item.back_order}
-																		<span class="inline-flex items-center gap-1">
-																			<ClockIcon class="h-4 w-4" />
-																			Back Ordered: {formatDate(item.order_date)}
-																		</span>
-																	{:else}
-																		<span class="inline-flex items-center gap-1">
-																			<CalendarIcon class="h-4 w-4" />
-																			Ordered: {formatDate(item.order_date)}
-																		</span>
-																	{/if}
-																</div>
-															{:else if item.non_order_reason}
-																<div class="text-sm">
-																	<ReasonBadge reason={item.non_order_reason} size="sm">
-																		{item.non_order_reason}
-																	</ReasonBadge>
-																</div>
-															{/if}
-														</div>
-														<!-- ActionButtonGroup -->
-														<div>
-															<ActionButtonGroup
-																actions={getItemActions(item)}
-																size="sm"
-																loading={inventoryStore.loading}
-																onactionclick={(actionKey) => handleActionClick(actionKey, item)}
-															/>
-														</div>
-													</div>
-												</div>
-											</div>
-										</div>
-									</div>
-								{/each}
-							</div>
-						</div>
-					{/if}
-				</div>
-			{/if}
-
-			<!-- Stale Inventory Alert -->
-			{#if staleItems.length > 0}
-				<div
-					id="stale-inventory"
-					class="mb-4 scroll-mt-4 rounded-md border border-purple-200 bg-purple-50 p-3 sm:mb-6 sm:p-4"
-				>
-					<div
-						class="flex cursor-pointer items-center justify-between"
-						onclick={() => toggleSection('staleInventory')}
-						role="presentation"
-					>
-						<div class="flex items-center gap-2">
-							<ClockSolidIcon class="h-4 w-4 text-purple-400 sm:h-5 sm:w-5" />
-							<h3 class="text-sm font-medium text-purple-800">Stale Inventory Alert</h3>
-						</div>
-						<ArrowUpIcon
-							class="h-4 w-4 transform transition-transform duration-200 {!isStaleInventoryOpen
-								? 'rotate-180'
-								: ''}"
-						/>
-					</div>
-
-					{#if isStaleInventoryOpen}
-						<div class="mt-2 text-sm text-purple-700">
-							<p>The following items have not been updated for more than a month:</p>
-							<div class="mt-1 space-y-1">
-								{#each staleItems as item (item.id)}
-									<div class="flex items-start border-b border-purple-200 py-2 last:border-b-0">
-										<div
-											class="mt-1.5 mr-3 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-purple-400"
-										></div>
-										<div class="flex-1">
-											<!-- Mobile: Stack vertically, Desktop: Grid layout -->
-											<div class="block sm:hidden">
-												<div class="font-semibold break-words text-gray-900">
-													{item.item_name}
-												</div>
-												<div class="mt-0.5 text-sm font-medium text-purple-700">
-													({formatDuration(item.daysSinceUpdate)} ago)
-												</div>
-											</div>
-											<div class="hidden sm:flex sm:items-center sm:justify-between">
-												<div class="min-w-0 flex-1">
-													<div class="font-semibold break-words text-gray-900">
-														{item.item_name}
-													</div>
-													<div class="mt-0.5 text-sm font-medium text-purple-700">
-														({formatDuration(item.daysSinceUpdate)} ago)
-													</div>
-												</div>
-											</div>
-										</div>
-									</div>
-								{/each}
-							</div>
-						</div>
-					{/if}
-				</div>
-			{/if}
-		</div>
+{#if initialLoading}
+	<div class="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+		{#each { length: 5 } as _, i (i)}
+			<Card.Root size="sm">
+				<Card.Content class="flex flex-col gap-2">
+					<Skeleton class="h-3 w-24" />
+					<Skeleton class="h-7 w-12" />
+					<Skeleton class="h-3 w-28" />
+				</Card.Content>
+			</Card.Root>
+		{/each}
+	</div>
+	<div class="grid gap-3 lg:grid-cols-2">
+		<Skeleton class="h-56 rounded-xl" />
+		<Skeleton class="h-56 rounded-xl" />
+	</div>
+	<Skeleton class="h-40 rounded-md" />
+{:else}
+	<!-- Headline strip -->
+	<div class="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+		{@render stat(
+			'Tracked items',
+			tracked.length,
+			`${untrackedCount} not tracked`,
+			null,
+			'/inventory',
+		)}
+		{@render stat(
+			'Out of stock',
+			outOfStock.length,
+			`${outOnOrder} on order`,
+			outOfStock.length > 0 ? 'danger' : null,
+			'/inventory?filter=out',
+		)}
+		{@render stat(
+			'Low stock',
+			lowStock.length,
+			'At or below reorder level',
+			lowStock.length > 0 ? 'warning' : null,
+			'/inventory?filter=low',
+		)}
+		{@render stat(
+			'Expiring soon',
+			expiring.length,
+			`${expiredCount} already expired`,
+			expiring.length > 0 ? 'warning' : null,
+			'#expiring',
+		)}
+		{@render stat('Stale items', stale.length, `No movement in ${STALE_DAYS} days`, null, '#stale')}
 	</div>
 
-	<!-- Floating Back to Top Button -->
-	{#if showBackToTop}
-		<button
-			onclick={scrollToTop}
-			class="fixed right-6 bottom-6 z-50 rounded-full bg-blue-600 p-3 text-white shadow-lg transition-all duration-200 hover:bg-blue-700"
-			title="Back to top"
+	<!-- Widgets -->
+	<div class="grid gap-3 lg:grid-cols-2">
+		<Card.Root size="sm">
+			<Card.Header>
+				<Card.Title class="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+					<a href="/stock-movements" class="hover:text-foreground inline-flex items-center gap-1">
+						Movements this week
+						<ChevronRightIcon class="size-3.5" />
+					</a>
+				</Card.Title>
+				<Card.Description class="flex flex-wrap items-baseline gap-x-2">
+					<span class="text-foreground text-2xl font-semibold tabular-nums">
+						{weekIn + weekOut}
+					</span>
+					<span class="text-xs">
+						{weekRange} ·
+						<span class="text-success font-semibold">+{weekIn} in</span> ·
+						<span class="text-destructive font-semibold">−{weekOut} out</span>
+					</span>
+				</Card.Description>
+			</Card.Header>
+			<Card.Content>
+				<Chart.Container config={chartConfig} class="aspect-auto h-40 w-full">
+					<BarChart
+						data={week.days}
+						x="label"
+						axis="x"
+						seriesLayout="group"
+						bandPadding={0.3}
+						series={[
+							{
+								key: 'stockIn',
+								label: chartConfig.stockIn.label,
+								color: chartConfig.stockIn.color,
+							},
+							{
+								key: 'stockOut',
+								label: chartConfig.stockOut.label,
+								color: chartConfig.stockOut.color,
+							},
+						]}
+					>
+						{#snippet tooltip()}
+							<Chart.Tooltip />
+						{/snippet}
+					</BarChart>
+				</Chart.Container>
+			</Card.Content>
+		</Card.Root>
+
+		<Card.Root size="sm">
+			<Card.Header>
+				<Card.Title class="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+					<a href="/stock-approvals" class="hover:text-foreground inline-flex items-center gap-1">
+						Requests awaiting approval
+						<ChevronRightIcon class="size-3.5" />
+					</a>
+				</Card.Title>
+				<Card.Description class="flex flex-wrap items-baseline gap-x-2">
+					<span
+						class={cn(
+							'text-2xl font-semibold tabular-nums',
+							pendingRequests.length === 0 ? 'text-muted-foreground' : 'text-foreground',
+						)}
+					>
+						{pendingRequests.length}
+					</span>
+					<span class="text-xs">
+						{olderPendingCount > 0
+							? `${olderPendingCount} older than today`
+							: 'None older than today'}
+					</span>
+				</Card.Description>
+			</Card.Header>
+			<Card.Content>
+				{#if pendingRequests.length === 0}
+					<p class="text-muted-foreground text-sm">Nothing is waiting for approval.</p>
+				{:else}
+					<ul class="divide-y">
+						{#each pendingRequests.slice(0, PENDING_SHOWN) as request (request.id)}
+							{@const stock = onHand(request)}
+							{@const short = stock < request.quantity}
+							<li class="flex items-center gap-3 py-2">
+								<span
+									class="bg-warning-soft text-warning flex size-7 shrink-0 items-center justify-center rounded-full"
+								>
+									<HourglassIcon class="size-3.5" />
+								</span>
+								<span class="min-w-0 flex-1">
+									<span class="block truncate text-sm font-medium">{request.item_name}</span>
+									<span class="text-muted-foreground block text-xs">
+										{withUnit(request.quantity, request.unit)} · requested {requestedAt(request)}
+									</span>
+								</span>
+								{#if short}
+									<ToneBadge tone="danger">Only {withUnit(stock, request.unit)}</ToneBadge>
+								{:else}
+									<ToneBadge tone="warning">Pending</ToneBadge>
+								{/if}
+							</li>
+						{/each}
+					</ul>
+					{#if pendingRequests.length > PENDING_SHOWN}
+						<Button variant="ghost" size="sm" href="/stock-approvals" class="-ms-2 mt-1">
+							{pendingRequests.length - PENDING_SHOWN} more
+							<ChevronRightIcon data-icon="inline-end" />
+						</Button>
+					{/if}
+				{/if}
+			</Card.Content>
+		</Card.Root>
+	</div>
+
+	<!-- Expiring batches -->
+	<section id="expiring" class="flex scroll-mt-20 flex-col gap-3">
+		{@render heading(
+			'Expiring batches',
+			`next ${EXPIRY_WARNING_DAYS} days, soonest first`,
+			'Open Inventory',
+			'/inventory',
+		)}
+		{#if expiring.length === 0}
+			<p class="text-muted-foreground text-sm">
+				No batches expire in the next {EXPIRY_WARNING_DAYS} days.
+			</p>
+		{:else}
+			<Table.Root>
+				<Table.Header>
+					<Table.Row>
+						<Table.Head>Item</Table.Head>
+						<Table.Head>Batch</Table.Head>
+						<Table.Head>Expires</Table.Head>
+						<Table.Head class="text-end">Quantity</Table.Head>
+						<Table.Head><span class="sr-only">Actions</span></Table.Head>
+					</Table.Row>
+				</Table.Header>
+				<Table.Body>
+					{#each expiringList.visible as { batch, item, daysLeft } (batch.id)}
+						{@const badge = expiryBadge(batch.expiry_date)}
+						<Table.Row
+							class={cn(
+								daysLeft < 0
+									? 'shadow-[inset_2px_0_0_var(--destructive)]'
+									: 'shadow-[inset_2px_0_0_var(--warning)]',
+							)}
+						>
+							<Table.Cell class="max-w-md min-w-48 py-2.5 whitespace-normal">
+								<div class="font-medium break-words">{item.item_name}</div>
+							</Table.Cell>
+							<Table.Cell class="text-muted-foreground py-2.5 tabular-nums">
+								Received {formatDate(batch._creationTime)}
+							</Table.Cell>
+							<Table.Cell class="py-2.5">
+								{#if badge}
+									<ToneBadge tone={badge.tone}>{badge.text}</ToneBadge>
+								{/if}
+								<div class="text-muted-foreground mt-1 text-xs tabular-nums">
+									{formatDate(batch.expiry_date)}
+								</div>
+							</Table.Cell>
+							<Table.Cell class="py-2.5 text-end font-medium tabular-nums">
+								{withUnit(batch.quantity, item.unit)}
+							</Table.Cell>
+							<Table.Cell class="py-2.5">
+								<div class="flex justify-end">
+									<Button variant="outline" size="sm" onclick={() => stockOutDialog?.open(item)}>
+										Stock Out…
+									</Button>
+								</div>
+							</Table.Cell>
+						</Table.Row>
+					{/each}
+				</Table.Body>
+			</Table.Root>
+			{@render footer(
+				expiringList.shown,
+				plural(expiringList.total, 'batch', 'batches'),
+				expiringList,
+			)}
+		{/if}
+	</section>
+
+	<!-- Needs reordering -->
+	<section class="flex flex-col gap-3">
+		{@render heading(
+			'Needs reordering',
+			'out of stock first, then low',
+			'Open Price List',
+			'/price-list',
+		)}
+		{#if reorder.length === 0}
+			<p class="text-muted-foreground text-sm">Every tracked item is above its reorder level.</p>
+		{:else}
+			<Table.Root>
+				<Table.Header>
+					<Table.Row>
+						<Table.Head>Item</Table.Head>
+						<Table.Head>Status</Table.Head>
+						<Table.Head>On hand</Table.Head>
+						<Table.Head>Order status</Table.Head>
+						<Table.Head><span class="sr-only">Actions</span></Table.Head>
+					</Table.Row>
+				</Table.Header>
+				<Table.Body>
+					{#each reorderList.visible as item (item.id)}
+						{@const out = item.quantity === 0}
+						<Table.Row>
+							<Table.Cell class="max-w-md min-w-48 py-2.5 whitespace-normal">
+								<div class="font-medium break-words">{item.item_name}</div>
+							</Table.Cell>
+							<Table.Cell class="py-2.5">
+								<ToneBadge tone={out ? 'danger' : 'warning'}>
+									{out ? 'Out of stock' : 'Low stock'}
+								</ToneBadge>
+							</Table.Cell>
+							<Table.Cell class="py-2.5">
+								<div
+									class={cn(
+										'flex flex-col gap-1 tabular-nums',
+										out ? 'text-destructive' : 'text-warning',
+									)}
+								>
+									<span>
+										{item.quantity} of {item.reorder_level}
+										{item.unit}
+									</span>
+									{#if item.reorder_level > 0}
+										<Progress
+											value={Math.min(100, (item.quantity / item.reorder_level) * 100)}
+											class={cn(
+												'w-16',
+												out
+													? '[&>[data-slot=progress-indicator]]:bg-destructive'
+													: '[&>[data-slot=progress-indicator]]:bg-warning',
+											)}
+											aria-label="On hand against reorder level"
+										/>
+									{/if}
+								</div>
+							</Table.Cell>
+							<Table.Cell class="py-2.5">
+								{#if item.order_date}
+									<ToneBadge tone="info">
+										{#if item.back_order}
+											<ClockIcon />
+											Back-ordered {formatDayMonth(item.order_date)}
+										{:else}
+											<CalendarIcon />
+											Ordered {formatDayMonth(item.order_date)}
+										{/if}
+									</ToneBadge>
+								{:else if item.non_order_reason}
+									<ReasonBadge reason={item.non_order_reason} size="md" />
+								{:else}
+									<span class="text-muted-foreground">—</span>
+								{/if}
+							</Table.Cell>
+							<Table.Cell class="py-2.5">
+								<div class="flex justify-end">
+									<OrderStatusMenu
+										{item}
+										size="sm"
+										onMarkOrdered={(target) => orderDialog?.open(target)}
+									/>
+								</div>
+							</Table.Cell>
+						</Table.Row>
+					{/each}
+				</Table.Body>
+			</Table.Root>
+			{@render footer(reorderList.shown, plural(reorderList.total, 'item'), reorderList)}
+		{/if}
+	</section>
+
+	<!-- Stale items -->
+	<section id="stale" class="flex scroll-mt-20 flex-col gap-3">
+		{@render heading('Stale items', 'no movement for over a month, oldest first', null, null)}
+		{#if stale.length === 0}
+			<p class="text-muted-foreground text-sm">
+				Every tracked item with stock has moved in the last {STALE_DAYS} days.
+			</p>
+		{:else}
+			<Table.Root>
+				<Table.Header>
+					<Table.Row>
+						<Table.Head>Item</Table.Head>
+						<Table.Head>On hand</Table.Head>
+						<Table.Head>Last movement</Table.Head>
+					</Table.Row>
+				</Table.Header>
+				<Table.Body>
+					{#each staleList.visible as item (item.id)}
+						<Table.Row>
+							<Table.Cell class="max-w-md min-w-48 py-2.5 whitespace-normal">
+								<div class="font-medium break-words">{item.item_name}</div>
+							</Table.Cell>
+							<Table.Cell class="py-2.5 tabular-nums"
+								>{withUnit(item.quantity, item.unit)}</Table.Cell
+							>
+							<Table.Cell class="py-2.5 tabular-nums">
+								{formatDate(item.updated_at)}
+								<span class="text-muted-foreground ms-1 text-xs">
+									{formatDuration(daysSince(item.updated_at))} ago
+								</span>
+							</Table.Cell>
+						</Table.Row>
+					{/each}
+				</Table.Body>
+			</Table.Root>
+			{@render footer(staleList.shown, plural(staleList.total, 'item'), staleList)}
+		{/if}
+	</section>
+{/if}
+
+{#snippet stat(
+	label: string,
+	value: number,
+	sub: string,
+	tone: 'warning' | 'danger' | null,
+	href: string,
+)}
+	<Card.Root
+		size="sm"
+		class={cn(
+			'hover:ring-border-strong transition-shadow',
+			tone === 'warning' && 'bg-warning-soft ring-warning/30',
+			tone === 'danger' && 'bg-destructive/10 ring-destructive/30',
+		)}
+	>
+		<a
+			{href}
+			class="flex flex-col gap-0.5 px-(--card-spacing) outline-none focus-visible:underline"
 		>
-			<ArrowUpIcon class="h-5 w-5" />
-		</button>
-	{/if}
-</div>
+			<span
+				class="text-muted-foreground inline-flex items-center gap-1 text-xs font-medium tracking-wide uppercase"
+			>
+				{label}
+				<ChevronRightIcon class="size-3.5" />
+			</span>
+			<span
+				class={cn(
+					'text-2xl font-semibold tabular-nums',
+					tone === 'warning' && 'text-warning',
+					tone === 'danger' && 'text-destructive',
+					tone === null && value === 0 && 'text-muted-foreground',
+				)}
+			>
+				{value}
+			</span>
+			<span class="text-muted-foreground text-xs">{sub}</span>
+		</a>
+	</Card.Root>
+{/snippet}
+
+{#snippet heading(title: string, sub: string, linkLabel: string | null, href: string | null)}
+	<div class="border-border-strong flex items-baseline justify-between gap-3 border-b-2 pb-2">
+		<h2 class="text-[15px] font-bold">
+			{title}
+			<span class="text-muted-foreground ms-1.5 text-[13px] font-medium">{sub}</span>
+		</h2>
+		{#if linkLabel && href}
+			<Button variant="ghost" size="sm" {href} class="-me-2">
+				{linkLabel}
+				<ChevronRightIcon data-icon="inline-end" />
+			</Button>
+		{/if}
+	</div>
+{/snippet}
+
+{#snippet footer(
+	shown: number,
+	total: string,
+	list: { readonly hasMore: boolean; loadMore: () => void },
+)}
+	<div class="text-muted-foreground flex items-center justify-between gap-3 text-sm">
+		<span>Showing {shown} of {total}</span>
+		{#if list.hasMore}
+			<Button variant="outline" size="sm" onclick={list.loadMore}>Load More</Button>
+		{/if}
+	</div>
+{/snippet}
+
+<MarkOrderedDialog bind:this={orderDialog} />
+<StockOutDialog bind:this={stockOutDialog} />

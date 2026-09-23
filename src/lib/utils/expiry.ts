@@ -1,4 +1,5 @@
 import { daysUntilExpiry, getExpiryStatus } from '$lib/types/stockBatches'
+import { formatDuration } from '$lib/utils/date'
 
 export interface ExpiryBadge {
 	tone: 'danger' | 'warning'
@@ -13,14 +14,18 @@ export const expiryBadge = (expiryDate: string | null | undefined): ExpiryBadge 
 	if (status === 'expired') {
 		return {
 			tone: 'danger',
-			text: days === -1 ? 'Expired yesterday' : `Expired ${-days} days ago`,
+			text: days === -1 ? 'Expired yesterday' : `Expired ${formatDuration(-days)} ago`,
 		}
 	}
 	if (status === 'expiring') {
 		return {
 			tone: 'warning',
 			text:
-				days === 0 ? 'Expires today' : days === 1 ? 'Expires tomorrow' : `Expires in ${days} days`,
+				days === 0
+					? 'Expires today'
+					: days === 1
+						? 'Expires tomorrow'
+						: `Expires in ${formatDuration(days)}`,
 		}
 	}
 	return null

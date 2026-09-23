@@ -43,3 +43,20 @@ export const formatTime = (value: string | number | Date | null | undefined): st
 	if (!date) return '—'
 	return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
 }
+
+/** Whole days as words: "3 days", "2 weeks", "4 months", "1 year" */
+export const formatDuration = (days: number): string => {
+	const unit = (count: number, noun: string): string =>
+		`${count} ${count === 1 ? noun : `${noun}s`}`
+	if (days < 14) return unit(days, 'day')
+	if (days < 60) return unit(Math.floor(days / 7), 'week')
+	if (days < 365) return unit(Math.floor(days / 30), 'month')
+	return unit(Math.floor(days / 365), 'year')
+}
+
+/** Days between an instant and now, rounded down; 0 for today or the future */
+export const daysSince = (value: string | number | Date): number => {
+	const date = toDate(value)
+	if (!date) return 0
+	return Math.max(0, Math.floor((Date.now() - date.getTime()) / 86_400_000))
+}

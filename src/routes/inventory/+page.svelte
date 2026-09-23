@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { tick, untrack } from 'svelte'
+	import { page } from '$app/state'
 	import { toast } from 'svelte-sonner'
 	import * as XLSX from 'xlsx'
 	import ArrowDownToLineIcon from '@lucide/svelte/icons/arrow-down-to-line'
@@ -22,6 +23,7 @@
 	import PageHeader from '$lib/components/app/PageHeader.svelte'
 	import ReasonBadge from '$lib/components/app/ReasonBadge.svelte'
 	import SortHeader from '$lib/components/app/SortHeader.svelte'
+	import StockOutDialog from '$lib/components/app/StockOutDialog.svelte'
 	import type { SortState } from '$lib/components/app/sort'
 	import ToneBadge, { type Tone } from '$lib/components/app/ToneBadge.svelte'
 	import * as Alert from '$lib/components/ui/alert'
@@ -61,7 +63,11 @@
 
 	let searchQuery = $state('')
 	let searchInput = $state<HTMLInputElement | null>(null)
-	let filter = $state<Filter>('all')
+	// The dashboard links here with ?filter=low, ?filter=out and so on
+	const isFilter = (value: string | null): value is Filter =>
+		FILTERS.some((option) => option.value === value)
+	const initialFilter = page.url.searchParams.get('filter')
+	let filter = $state<Filter>(isFilter(initialFilter) ? initialFilter : 'all')
 	let sort = $state<SortState<SortKey>>({ key: null, direction: 'asc' })
 	let fileInput = $state<HTMLInputElement | null>(null)
 
@@ -266,62 +272,7 @@
 	}
 
 	// ---------- Stock out ----------
-	let showStockOutDialog = $state(false)
-	let stockOutItem = $state<InventoryItem | null>(null)
-	let stockOutQuantity = $state(1)
-
-	// The dialog keeps a snapshot; read the live row so the maximum tracks the store
-	const stockOutLive = $derived(
-		stockOutItem ? (inventoryStore.getItemById(stockOutItem.id) ?? stockOutItem) : null,
-	)
-	const stockOutMax = $derived(stockOutLive?.quantity ?? 0)
-
-	const openStockOut = (item: InventoryItem): void => {
-		stockOutItem = item
-		stockOutQuantity = 1
-		showStockOutDialog = true
-	}
-
-	const closeStockOut = (): void => {
-		showStockOutDialog = false
-		stockOutItem = null
-	}
-
-	// Which batches a stock out would draw from, earliest expiry first
-	const stockOutPlan = $derived.by((): Array<{ batch: StockBatch; take: number }> => {
-		if (!stockOutItem) return []
-		let remaining = Math.max(0, Math.floor(Number(stockOutQuantity) || 0))
-		const plan: Array<{ batch: StockBatch; take: number }> = []
-		for (const batch of stockBatchesStore.getBatchesForItem(stockOutItem.id)) {
-			if (remaining <= 0) break
-			const take = Math.min(batch.quantity, remaining)
-			plan.push({ batch, take })
-			remaining -= take
-		}
-		return plan
-	})
-
-	const expiredInPlan = $derived(
-		stockOutPlan
-			.filter(({ batch }) => getExpiryStatus(batch.expiry_date) === 'expired')
-			.reduce((sum, { take }) => sum + take, 0),
-	)
-
-	const isStockOutValid = $derived(
-		Number(stockOutQuantity) > 0 && Number(stockOutQuantity) <= stockOutMax,
-	)
-
-	const confirmStockOut = async (): Promise<void> => {
-		if (!stockOutItem || !isStockOutValid) return
-		const item = stockOutItem
-		await inventoryStore.stockOut(item.id, Number(stockOutQuantity))
-		if (!inventoryStore.error) {
-			toast.success(
-				`Stocked out ${plural(Number(stockOutQuantity), item.unit)} of ${item.item_name}`,
-			)
-			closeStockOut()
-		}
-	}
+	let stockOutDialog = $state<StockOutDialog | null>(null)
 
 	// ---------- Edit item ----------
 	interface EditItemForm {
@@ -833,7 +784,7 @@
 								aria-label="Stock Out…"
 								title="Stock Out…"
 								disabled={item.quantity === 0}
-								onclick={() => openStockOut(item)}
+								onclick={() => stockOutDialog?.open(item)}
 							>
 								<ArrowUpFromLineIcon />
 							</Button>
@@ -1033,79 +984,7 @@
 	</form>
 </ActionModal>
 
-<!-- Stock Out -->
-<ActionModal
-	bind:open={showStockOutDialog}
-	title={`Stock Out · ${stockOutItem?.item_name ?? ''}`}
-	description={`On hand ${stockOutMax} ${stockOutLive?.unit ?? ''} across ${plural(stockOutItem ? batchCount(stockOutItem) : 0, 'batch', 'batches')}.`}
-	loading={inventoryStore.loading}
-	disabled={!isStockOutValid}
-	confirmText="Stock Out"
-	onconfirm={confirmStockOut}
-	oncancel={closeStockOut}
-	onclose={closeStockOut}
->
-	<form
-		onsubmit={(e) => {
-			e.preventDefault()
-			confirmStockOut()
-		}}
-	>
-		<Field.Group>
-			<Field.Field data-invalid={Number(stockOutQuantity) > stockOutMax || undefined}>
-				<Field.Label for="stock-out-quantity">Quantity to remove</Field.Label>
-				<Input
-					id="stock-out-quantity"
-					bind:value={stockOutQuantity}
-					type="number"
-					min={1}
-					max={stockOutMax}
-					step={1}
-					required
-					aria-invalid={Number(stockOutQuantity) > stockOutMax || undefined}
-					{@attach selectOnFocus()}
-				/>
-				{#if Number(stockOutQuantity) > stockOutMax}
-					<Field.Error>Only {stockOutMax} {stockOutLive?.unit} on hand.</Field.Error>
-				{:else}
-					<Field.Description>Up to {stockOutMax} {stockOutLive?.unit}.</Field.Description>
-				{/if}
-			</Field.Field>
-			{#if stockOutPlan.length > 0}
-				<Field.Field>
-					<Field.Label>Taken from</Field.Label>
-					<ul class="divide-border bg-muted/40 divide-y rounded-lg border text-sm">
-						{#each stockOutPlan as { batch, take } (batch.id)}
-							{@const badge = expiryBadge(batch.expiry_date)}
-							<li class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-3 py-2">
-								<span class="tabular-nums">
-									{take} of {batch.quantity}
-									{stockOutLive?.unit} · received {formatDate(batch._creationTime)}
-								</span>
-								{#if badge}
-									<ToneBadge tone={badge.tone}>{badge.text}</ToneBadge>
-								{:else if batch.expiry_date}
-									<span class="text-muted-foreground text-xs">
-										Expires {formatDate(batch.expiry_date)}
-									</span>
-								{:else}
-									<span class="text-muted-foreground text-xs">No expiry</span>
-								{/if}
-							</li>
-						{/each}
-					</ul>
-					{#if expiredInPlan > 0}
-						<p class="text-warning text-sm">
-							{expiredInPlan}
-							{stockOutLive?.unit} in this stock-out are already expired.
-						</p>
-					{/if}
-				</Field.Field>
-			{/if}
-		</Field.Group>
-		<button type="submit" class="hidden" aria-hidden="true" tabindex="-1"></button>
-	</form>
-</ActionModal>
+<StockOutDialog bind:this={stockOutDialog} />
 
 <!-- Edit Item -->
 <ActionModal
