@@ -564,9 +564,7 @@
 	{#snippet stat(label: string, value: number, sub: string)}
 		<Card.Root size="sm">
 			<Card.Content class="flex flex-col gap-0.5">
-				<span class="text-muted-foreground text-xs font-medium tracking-wide uppercase"
-					>{label}</span
-				>
+				<span class="text-muted-foreground text-xs font-medium">{label}</span>
 				<span class="text-[22px] font-semibold tabular-nums">{formatRM(value)}</span>
 				<span class="text-muted-foreground text-xs">{sub}</span>
 			</Card.Content>
