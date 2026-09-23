@@ -643,11 +643,11 @@
 		<DropdownMenu.Content align="end">
 			<DropdownMenu.Group>
 				<DropdownMenu.Item onclick={() => fileInput?.click()}>
-					<UploadIcon />
+					<DownloadIcon />
 					Import from Excel…
 				</DropdownMenu.Item>
 				<DropdownMenu.Item onclick={exportToExcel}>
-					<DownloadIcon />
+					<UploadIcon />
 					Export to Excel
 				</DropdownMenu.Item>
 			</DropdownMenu.Group>
