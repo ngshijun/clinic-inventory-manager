@@ -31,6 +31,7 @@
 	import { inventoryStore } from '$lib/stores/inventory.svelte'
 	import type { InventoryItem } from '$lib/types/inventory'
 	import { formatDate, formatDayMonth } from '$lib/utils/date'
+	import Quantity from '$lib/components/app/Quantity.svelte'
 	import { cn } from '$lib/utils'
 	import { capsClass } from '$lib/utils/text'
 
@@ -282,15 +283,15 @@
 					<Table.Cell class={cn('font-medium', capsClass(item.item_name))}
 						>{item.item_name}</Table.Cell
 					>
-					<Table.Cell
-						class={cn(
-							'tabular-nums',
-							tone === 'danger' && 'text-destructive font-semibold',
-							tone === 'warning' && 'text-warning font-semibold',
-						)}
-					>
-						{item.quantity}
-						{item.unit}
+					<Table.Cell>
+						<Quantity
+							value={item.quantity}
+							unit={item.unit}
+							valueClass={cn(
+								tone === 'danger' && 'text-destructive font-semibold',
+								tone === 'warning' && 'text-warning font-semibold',
+							)}
+						/>
 					</Table.Cell>
 					<Table.Cell>
 						{#if item.order_date}

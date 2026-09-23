@@ -29,7 +29,7 @@
 	import { EXPIRY_WARNING_DAYS, daysUntilExpiry, type StockBatch } from '$lib/types/stockBatches'
 	import { daysSince, formatDate, formatDayMonth, formatDuration } from '$lib/utils/date'
 	import { expiryNote } from '$lib/utils/expiry'
-	import { withUnit } from '$lib/utils/requests'
+	import Quantity from '$lib/components/app/Quantity.svelte'
 	import { cn } from '$lib/utils'
 	import { capsClass } from '$lib/utils/text'
 
@@ -246,8 +246,8 @@
 										</span>
 									{/if}
 								</Table.Cell>
-								<Table.Cell class="text-end font-medium tabular-nums">
-									{withUnit(batch.quantity, item.unit)}
+								<Table.Cell class="text-end">
+									<Quantity value={batch.quantity} unit={item.unit} />
 								</Table.Cell>
 								<Table.Cell>
 									<div class="flex justify-end">
@@ -300,10 +300,14 @@
 									</StatusDot>
 								</Table.Cell>
 								<Table.Cell>
-									<span class={cn('tabular-nums', out && 'text-destructive')}>
-										{item.quantity} of {item.reorder_level}
-										{item.unit}
-									</span>
+									<Quantity
+										value={item.quantity}
+										unit={item.unit}
+										valueClass={cn(out && 'text-destructive')}
+									/>
+									<span class="text-muted-foreground ms-1 text-xs"
+										>reorder at {item.reorder_level}</span
+									>
 								</Table.Cell>
 								<Table.Cell>
 									{#if item.order_date}
@@ -362,8 +366,8 @@
 								<Table.Cell class={cn('font-medium', capsClass(item.item_name))}
 									>{item.item_name}</Table.Cell
 								>
-								<Table.Cell class="tabular-nums">
-									{withUnit(item.quantity, item.unit)}
+								<Table.Cell>
+									<Quantity value={item.quantity} unit={item.unit} />
 								</Table.Cell>
 								<Table.Cell class="tabular-nums">
 									{formatDate(item.updated_at)}

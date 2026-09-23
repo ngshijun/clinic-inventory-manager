@@ -44,6 +44,7 @@
 		withUnit,
 		type DayMode,
 	} from '$lib/utils/requests'
+	import Quantity from '$lib/components/app/Quantity.svelte'
 	import { cn } from '$lib/utils'
 	import { capsClass } from '$lib/utils/text'
 
@@ -331,9 +332,7 @@
 						{requestedDay(request)}
 						<span class="text-muted-foreground ms-1 text-xs">{formatTime(request.created_at)}</span>
 					</Table.Cell>
-					<Table.Cell class="tabular-nums">
-						{withUnit(request.quantity, request.unit)}
-					</Table.Cell>
+					<Table.Cell><Quantity value={request.quantity} unit={request.unit} /></Table.Cell>
 					<!-- One line: the full remark is the title and opens in Edit Request. -->
 					<Table.Cell class="max-w-0">
 						{#if request.remark}

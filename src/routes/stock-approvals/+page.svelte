@@ -41,6 +41,7 @@
 		withUnit,
 		type DayMode,
 	} from '$lib/utils/requests'
+	import Quantity from '$lib/components/app/Quantity.svelte'
 	import { cn } from '$lib/utils'
 	import { capsClass } from '$lib/utils/text'
 
@@ -400,8 +401,12 @@
 						{requestedDay(request)}
 						<span class="text-muted-foreground ms-1 text-xs">{formatTime(request.created_at)}</span>
 					</Table.Cell>
-					<Table.Cell class={cn('tabular-nums', pending && 'font-semibold')}>
-						{withUnit(request.quantity, request.unit)}
+					<Table.Cell>
+						<Quantity
+							value={request.quantity}
+							unit={request.unit}
+							valueClass={cn(pending && 'font-semibold')}
+						/>
 					</Table.Cell>
 					<Table.Cell class="tabular-nums">
 						{#if short}
@@ -410,9 +415,12 @@
 								Only {withUnit(stock, request.unit)}
 							</ToneBadge>
 						{:else}
-							<span class={cn(stock === 0 ? 'text-destructive' : 'text-muted-foreground')}>
-								{withUnit(stock, request.unit)}
-							</span>
+							<Quantity
+								value={stock}
+								unit={request.unit}
+								pack={false}
+								valueClass={cn(stock === 0 ? 'text-destructive' : 'font-normal')}
+							/>
 						{/if}
 					</Table.Cell>
 					<!-- One line: the full remark is the title and opens in Edit Request. -->

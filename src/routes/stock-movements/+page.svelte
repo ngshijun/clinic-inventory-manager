@@ -40,6 +40,7 @@
 	import type { MovementType, MovementsQuery, StockMovement } from '$lib/types/stockMovements'
 	import { formatDate, formatDateTime, formatDayMonth, formatTime } from '$lib/utils/date'
 	import { expiryNote } from '$lib/utils/expiry'
+	import Quantity from '$lib/components/app/Quantity.svelte'
 	import { cn } from '$lib/utils'
 	import { capsClass } from '$lib/utils/text'
 
@@ -643,14 +644,12 @@
 					<Table.Cell class={cn('font-medium', capsClass(movement.item_name))}
 						>{movement.item_name}</Table.Cell
 					>
-					<Table.Cell
-						class={cn(
-							'text-end font-semibold tabular-nums',
-							isIn ? 'text-success' : 'text-destructive',
-							capsClass(movement.unit),
-						)}
-					>
-						{changeLabel(movement)}
+					<Table.Cell class="text-end">
+						<Quantity
+							value={`${isIn ? '+' : '−'}${movement.quantity}`}
+							unit={movement.unit}
+							valueClass={cn('font-semibold', isIn ? 'text-success' : 'text-destructive')}
+						/>
 					</Table.Cell>
 					<Table.Cell class="tabular-nums">
 						{#if movement.expiry_date}

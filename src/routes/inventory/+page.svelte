@@ -50,6 +50,7 @@
 	import { getExpiryStatus, todayIsoDate, type StockBatch } from '$lib/types/stockBatches'
 	import { formatDate, formatDayMonth } from '$lib/utils/date'
 	import { expiryNote } from '$lib/utils/expiry'
+	import Quantity from '$lib/components/app/Quantity.svelte'
 	import { cn } from '$lib/utils'
 	import { capsClass } from '$lib/utils/text'
 
@@ -814,12 +815,12 @@
 							{/if}
 						</span>
 					</Table.Cell>
-					<Table.Cell class="tabular-nums">{item.quantity} {item.unit}</Table.Cell>
-					<Table.Cell class="tabular-nums">
+					<Table.Cell><Quantity value={item.quantity} unit={item.unit} /></Table.Cell>
+					<Table.Cell>
 						{#if item.reorder_level < 0 || item.not_track}
 							<span class="text-muted-foreground">—</span>
 						{:else}
-							{item.reorder_level} {item.unit}
+							<Quantity value={item.reorder_level} unit={item.unit} pack={false} />
 						{/if}
 					</Table.Cell>
 					<Table.Cell class="tabular-nums">
@@ -953,7 +954,7 @@
 											{@attach selectOnFocus()}
 										/>
 									{:else}
-										<span class="text-foreground font-medium">{batch.quantity} {item.unit}</span>
+										<Quantity value={batch.quantity} unit={item.unit} pack={false} />
 									{/if}
 								</Table.Cell>
 								<Table.Cell></Table.Cell>
