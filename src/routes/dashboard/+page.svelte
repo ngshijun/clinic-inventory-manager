@@ -28,7 +28,7 @@
 	import type { InventoryItem } from '$lib/types/inventory'
 	import { EXPIRY_WARNING_DAYS, daysUntilExpiry, type StockBatch } from '$lib/types/stockBatches'
 	import { daysSince, formatDate, formatDayMonth, formatDuration } from '$lib/utils/date'
-	import { expiryBadge } from '$lib/utils/expiry'
+	import { expiryNote } from '$lib/utils/expiry'
 	import { withUnit } from '$lib/utils/requests'
 	import { cn } from '$lib/utils'
 
@@ -224,32 +224,29 @@
 					</Table.Header>
 					<Table.Body>
 						{#each expiringList.visible as { batch, item, daysLeft } (batch.id)}
-							{@const badge = expiryBadge(batch.expiry_date)}
-							<Table.Row
-								class={cn(
-									daysLeft < 0
-										? 'shadow-[inset_2px_0_0_var(--destructive)]'
-										: 'shadow-[inset_2px_0_0_var(--warning)]',
-								)}
-							>
-								<Table.Cell class="max-w-md min-w-48 py-2.5 whitespace-normal">
-									<div class="font-medium break-words">{item.item_name}</div>
-								</Table.Cell>
-								<Table.Cell class="text-muted-foreground py-2.5 tabular-nums">
+							{@const note = expiryNote(batch.expiry_date)}
+							<Table.Row>
+								<Table.Cell class="font-medium">{item.item_name}</Table.Cell>
+								<Table.Cell class="text-muted-foreground tabular-nums">
 									Received {formatDate(batch._creationTime)}
 								</Table.Cell>
-								<Table.Cell class="py-2.5">
-									{#if badge}
-										<ToneBadge tone={badge.tone}>{badge.text}</ToneBadge>
+								<Table.Cell class="tabular-nums">
+									{formatDate(batch.expiry_date)}
+									{#if note}
+										<span
+											class={cn(
+												'ms-1 text-xs',
+												note.tone === 'danger' ? 'text-destructive' : 'text-warning',
+											)}
+										>
+											{note.text}
+										</span>
 									{/if}
-									<div class="text-muted-foreground mt-1 text-xs tabular-nums">
-										{formatDate(batch.expiry_date)}
-									</div>
 								</Table.Cell>
-								<Table.Cell class="py-2.5 text-end font-medium tabular-nums">
+								<Table.Cell class="text-end font-medium tabular-nums">
 									{withUnit(batch.quantity, item.unit)}
 								</Table.Cell>
-								<Table.Cell class="py-2.5">
+								<Table.Cell>
 									<div class="flex justify-end">
 										<Button variant="outline" size="sm" onclick={() => stockOutDialog?.open(item)}>
 											Stock Out…
@@ -291,21 +288,19 @@
 						{#each reorderList.visible as item (item.id)}
 							{@const out = item.quantity === 0}
 							<Table.Row>
-								<Table.Cell class="max-w-md min-w-48 py-2.5 whitespace-normal">
-									<div class="font-medium break-words">{item.item_name}</div>
-								</Table.Cell>
-								<Table.Cell class="py-2.5">
+								<Table.Cell class="font-medium">{item.item_name}</Table.Cell>
+								<Table.Cell>
 									<StatusDot tone={out ? 'danger' : 'warning'}>
 										{out ? 'Out of stock' : 'Low stock'}
 									</StatusDot>
 								</Table.Cell>
-								<Table.Cell class="py-2.5">
+								<Table.Cell>
 									<span class={cn('tabular-nums', out && 'text-destructive')}>
 										{item.quantity} of {item.reorder_level}
 										{item.unit}
 									</span>
 								</Table.Cell>
-								<Table.Cell class="py-2.5">
+								<Table.Cell>
 									{#if item.order_date}
 										<ToneBadge tone="info">
 											{#if item.back_order}
@@ -322,7 +317,7 @@
 										<span class="text-muted-foreground">—</span>
 									{/if}
 								</Table.Cell>
-								<Table.Cell class="py-2.5">
+								<Table.Cell>
 									<div class="flex justify-end">
 										<OrderStatusMenu
 											{item}
@@ -359,13 +354,11 @@
 					<Table.Body>
 						{#each staleList.visible as item (item.id)}
 							<Table.Row>
-								<Table.Cell class="max-w-md min-w-48 py-2.5 whitespace-normal">
-									<div class="font-medium break-words">{item.item_name}</div>
-								</Table.Cell>
-								<Table.Cell class="py-2.5 tabular-nums">
+								<Table.Cell class="font-medium">{item.item_name}</Table.Cell>
+								<Table.Cell class="tabular-nums">
 									{withUnit(item.quantity, item.unit)}
 								</Table.Cell>
-								<Table.Cell class="py-2.5 tabular-nums">
+								<Table.Cell class="tabular-nums">
 									{formatDate(item.updated_at)}
 									<span class="text-muted-foreground ms-1 text-xs">
 										{formatDuration(daysSince(item.updated_at))} ago

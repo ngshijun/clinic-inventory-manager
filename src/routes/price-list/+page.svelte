@@ -30,7 +30,7 @@
 	import { createLoadMore } from '$lib/composables/loadMore.svelte'
 	import { inventoryStore } from '$lib/stores/inventory.svelte'
 	import type { InventoryItem } from '$lib/types/inventory'
-	import { formatDate } from '$lib/utils/date'
+	import { formatDate, formatDayMonth } from '$lib/utils/date'
 	import { cn } from '$lib/utils'
 
 	// ---------- Toolbar state ----------
@@ -233,7 +233,7 @@
 		<Table.Body>
 			{#each { length: 8 } as _, i (i)}
 				<Table.Row>
-					<Table.Cell class="py-3"><Skeleton class="h-4 w-48" /></Table.Cell>
+					<Table.Cell><Skeleton class="h-4 w-48" /></Table.Cell>
 					<Table.Cell><Skeleton class="h-4 w-20" /></Table.Cell>
 					<Table.Cell><Skeleton class="h-4 w-28" /></Table.Cell>
 					<Table.Cell><Skeleton class="h-4 w-64" /></Table.Cell>
@@ -278,12 +278,10 @@
 			{#each list.visible as item (item.id)}
 				{@const tone = quantityTone(item)}
 				<Table.Row>
-					<Table.Cell class="max-w-md min-w-48 py-2.5 font-medium break-words whitespace-normal">
-						{item.item_name}
-					</Table.Cell>
+					<Table.Cell class="font-medium">{item.item_name}</Table.Cell>
 					<Table.Cell
 						class={cn(
-							'py-2.5 tabular-nums',
+							'tabular-nums',
 							tone === 'danger' && 'text-destructive font-semibold',
 							tone === 'warning' && 'text-warning font-semibold',
 						)}
@@ -291,15 +289,15 @@
 						{item.quantity}
 						{item.unit}
 					</Table.Cell>
-					<Table.Cell class="py-2.5">
+					<Table.Cell>
 						{#if item.order_date}
 							<ToneBadge tone="info">
 								{#if item.back_order}
 									<ClockIcon />
-									Back-ordered {formatDate(item.order_date)}
+									Back-ordered {formatDayMonth(item.order_date)}
 								{:else}
 									<CalendarIcon />
-									Ordered {formatDate(item.order_date)}
+									Ordered {formatDayMonth(item.order_date)}
 								{/if}
 							</ToneBadge>
 						{:else if item.non_order_reason}
@@ -308,14 +306,15 @@
 							<span class="text-muted-foreground">—</span>
 						{/if}
 					</Table.Cell>
-					<Table.Cell class="py-2.5 whitespace-normal">
+					<!-- One line: the full remark is the title and opens in Edit Remark. -->
+					<Table.Cell class="max-w-0">
 						{#if item.remark}
-							<div class="text-foreground/80 break-words whitespace-pre-wrap">{item.remark}</div>
+							<div class="text-foreground/80 truncate" title={item.remark}>{item.remark}</div>
 						{:else}
 							<span class="text-muted-foreground">No remark</span>
 						{/if}
 					</Table.Cell>
-					<Table.Cell class="py-2.5">
+					<Table.Cell>
 						<div class="flex justify-end gap-1">
 							<OrderStatusMenu {item} onMarkOrdered={(target) => orderDialog?.open(target)} />
 							<Tooltip.Root>

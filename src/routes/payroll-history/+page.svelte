@@ -11,6 +11,7 @@
 	import UsersIcon from '@lucide/svelte/icons/users'
 	import ActionModal from '$lib/components/app/ActionModal.svelte'
 	import PageHeader from '$lib/components/app/PageHeader.svelte'
+	import ToneBadge from '$lib/components/app/ToneBadge.svelte'
 	import { Button } from '$lib/components/ui/button'
 	import * as Card from '$lib/components/ui/card'
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu'
@@ -285,24 +286,24 @@
 			<Table.Body>
 				{#each items as item (item.id)}
 					<Table.Row>
-						<Table.Cell class="py-2 font-medium whitespace-normal">{item.employee_name}</Table.Cell>
-						<Table.Cell class="py-2 text-end tabular-nums">{amount(item.basic_salary)}</Table.Cell>
+						<Table.Cell class="font-medium">{item.employee_name}</Table.Cell>
+						<Table.Cell class="text-end tabular-nums">{amount(item.basic_salary)}</Table.Cell>
 						{@render pair(item.epf_employer, item.epf_employee)}
 						{@render pair(item.socso_employer, item.socso_employee)}
 						{@render pair(item.eis_employer, item.eis_employee)}
-						<Table.Cell class="py-2 text-end tabular-nums">
+						<Table.Cell class="text-end tabular-nums">
 							{#if item.lindung_24_jam > 0}
 								{amount(item.lindung_24_jam)}
 							{:else}
 								<span class="text-muted-foreground">—</span>
 							{/if}
 						</Table.Cell>
-						<Table.Cell class="py-2 text-end tabular-nums">{amount(item.pcb)}</Table.Cell>
-						<Table.Cell class="py-2 text-end tabular-nums">{amount(item.cp38)}</Table.Cell>
-						<Table.Cell class="py-2 text-end font-semibold tabular-nums">
+						<Table.Cell class="text-end tabular-nums">{amount(item.pcb)}</Table.Cell>
+						<Table.Cell class="text-end tabular-nums">{amount(item.cp38)}</Table.Cell>
+						<Table.Cell class="text-end font-semibold tabular-nums">
 							{amount(item.net_salary)}
 						</Table.Cell>
-						<Table.Cell class="py-2">
+						<Table.Cell>
 							<div class="flex justify-end">
 								<Tooltip.Root>
 									<Tooltip.Trigger>
@@ -371,7 +372,7 @@
 	{/snippet}
 
 	{#snippet pair(employer: number, employee: number)}
-		<Table.Cell class="py-2 text-end whitespace-nowrap tabular-nums">
+		<Table.Cell class="text-end whitespace-nowrap tabular-nums">
 			{amount(employer)} <span class="text-muted-foreground">/</span>
 			{amount(employee)}
 		</Table.Cell>
@@ -416,7 +417,7 @@
 			<Table.Body>
 				{#each { length: 5 } as _, i (i)}
 					<Table.Row>
-						<Table.Cell class="py-3"><Skeleton class="h-4 w-32" /></Table.Cell>
+						<Table.Cell><Skeleton class="h-4 w-32" /></Table.Cell>
 						<Table.Cell><Skeleton class="h-4 w-36" /></Table.Cell>
 						<Table.Cell><Skeleton class="ms-auto h-4 w-6" /></Table.Cell>
 						<Table.Cell><Skeleton class="ms-auto h-4 w-24" /></Table.Cell>
@@ -458,14 +459,14 @@
 					{@const rows = payrollRecordsStore.getItems(run.id)}
 					{@const figures = summary(rows)}
 					<Table.Row>
-						<Table.Cell class="py-2.5 font-medium">{periodLabel(run)}</Table.Cell>
-						<Table.Cell class="py-2.5 tabular-nums">
+						<Table.Cell class="font-medium">{periodLabel(run)}</Table.Cell>
+						<Table.Cell class="tabular-nums">
 							{formatDateTime(run.finalized_at)}
 							{#if wasOverwritten(run)}
-								<div class="text-muted-foreground text-xs">Overwritten</div>
+								<ToneBadge tone="neutral" class="ms-1">Overwritten</ToneBadge>
 							{/if}
 						</Table.Cell>
-						<Table.Cell class="py-2.5 text-end tabular-nums">
+						<Table.Cell class="text-end tabular-nums">
 							{#if loaded}
 								{rows.length}
 							{:else}
@@ -473,7 +474,7 @@
 							{/if}
 						</Table.Cell>
 						<Table.Cell
-							class={cn('py-2.5 text-end tabular-nums', !showSalaries && 'text-muted-foreground')}
+							class={cn('text-end tabular-nums', !showSalaries && 'text-muted-foreground')}
 						>
 							{#if loaded}
 								{rm(figures.basic)}
@@ -482,7 +483,7 @@
 							{/if}
 						</Table.Cell>
 						<Table.Cell
-							class={cn('py-2.5 text-end tabular-nums', !showSalaries && 'text-muted-foreground')}
+							class={cn('text-end tabular-nums', !showSalaries && 'text-muted-foreground')}
 						>
 							{#if loaded}
 								{rm(figures.net)}
@@ -490,7 +491,7 @@
 								<Skeleton class="ms-auto h-4 w-24" />
 							{/if}
 						</Table.Cell>
-						<Table.Cell class="py-2.5">
+						<Table.Cell>
 							<div class="flex items-center justify-end gap-1">
 								<Button variant="outline" size="sm" href={`/payroll-history?run=${run.id}`}>
 									View Record

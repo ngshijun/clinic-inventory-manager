@@ -498,21 +498,19 @@
 			<Table.Body>
 				{#each payrollData as row, i (row.employeeId)}
 					<Table.Row>
-						<Table.Cell class="py-2 font-medium whitespace-normal">{row.employeeName}</Table.Cell>
-						<Table.Cell class="py-2 text-end tabular-nums"
-							>{formatAmount(row.basicSalary)}</Table.Cell
-						>
+						<Table.Cell class="font-medium">{row.employeeName}</Table.Cell>
+						<Table.Cell class="text-end tabular-nums">{formatAmount(row.basicSalary)}</Table.Cell>
 						{@render pair(row.epfEmployer, row.epfEmployee)}
 						{@render pair(row.socsoEmployer, row.socsoEmployee)}
 						{@render pair(row.eisEmployer, row.eisEmployee)}
-						<Table.Cell class="py-2 text-end tabular-nums">
+						<Table.Cell class="text-end tabular-nums">
 							{#if row.lindung24 > 0}
 								{formatAmount(row.lindung24)}
 							{:else}
 								<span class="text-muted-foreground">—</span>
 							{/if}
 						</Table.Cell>
-						<Table.Cell class="py-2 text-end">
+						<Table.Cell class="text-end">
 							<Input
 								type="number"
 								inputmode="decimal"
@@ -527,7 +525,7 @@
 								{@attach selectOnFocus()}
 							/>
 						</Table.Cell>
-						<Table.Cell class="py-2 text-end">
+						<Table.Cell class="text-end">
 							<Input
 								type="number"
 								inputmode="decimal"
@@ -541,7 +539,7 @@
 								{@attach selectOnFocus()}
 							/>
 						</Table.Cell>
-						<Table.Cell class="py-2 text-end font-semibold tabular-nums">
+						<Table.Cell class="text-end font-semibold tabular-nums">
 							{formatAmount(net(row))}
 						</Table.Cell>
 					</Table.Row>
@@ -585,7 +583,7 @@
 	{/snippet}
 
 	{#snippet pair(employer: number, employee: number)}
-		<Table.Cell class="py-2 text-end whitespace-nowrap tabular-nums">
+		<Table.Cell class="text-end whitespace-nowrap tabular-nums">
 			{formatAmount(employer)} <span class="text-muted-foreground">/</span>
 			{formatAmount(employee)}
 		</Table.Cell>
@@ -692,7 +690,7 @@
 			<Table.Body>
 				{#each { length: 5 } as _, i (i)}
 					<Table.Row>
-						<Table.Cell class="py-3"><Skeleton class="h-4 w-44" /></Table.Cell>
+						<Table.Cell><Skeleton class="h-4 w-44" /></Table.Cell>
 						<Table.Cell><Skeleton class="ms-auto h-4 w-16" /></Table.Cell>
 						<Table.Cell><Skeleton class="ms-auto h-4 w-16" /></Table.Cell>
 						<Table.Cell><Skeleton class="h-5 w-16 rounded-full" /></Table.Cell>
@@ -743,30 +741,25 @@
 			<Table.Body>
 				{#each sortedEmployees as employee (employee.id)}
 					<Table.Row>
-						<Table.Cell class="max-w-md min-w-48 py-2.5 whitespace-normal">
-							<div class="font-medium break-words">{employee.name}</div>
-							<div class="text-muted-foreground mt-0.5 text-xs">
-								Since {formatDate(employee._creationTime)}
-							</div>
-						</Table.Cell>
+						<Table.Cell class="font-medium">{employee.name}</Table.Cell>
 						<Table.Cell
-							class={cn('py-2.5 text-end tabular-nums', !showSalaries && 'text-muted-foreground')}
+							class={cn('text-end tabular-nums', !showSalaries && 'text-muted-foreground')}
 						>
 							{money(employee.basic_salary)}
 						</Table.Cell>
 						<Table.Cell
-							class={cn('py-2.5 text-end tabular-nums', !showSalaries && 'text-muted-foreground')}
+							class={cn('text-end tabular-nums', !showSalaries && 'text-muted-foreground')}
 						>
 							{money(employee.epf_employer)}
 						</Table.Cell>
-						<Table.Cell class="py-2.5">
+						<Table.Cell>
 							{#if employee.lindung_24_jam}
 								Opted in
 							{:else}
 								<span class="text-muted-foreground">—</span>
 							{/if}
 						</Table.Cell>
-						<Table.Cell class="py-2.5">
+						<Table.Cell>
 							<div class="flex justify-end">
 								<Tooltip.Root>
 									<Tooltip.Trigger>

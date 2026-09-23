@@ -17,7 +17,6 @@
 	import PageHeader from '$lib/components/app/PageHeader.svelte'
 	import SortHeader from '$lib/components/app/SortHeader.svelte'
 	import type { SortState } from '$lib/components/app/sort'
-	import ToneBadge from '$lib/components/app/ToneBadge.svelte'
 	import { Badge } from '$lib/components/ui/badge'
 	import { Button } from '$lib/components/ui/button'
 	import * as Command from '$lib/components/ui/command'
@@ -40,7 +39,7 @@
 	import type { InventoryItem } from '$lib/types/inventory'
 	import type { MovementType, MovementsQuery, StockMovement } from '$lib/types/stockMovements'
 	import { formatDate, formatDateTime, formatDayMonth, formatTime } from '$lib/utils/date'
-	import { expiryBadge } from '$lib/utils/expiry'
+	import { expiryNote } from '$lib/utils/expiry'
 	import { cn } from '$lib/utils'
 
 	const SEARCH_DEBOUNCE_MS = 300
@@ -583,7 +582,7 @@
 		<Table.Body>
 			{#each { length: 8 } as _, i (i)}
 				<Table.Row>
-					<Table.Cell class="py-3"><Skeleton class="h-4 w-32" /></Table.Cell>
+					<Table.Cell><Skeleton class="h-4 w-32" /></Table.Cell>
 					<Table.Cell><Skeleton class="h-4 w-44" /></Table.Cell>
 					<Table.Cell><Skeleton class="ms-auto h-4 w-16" /></Table.Cell>
 					<Table.Cell><Skeleton class="h-4 w-24" /></Table.Cell>
@@ -632,45 +631,51 @@
 		</Table.Header>
 		<Table.Body>
 			{#each movements as movement (movement.id)}
-				{@const badge = expiryBadge(movement.expiry_date)}
+				{@const note = expiryNote(movement.expiry_date)}
 				{@const isIn = movement.movement_type === 'stock_in'}
 				<Table.Row>
-					<Table.Cell class="py-2.5 tabular-nums">
+					<Table.Cell class="tabular-nums">
 						{formatDate(movement.created_at)}
 						<span class="text-muted-foreground ms-1 text-xs">{formatTime(movement.created_at)}</span
 						>
 					</Table.Cell>
-					<Table.Cell class="max-w-md min-w-48 py-2.5 whitespace-normal">
-						<div class="font-medium break-words">{movement.item_name}</div>
-					</Table.Cell>
+					<Table.Cell class="font-medium">{movement.item_name}</Table.Cell>
 					<Table.Cell
 						class={cn(
-							'py-2.5 text-end font-semibold tabular-nums',
+							'text-end font-semibold tabular-nums',
 							isIn ? 'text-success' : 'text-destructive',
 						)}
 					>
 						{changeLabel(movement)}
 					</Table.Cell>
-					<Table.Cell class="py-2.5">
+					<Table.Cell class="tabular-nums">
 						{#if movement.expiry_date}
-							<div class="tabular-nums">{formatDate(movement.expiry_date)}</div>
-							{#if badge}
-								<ToneBadge tone={badge.tone} class="mt-1">{badge.text}</ToneBadge>
+							{formatDate(movement.expiry_date)}
+							{#if note}
+								<span
+									class={cn(
+										'ms-1 text-xs',
+										note.tone === 'danger' ? 'text-destructive' : 'text-warning',
+									)}
+								>
+									{note.text}
+								</span>
 							{/if}
 						{:else}
 							<span class="text-muted-foreground">—</span>
 						{/if}
 					</Table.Cell>
-					<Table.Cell class="py-2.5 whitespace-normal">
+					<!-- One line: the full remark is the title and opens in Edit Remark. -->
+					<Table.Cell class="max-w-0">
 						{#if movement.remark}
-							<div class="text-foreground/80 break-words whitespace-pre-wrap">
+							<div class="text-foreground/80 truncate" title={movement.remark}>
 								{movement.remark}
 							</div>
 						{:else}
 							<span class="text-muted-foreground">No remark</span>
 						{/if}
 					</Table.Cell>
-					<Table.Cell class="py-2.5">
+					<Table.Cell>
 						<div class="flex justify-end">
 							<Tooltip.Root>
 								<Tooltip.Trigger>
