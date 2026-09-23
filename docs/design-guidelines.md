@@ -1,0 +1,22 @@
+# Design guidelines
+
+Every design decision in the clinic inventory manager follows the [Apple Human Interface Guidelines](https://developer.apple.com/design/human-interface-guidelines) (HIG) and the HealthOS design guidelines (`HealthOS/docs/design-guidelines.md`), which record the HIG sentences behind each house rule. This document records only what this app adds or decides differently. Check a page against both before calling it done.
+
+Reference pages: Inventory and the Stock In / Stock Out dialogs were hand-refined first and are the model for everything else.
+
+## 1. Lists and tables
+
+Sources: Lists and tables; HealthOS §7.
+
+- **One line per row, every table** (user ruling 2026-09-24, https://claude.ai/artifact/CjeJH1TiBegeUnEtxTBPKX). A cell never stacks two lines. Body rows are a fixed 48 px, set once on `table-body.svelte` (`[&>tr]:h-12`); cells are `px-3 py-2`, so a 32 px button or input fits exactly and a text-only row still measures the same. Pages add no `py-*` to cells. Skeleton rows inherit the height, so a placeholder table is the loaded table with bars.
+- **A second line goes to one of four places**, in this order of preference:
+  1. **Its own column** when it is a fact people scan or sort by: the request time became a sortable Requested column ("Today 10:32", "19 Sep 16:05"); the order badge and non-order reason on Inventory became an Order column, matching Price List and the Dashboard.
+  2. **Inline after the figure** when it qualifies that figure: a small muted or tinted phrase, `text-xs` with `ms-1`, in the same cell. "23 Sep 2026 14:05", "24 Jun 2025 1 year ago", "12 Oct 2026 in 18 days" (`expiryNote()` in `utils/expiry.ts`, warning or destructive ink; `expiryBadge()` stays for dialogs). An overwritten payroll run is a neutral badge beside its saved time. A batch row reads "Batch 1 · received 14 Jan 2026".
+  3. **A badge after the name** when it is the row's own state and only the exception needs marking, as HealthOS marks only an inactive patient beside the name: Inventory shows Low stock, Out of stock and Not tracked after the item name and nothing for In stock. Where every row is an exception (the Dashboard's Needs Reordering tab) the state keeps a `StatusDot` column.
+  4. **Dropped** when another column or control already says it: the batch count (the chevron shows the batches), "No stock" (the badge says Out of stock), "Since {date}" on Employees (the date the record was added, not a hire date), and any explanatory sentence ("Stock Out takes the earliest expiry first").
+- **No row stripes.** A row's state is the badge or dot in the row, never a coloured inset on the leading edge as well; the two said the same thing.
+- **Names stay whole.** An item or person name never wraps or truncates in a table: the cell keeps the primitive's `whitespace-nowrap` and `Table.Root` scrolls sideways when it must, as every HealthOS table does. Pages add no `whitespace-normal`, `break-words`, `max-w-md` or `min-w-48` to name cells.
+- **Remarks and notes truncate.** Secondary free text gets one line: the column head carries a percentage width, the cell is `max-w-0`, and the text sits in an inner `div.truncate` with the full text as `title` (table cells ignore `max-width` otherwise). The edit dialog still shows all of it. This is HealthOS's `max-w-xs truncate` with `title` on notes, widened to a column.
+- **Column heads read the same whether or not they sort.** `table-head.svelte` carries the `SortHeader` text style (`text-muted-foreground text-xs font-semibold tracking-wide uppercase`, `h-10 px-3`), so a fixed column beside a sortable one does not look like a different table. Sortable heads sort what the column shows; when a column goes, its sort key goes with it (Inventory no longer sorts by status; the Low Stock and Out of Stock segments cover that).
+- **Dates and times in cells**: `formatDate` ("23 Sep 2026") for a date, `formatDayMonth` ("20 Sep") inside a badge or beside a time so it never pushes the next column, `formatTime` as the small qualifier after the day. Figures are `tabular-nums`.
+- **Row hover** is kept (`hover:bg-muted/50` on `table-row.svelte`), unlike HealthOS: rows here carry inline buttons and an expandable batch list, so the tint tells a person which row the pointer is on.
