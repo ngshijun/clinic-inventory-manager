@@ -42,13 +42,9 @@
 	import { inventoryStore } from '$lib/stores/inventory.svelte'
 	import { stockBatchesStore } from '$lib/stores/stockBatches.svelte'
 	import type { InventoryItem, NewInventoryItem } from '$lib/types/inventory'
-	import {
-		daysUntilExpiry,
-		getExpiryStatus,
-		todayIsoDate,
-		type StockBatch,
-	} from '$lib/types/stockBatches'
+	import { getExpiryStatus, todayIsoDate, type StockBatch } from '$lib/types/stockBatches'
 	import { formatDate, formatDayMonth } from '$lib/utils/date'
+	import { expiryBadge } from '$lib/utils/expiry'
 	import { cn } from '$lib/utils'
 
 	// ---------- Toolbar state ----------
@@ -98,32 +94,6 @@
 
 	const batchCount = (item: InventoryItem): number =>
 		stockBatchesStore.batchesByItem.get(item.id)?.length ?? 0
-
-	const expiryBadge = (
-		expiryDate: string | null | undefined,
-	): { tone: 'danger' | 'warning'; text: string } | null => {
-		if (!expiryDate) return null
-		const status = getExpiryStatus(expiryDate)
-		const days = daysUntilExpiry(expiryDate)
-		if (status === 'expired') {
-			return {
-				tone: 'danger',
-				text: days === -1 ? 'Expired yesterday' : `Expired ${-days} days ago`,
-			}
-		}
-		if (status === 'expiring') {
-			return {
-				tone: 'warning',
-				text:
-					days === 0
-						? 'Expires today'
-						: days === 1
-							? 'Expires tomorrow'
-							: `Expires in ${days} days`,
-			}
-		}
-		return null
-	}
 
 	const plural = (count: number, noun: string, many = `${noun}s`): string =>
 		`${count} ${count === 1 ? noun : many}`

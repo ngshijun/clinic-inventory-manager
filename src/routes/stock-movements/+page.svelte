@@ -1,604 +1,744 @@
 <script lang="ts">
 	import { untrack } from 'svelte'
-	import ActionButtonGroup, {
-		type ActionButtonGroupAction,
-	} from '$lib/components/app/ActionButtonGroup.svelte'
+	import { toast } from 'svelte-sonner'
+	import { getLocalTimeZone, parseDate, today, type DateValue } from '@internationalized/date'
+	import type { DateRange } from 'bits-ui'
+	import CalendarIcon from '@lucide/svelte/icons/calendar'
+	import CheckIcon from '@lucide/svelte/icons/check'
+	import ChevronsUpDownIcon from '@lucide/svelte/icons/chevrons-up-down'
+	import HistoryIcon from '@lucide/svelte/icons/history'
+	import PencilIcon from '@lucide/svelte/icons/pencil'
+	import SearchIcon from '@lucide/svelte/icons/search'
+	import SlidersHorizontalIcon from '@lucide/svelte/icons/sliders-horizontal'
+	import XIcon from '@lucide/svelte/icons/x'
+	import { caretAtEnd } from '$lib/attachments/focus'
 	import ActionModal from '$lib/components/app/ActionModal.svelte'
-	import EmptyState from '$lib/components/app/EmptyState.svelte'
-	import ErrorAlert from '$lib/components/app/ErrorAlert.svelte'
-	import FormField from '$lib/components/app/FormField.svelte'
-	import LoadingSpinner from '$lib/components/app/LoadingSpinner.svelte'
-	import SearchInput from '$lib/components/app/SearchInput.svelte'
-	import SortableTableHeader from '$lib/components/app/SortableTableHeader.svelte'
-	import StatusBadge from '$lib/components/app/StatusBadge.svelte'
-	import CloseIcon from '$lib/components/icons/CloseIcon.svelte'
-	import CogIcon from '$lib/components/icons/CogIcon.svelte'
-	import FilterIcon from '$lib/components/icons/FilterIcon.svelte'
-	import * as Table from '$lib/components/ui/table/index.js'
+	import PageHeader from '$lib/components/app/PageHeader.svelte'
+	import SortHeader from '$lib/components/app/SortHeader.svelte'
+	import type { SortState } from '$lib/components/app/sort'
+	import ToneBadge from '$lib/components/app/ToneBadge.svelte'
+	import { Badge } from '$lib/components/ui/badge'
+	import { Button } from '$lib/components/ui/button'
+	import * as Command from '$lib/components/ui/command'
+	import * as Empty from '$lib/components/ui/empty'
+	import * as Field from '$lib/components/ui/field'
+	import { Input } from '$lib/components/ui/input'
+	import * as InputGroup from '$lib/components/ui/input-group'
+	import * as Popover from '$lib/components/ui/popover'
+	import { RangeCalendar } from '$lib/components/ui/range-calendar'
+	import { Skeleton } from '$lib/components/ui/skeleton'
+	import { Spinner } from '$lib/components/ui/spinner'
+	import * as Table from '$lib/components/ui/table'
+	import { Textarea } from '$lib/components/ui/textarea'
+	import * as ToggleGroup from '$lib/components/ui/toggle-group'
+	import * as Tooltip from '$lib/components/ui/tooltip'
+	import { useErrorToast } from '$lib/composables/errorToast.svelte'
+	import { IsMobile } from '$lib/hooks/is-mobile.svelte'
+	import { inventoryStore } from '$lib/stores/inventory.svelte'
 	import { stockMovementsStore } from '$lib/stores/stockMovements.svelte'
-	import {
-		emptyMovementFilters,
-		type MovementFilters,
-		type MovementsQuery,
-		type StockMovement,
-	} from '$lib/types/stockMovements'
-	import { Button } from '$lib/components/ui/button/index.js'
+	import type { InventoryItem } from '$lib/types/inventory'
+	import type { MovementType, MovementsQuery, StockMovement } from '$lib/types/stockMovements'
+	import { formatDate, formatDateTime, formatDayMonth, formatTime } from '$lib/utils/date'
+	import { expiryBadge } from '$lib/utils/expiry'
+	import { cn } from '$lib/utils'
 
 	const SEARCH_DEBOUNCE_MS = 300
-	const PAGE_SIZE_OPTIONS = [25, 50, 100, 500]
+	const PAGE_SIZE = 25
+	const timeZone = getLocalTimeZone()
 
-	let searchQuery = $state<string>('')
-	let newRemark = $state<string>('')
-	let showAdvancedSearch = $state<boolean>(false)
+	// ---------- Toolbar state ----------
+	type TypeFilter = MovementType | 'all'
+	type SortKey = 'created_at'
 
-	// Edit remark modal variables
-	let showEditRemarkModal = $state<boolean>(false)
-	let editingMovement = $state<StockMovement | null>(null)
+	const TYPE_FILTERS: Array<{ value: TypeFilter; label: string }> = [
+		{ value: 'all', label: 'All' },
+		{ value: 'stock_in', label: 'Stock In' },
+		{ value: 'stock_out', label: 'Stock Out' },
+	]
 
-	// Computed property for remark validation
-	const isRemarkChanged = $derived.by((): boolean => {
-		if (!editingMovement) return false
-		return newRemark.trim() !== (editingMovement.remark || '').trim()
+	let searchQuery = $state('')
+	let searchInput = $state<HTMLInputElement | null>(null)
+	let typeFilter = $state<TypeFilter>('all')
+	let sort = $state<SortState<SortKey>>({ key: 'created_at', direction: 'desc' })
+
+	/** Filters that apply once the popover's Apply is pressed */
+	interface AppliedFilters {
+		startDate: string
+		endDate: string
+		quantityMin: number | null
+		quantityMax: number | null
+		remark: string
+		itemId: InventoryItem['id'] | null
+	}
+	let applied = $state<AppliedFilters>({
+		startDate: '',
+		endDate: '',
+		quantityMin: null,
+		quantityMax: null,
+		remark: '',
+		itemId: null,
 	})
 
-	// Advanced search filters (as typed; text fields are debounced before querying)
-	let advancedFilters = $state<MovementFilters>(emptyMovementFilters())
+	useErrorToast(() => stockMovementsStore.error)
 
-	// Server-side paging state (the cursor bookkeeping lives in the store)
-	let pageSize = $state<number>(25)
-
-	// Only the date column sorts on the server: newest first by default.
-	let sortConfig = $state<{ key: 'created_at'; direction: 'asc' | 'desc' }>({
-		key: 'created_at',
-		direction: 'desc',
-	})
-
-	// Check if any advanced filters are active
-	const hasActiveFilters = $derived(
-		!!(
-			advancedFilters.itemName ||
-			advancedFilters.quantityMin !== null ||
-			advancedFilters.quantityMax !== null ||
-			advancedFilters.movementType ||
-			advancedFilters.startDate ||
-			advancedFilters.endDate ||
-			advancedFilters.remark
-		),
-	)
-
-	// The quick search and the advanced item-name filter both narrow by item
-	// name; the server gets whichever is set (both, if both are).
-	const effectiveFilters = $derived.by((): MovementFilters => {
-		const quantityMin =
-			advancedFilters.quantityMin === null || Number.isNaN(Number(advancedFilters.quantityMin))
-				? null
-				: Number(advancedFilters.quantityMin)
-		const quantityMax =
-			advancedFilters.quantityMax === null || Number.isNaN(Number(advancedFilters.quantityMax))
-				? null
-				: Number(advancedFilters.quantityMax)
-		const names = [searchQuery, advancedFilters.itemName].map((n) => n.trim()).filter(Boolean)
-		return {
-			...advancedFilters,
-			// Both boxes feed the same full-text search on item name
-			itemName: names.join(' '),
-			quantityMin,
-			quantityMax,
-		}
-	})
-
-	// Debounce the typed filters so each keystroke does not hit the server
-	let debouncedFilters = $state<MovementFilters>(emptyMovementFilters())
+	// Typing in the search box must not hit the server on every keystroke
+	let debouncedSearch = $state('')
 	$effect(() => {
-		const next = effectiveFilters
-		const timer = setTimeout(() => {
-			debouncedFilters = next
-		}, SEARCH_DEBOUNCE_MS)
+		const next = searchQuery.trim()
+		const timer = setTimeout(() => (debouncedSearch = next), SEARCH_DEBOUNCE_MS)
 		return () => clearTimeout(timer)
 	})
 
-	// Any change to the filters, sort or page size re-queries from page one.
-	// The store call is untracked: it touches its own loading state, which
-	// must not become a dependency of this effect or it would re-run itself.
+	// Any change to the filters or sort re-queries from the first page. The
+	// store call is untracked: it touches its own loading state, which must
+	// not become a dependency of this effect or it would re-run itself.
 	$effect(() => {
 		const query: MovementsQuery = {
-			pageSize,
-			sortDirection: sortConfig.direction,
-			filters: $state.snapshot(debouncedFilters),
+			pageSize: PAGE_SIZE,
+			sortDirection: sort.direction,
+			filters: {
+				itemName: debouncedSearch,
+				itemId: applied.itemId,
+				quantityMin: applied.quantityMin,
+				quantityMax: applied.quantityMax,
+				movementType: typeFilter === 'all' ? '' : typeFilter,
+				startDate: applied.startDate,
+				endDate: applied.endDate,
+				remark: applied.remark,
+			},
 		}
 		untrack(() => stockMovementsStore.setQuery(query))
 	})
 
-	const updatePageSize = (size: number): void => {
-		if (PAGE_SIZE_OPTIONS.includes(size)) pageSize = size
+	// Search results come back by relevance, so the date sort only applies without one
+	const canSort = $derived(debouncedSearch === '')
+
+	const toggleSort = (): void => {
+		sort = { key: 'created_at', direction: sort.direction === 'asc' ? 'desc' : 'asc' }
 	}
 
-	// Clear functions
-	const clearAdvancedFilters = (): void => {
-		advancedFilters = emptyMovementFilters()
+	const hasDateRange = $derived(applied.startDate !== '' || applied.endDate !== '')
+	const hasQuantity = $derived(applied.quantityMin !== null || applied.quantityMax !== null)
+	const hasRemark = $derived(applied.remark !== '')
+	const hasItem = $derived(applied.itemId !== null)
+	const popoverFilterCount = $derived([hasQuantity, hasRemark, hasItem].filter(Boolean).length)
+	const hasChips = $derived(hasDateRange || popoverFilterCount > 0)
+	const isFiltered = $derived(searchQuery !== '' || typeFilter !== 'all' || hasChips)
+
+	const clearFilters = (): void => {
+		applied = {
+			startDate: '',
+			endDate: '',
+			quantityMin: null,
+			quantityMax: null,
+			remark: '',
+			itemId: null,
+		}
 	}
 
-	const clearAllFilters = (): void => {
-		clearAdvancedFilters()
+	const clearEverything = (): void => {
+		searchQuery = ''
+		typeFilter = 'all'
+		clearFilters()
 	}
 
-	// "Showing X to Y of Z" only when the server can count the active filters
-	const rangeLabel = $derived.by((): string => {
-		const store = stockMovementsStore
-		if (store.movements.length === 0) return 'No movements'
-		const from = store.startIndex + 1
-		const to = store.endIndex
-		return store.countIsExact
-			? `Showing ${from} to ${to} of ${store.totalCount} results`
-			: `Showing ${from} to ${to}`
-	})
+	// ⌥⌘F focuses the search field
+	const onKeydown = (event: KeyboardEvent): void => {
+		if (event.metaKey && event.altKey && event.code === 'KeyF') {
+			event.preventDefault()
+			searchInput?.focus()
+			searchInput?.select()
+		}
+	}
 
-	// Table column configuration
-	const tableColumns = [
-		{ key: 'item_name', label: 'Item Name', sortable: false },
-		{ key: 'quantity', label: 'Quantity', sortable: false },
-		{ key: 'movement_type', label: 'Movement', sortable: false },
-		{ key: 'expiry_date', label: 'Batch Expiry', sortable: false },
-		{ key: 'created_at', label: 'Date/Time', sortable: true },
-		{ key: 'remark', label: 'Remark', sortable: false },
-		{ key: 'actions', label: 'Actions', sortable: false },
+	// ---------- Date range popover ----------
+	const isMobile = new IsMobile()
+	let dateOpen = $state(false)
+	let dateDraft = $state<DateRange>({ start: undefined, end: undefined })
+	let calendarPlaceholder = $state<DateValue>(today(timeZone))
+
+	const toCalendarDate = (iso: string): DateValue | undefined => (iso ? parseDate(iso) : undefined)
+	const toIso = (date: DateValue | undefined): string => (date ? date.toString() : '')
+
+	const DATE_PRESETS: Array<{ label: string; range: () => DateRange }> = [
+		{ label: 'Today', range: () => ({ start: today(timeZone), end: today(timeZone) }) },
+		{
+			label: 'Last 7 Days',
+			range: () => ({ start: today(timeZone).subtract({ days: 6 }), end: today(timeZone) }),
+		},
+		{
+			label: 'Last 30 Days',
+			range: () => ({ start: today(timeZone).subtract({ days: 29 }), end: today(timeZone) }),
+		},
+		{
+			label: 'This Month',
+			range: () => ({ start: today(timeZone).set({ day: 1 }), end: today(timeZone) }),
+		},
+		{ label: 'All Time', range: () => ({ start: undefined, end: undefined }) },
 	]
 
-	// Sorting function: only the date column is sortable, so a click flips it
-	const toggleSort = (key: string): void => {
-		if (key !== 'created_at') return
-		sortConfig.direction = sortConfig.direction === 'asc' ? 'desc' : 'asc'
+	const sameRange = (a: DateRange, b: DateRange): boolean =>
+		toIso(a.start) === toIso(b.start) && toIso(a.end) === toIso(b.end)
+
+	const openDateRange = (open: boolean): void => {
+		dateOpen = open
+		if (!open) return
+		dateDraft = { start: toCalendarDate(applied.startDate), end: toCalendarDate(applied.endDate) }
+		// Two months side by side end on the month in view; one month starts there
+		const anchor = dateDraft.start ?? today(timeZone)
+		calendarPlaceholder =
+			isMobile.current || dateDraft.start ? anchor : anchor.subtract({ months: 1 })
 	}
 
-	// Action button configurations
-	const getMovementActions = (): Array<ActionButtonGroupAction> => {
-		return [
-			{
-				key: 'edit-remark',
-				label: 'Edit Remark',
-				variant: 'blue',
-			},
-		]
+	const applyDateRange = (): void => {
+		const start = toIso(dateDraft.start)
+		const end = toIso(dateDraft.end)
+		// A range with only one end is that one day
+		applied.startDate = start || end
+		applied.endDate = end || start
+		dateOpen = false
 	}
 
-	// Handle action button clicks
-	const handleActionClick = (actionKey: string, movement: StockMovement) => {
-		switch (actionKey) {
-			case 'edit-remark':
-				openEditRemarkModal(movement)
-				break
+	/** "17 – 23 Sep 2026", "28 Aug – 23 Sep 2026" or "28 Dec 2025 – 23 Sep 2026" */
+	const formatDateRange = (start: string, end: string): string => {
+		if (!start || !end || start === end) return formatDate(start || end)
+		const from = new Date(`${start}T00:00:00`)
+		const to = new Date(`${end}T00:00:00`)
+		if (from.getFullYear() !== to.getFullYear()) return `${formatDate(start)} – ${formatDate(end)}`
+		if (from.getMonth() !== to.getMonth()) return `${formatDayMonth(start)} – ${formatDate(end)}`
+		return `${String(from.getDate()).padStart(2, '0')} – ${formatDate(end)}`
+	}
+
+	const dateLabel = $derived(
+		hasDateRange ? formatDateRange(applied.startDate, applied.endDate) : 'Date Range',
+	)
+
+	// ---------- Filters popover ----------
+	let filtersOpen = $state(false)
+	let filterDraft = $state({
+		quantityMin: '',
+		quantityMax: '',
+		remark: '',
+		itemId: null as InventoryItem['id'] | null,
+	})
+
+	const openFilters = (open: boolean): void => {
+		filtersOpen = open
+		if (!open) return
+		filterDraft = {
+			quantityMin: applied.quantityMin === null ? '' : String(applied.quantityMin),
+			quantityMax: applied.quantityMax === null ? '' : String(applied.quantityMax),
+			remark: applied.remark,
+			itemId: applied.itemId,
 		}
 	}
 
-	// Edit remark modal functions
-	const openEditRemarkModal = (movement: StockMovement): void => {
-		editingMovement = movement
-		newRemark = movement.remark || ''
-		showEditRemarkModal = true
+	const toQuantity = (value: string): number | null => {
+		if (value.trim() === '') return null
+		const number = Number(value)
+		return Number.isFinite(number) && number >= 0 ? number : null
 	}
 
-	const closeEditRemarkModal = (): void => {
-		showEditRemarkModal = false
-		editingMovement = null
-		newRemark = ''
+	const applyFilters = (): void => {
+		applied.quantityMin = toQuantity(filterDraft.quantityMin)
+		applied.quantityMax = toQuantity(filterDraft.quantityMax)
+		applied.remark = filterDraft.remark.trim()
+		applied.itemId = filterDraft.itemId
+		filtersOpen = false
 	}
 
-	const confirmSaveRemark = async (): Promise<void> => {
-		if (!editingMovement || !isRemarkChanged) return
+	const clearFilterDraft = (): void => {
+		filterDraft = { quantityMin: '', quantityMax: '', remark: '', itemId: null }
+	}
 
-		await stockMovementsStore.updateRemark(editingMovement.id, newRemark)
+	const quantityLabel = $derived.by((): string => {
+		const { quantityMin: min, quantityMax: max } = applied
+		if (min !== null && max !== null) return `Quantity ${min} – ${max}`
+		if (min !== null) return `Quantity ≥ ${min}`
+		return `Quantity ≤ ${max}`
+	})
+
+	// Item picker inside the filters popover
+	let itemPickerOpen = $state(false)
+	const itemOptions = $derived(
+		[...inventoryStore.items].sort((a, b) =>
+			a.item_name.toLowerCase().localeCompare(b.item_name.toLowerCase()),
+		),
+	)
+	const itemName = (itemId: InventoryItem['id'] | null): string =>
+		itemId === null ? '' : (inventoryStore.getItemById(itemId)?.item_name ?? 'Deleted item')
+
+	// ---------- Rows ----------
+	const plural = (count: number, noun: string): string =>
+		`${count} ${count === 1 ? noun : `${noun}s`}`
+
+	/** "+20 boxes" or "−40 caps"; the unit is blank once the item is deleted */
+	const changeLabel = (movement: StockMovement): string => {
+		const sign = movement.movement_type === 'stock_in' ? '+' : '−'
+		return `${sign}${movement.quantity}${movement.unit ? ` ${movement.unit}` : ''}`
+	}
+
+	const movements = $derived(stockMovementsStore.movements)
+	const initialLoading = $derived(stockMovementsStore.loading && movements.length === 0)
+	const loadingMore = $derived(stockMovementsStore.loading && movements.length > 0)
+
+	// ---------- Edit remark ----------
+	let showRemarkDialog = $state(false)
+	let remarkMovement = $state<StockMovement | null>(null)
+	let remark = $state('')
+
+	const isRemarkChanged = $derived(
+		remarkMovement !== null && remark.trim() !== (remarkMovement.remark || '').trim(),
+	)
+
+	const openRemark = (movement: StockMovement): void => {
+		remarkMovement = movement
+		remark = movement.remark || ''
+		showRemarkDialog = true
+	}
+
+	const closeRemark = (): void => {
+		showRemarkDialog = false
+		remarkMovement = null
+	}
+
+	const confirmRemark = async (): Promise<void> => {
+		if (!remarkMovement || !isRemarkChanged) return
+		const movement = remarkMovement
+		await stockMovementsStore.updateRemark(movement.id, remark.trim())
 		if (!stockMovementsStore.error) {
-			closeEditRemarkModal()
+			toast.success(`Saved the remark of ${movement.item_name}`)
+			closeRemark()
 		}
 	}
-
-	const formatDateTime = (datetime: string): string => {
-		const date = new Date(datetime)
-		const dateStr = date.toLocaleDateString('en-US', {
-			month: 'short',
-			day: 'numeric',
-			year: 'numeric',
-		})
-		const timeStr = date.toLocaleTimeString('en-US', {
-			hour: '2-digit',
-			minute: '2-digit',
-			hour12: true,
-		})
-		return `${dateStr}\n${timeStr}`
-	}
-
-	const formatExpiry = (expiryDate: string | null | undefined): string => {
-		if (!expiryDate) return '—'
-		return new Date(`${expiryDate}T00:00:00`).toLocaleDateString('en-US', {
-			month: 'short',
-			day: 'numeric',
-			year: 'numeric',
-		})
-	}
-
-	const isEmpty = $derived(stockMovementsStore.movements.length === 0)
-	const isInitialLoad = $derived(stockMovementsStore.loading && isEmpty)
 </script>
 
-<div class="px-2 py-3 sm:px-0 sm:py-6">
-	<div class="rounded-lg border-4 border-dashed border-gray-200 p-3 sm:p-6">
-		<!-- Header -->
-		<div class="mb-4 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between">
-			<h2 class="text-xl font-bold text-gray-900 sm:text-2xl">Stock Movements</h2>
-		</div>
+<svelte:window onkeydown={onKeydown} />
 
-		<!-- Search Bar -->
-		<div class="mb-4 sm:mb-6">
-			<div class="flex flex-col items-start gap-3 sm:flex-row sm:items-end">
-				<!-- Quick Search -->
-				<div class="w-full flex-1 sm:max-w-md">
-					<SearchInput bind:value={searchQuery} placeholder="Search items..." />
-				</div>
-
-				<!-- Advanced Search Toggle -->
-				<div class="flex flex-row gap-2">
-					<button
-						onclick={() => (showAdvancedSearch = !showAdvancedSearch)}
-						class="flex items-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+<PageHeader title="Stock Movements">
+	<div class="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+		<InputGroup.Root class="w-full sm:w-72">
+			<InputGroup.Addon>
+				<SearchIcon />
+			</InputGroup.Addon>
+			<InputGroup.Input
+				bind:ref={searchInput}
+				bind:value={searchQuery}
+				type="search"
+				placeholder="Search by item name"
+				aria-label="Search by item name"
+			/>
+			{#if searchQuery}
+				<InputGroup.Addon align="inline-end">
+					<InputGroup.Button
+						size="icon-xs"
+						aria-label="Clear search"
+						onclick={() => (searchQuery = '')}
 					>
-						<FilterIcon class="h-4 w-4" />
-						{showAdvancedSearch ? 'Hide Filters' : 'Advanced Search'}
-					</button>
+						<XIcon />
+					</InputGroup.Button>
+				</InputGroup.Addon>
+			{/if}
+		</InputGroup.Root>
+		<ToggleGroup.Root
+			type="single"
+			variant="outline"
+			size="sm"
+			value={typeFilter}
+			onValueChange={(value) => (typeFilter = (value || 'all') as TypeFilter)}
+			aria-label="Filter by movement type"
+		>
+			{#each TYPE_FILTERS as option (option.value)}
+				<ToggleGroup.Item value={option.value}>{option.label}</ToggleGroup.Item>
+			{/each}
+		</ToggleGroup.Root>
 
-					<!-- Clear Filters (visible when filters are active) -->
-					{#if hasActiveFilters}
-						<button
-							onclick={clearAllFilters}
-							class="flex items-center gap-2 rounded-md border border-red-300 bg-red-50 px-4 py-2 text-sm font-medium text-red-700 transition-colors hover:bg-red-100"
+		<!-- Date range -->
+		<Popover.Root open={dateOpen} onOpenChange={openDateRange}>
+			<Popover.Trigger>
+				{#snippet child({ props })}
+					<Button {...props} variant="outline" size="sm">
+						<CalendarIcon data-icon="inline-start" />
+						{dateLabel}
+					</Button>
+				{/snippet}
+			</Popover.Trigger>
+			<Popover.Content align="start" class="w-auto p-3">
+				<div class="flex flex-wrap gap-1">
+					{#each DATE_PRESETS as preset (preset.label)}
+						{@const range = preset.range()}
+						<Button
+							variant={sameRange(dateDraft, range) ? 'secondary' : 'ghost'}
+							size="xs"
+							onclick={() => (dateDraft = range)}
 						>
-							<CloseIcon class="h-4 w-4" />
-							Clear Filters
-						</button>
-					{/if}
+							{preset.label}
+						</Button>
+					{/each}
 				</div>
-			</div>
+				<RangeCalendar
+					bind:value={dateDraft}
+					bind:placeholder={calendarPlaceholder}
+					numberOfMonths={isMobile.current ? 1 : 2}
+					maxValue={today(timeZone)}
+					class="p-0"
+				/>
+				<div class="flex items-center justify-between gap-2">
+					<Button
+						variant="ghost"
+						size="sm"
+						onclick={() => (dateDraft = { start: undefined, end: undefined })}
+					>
+						Clear
+					</Button>
+					<Button size="sm" onclick={applyDateRange}>Apply</Button>
+				</div>
+			</Popover.Content>
+		</Popover.Root>
 
-			<!-- Advanced Search Panel -->
-			{#if showAdvancedSearch}
-				<div class="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
-					<h4 class="mb-4 text-sm font-medium text-gray-900">Advanced Search Filters</h4>
-
-					<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-						<!-- Item Name Filter -->
-						<FormField
-							bind:value={advancedFilters.itemName}
-							type="text"
-							label="Item Name"
-							placeholder="Filter by item name..."
-						/>
-
-						<!-- Quantity Range -->
-						<div>
-							<!-- svelte-ignore a11y_label_has_associated_control -->
-							<label class="mb-1 block text-xs font-medium text-gray-700">Quantity Range</label>
+		<!-- Filters -->
+		<Popover.Root open={filtersOpen} onOpenChange={openFilters}>
+			<Popover.Trigger>
+				{#snippet child({ props })}
+					<Button {...props} variant="outline" size="sm">
+						<SlidersHorizontalIcon data-icon="inline-start" />
+						Filters
+						{#if popoverFilterCount > 0}
+							<Badge class="h-[18px] min-w-[18px] px-1.5">{popoverFilterCount}</Badge>
+						{/if}
+					</Button>
+				{/snippet}
+			</Popover.Trigger>
+			<Popover.Content align="start" class="w-80 p-4">
+				<form
+					onsubmit={(event) => {
+						event.preventDefault()
+						applyFilters()
+					}}
+				>
+					<Field.Group class="gap-4">
+						<Field.Field>
+							<Field.Label for="filter-quantity-min">Quantity</Field.Label>
 							<div class="flex gap-2">
-								<input
-									bind:value={advancedFilters.quantityMin}
+								<Input
+									id="filter-quantity-min"
+									bind:value={filterDraft.quantityMin}
 									type="number"
 									min="0"
 									placeholder="Min"
-									class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+									aria-label="Minimum quantity"
 								/>
-								<input
-									bind:value={advancedFilters.quantityMax}
+								<Input
+									bind:value={filterDraft.quantityMax}
 									type="number"
 									min="0"
 									placeholder="Max"
-									class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+									aria-label="Maximum quantity"
 								/>
 							</div>
-						</div>
-
-						<!-- Movement Type -->
-						<div>
-							<!-- svelte-ignore a11y_label_has_associated_control -->
-							<label class="mb-1 block text-xs font-medium text-gray-700">Movement Type</label>
-							<select
-								bind:value={advancedFilters.movementType}
-								class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-							>
-								<option value="">All Movements</option>
-								<option value="stock_in">Stock In Only</option>
-								<option value="stock_out">Stock Out Only</option>
-							</select>
-						</div>
-
-						<!-- Start Date -->
-						<FormField bind:value={advancedFilters.startDate} type="date" label="Start Date" />
-
-						<!-- End Date -->
-						<FormField bind:value={advancedFilters.endDate} type="date" label="End Date" />
-
-						<!-- Remark Filter -->
-						<FormField
-							bind:value={advancedFilters.remark}
-							type="text"
-							label="Remark"
-							placeholder="Filter by remark..."
-						/>
-					</div>
-
-					<!-- Filter Actions -->
-					<div class="mt-4 flex items-center justify-between">
-						<div class="text-xs text-gray-600">
-							{#if stockMovementsStore.countIsExact}
-								{stockMovementsStore.totalCount} matching movements
-							{:else}
-								Text, remark and quantity filters are applied page by page, so no total is shown
-							{/if}
-						</div>
-					</div>
-				</div>
-			{/if}
-		</div>
-
-		{#if stockMovementsStore.error}
-			<div class="mb-4 sm:mb-6">
-				<ErrorAlert title="Error loading movements" message={stockMovementsStore.error} />
-			</div>
-		{/if}
-
-		<!-- Mobile Card View -->
-		<div class="block lg:hidden">
-			<div class="overflow-hidden bg-white shadow sm:rounded-md">
-				<div class="border-b border-gray-200 px-4 py-5 sm:px-6">
-					<h3 class="text-lg leading-6 font-medium text-gray-900">
-						{#if stockMovementsStore.countIsExact}
-							Movements ({stockMovementsStore.totalCount})
-						{:else}
-							Movements
-						{/if}
-					</h3>
-				</div>
-
-				{#if isInitialLoad}
-					<LoadingSpinner message="Loading movements..." />
-				{:else if isEmpty}
-					<EmptyState
-						icon="chart"
-						title="No movements found"
-						description={searchQuery || hasActiveFilters
-							? 'Try adjusting your search terms.'
-							: 'Stock movements will appear here when you manage inventory.'}
-					/>
-				{:else}
-					<div class="divide-y divide-gray-200">
-						{#each stockMovementsStore.movements as movement (movement.id)}
-							<div class="px-4 py-4">
-								<div class="space-y-3">
-									<!-- Movement Header -->
-									<div class="flex items-center justify-between">
-										<h4 class="mr-2 flex-1 truncate text-sm font-medium text-gray-900">
-											{movement.item_name}
-										</h4>
-										<StatusBadge
-											variant={movement.movement_type === 'stock_in' ? 'green' : 'red'}
-											text={movement.movement_type === 'stock_in'
-												? 'Stock In (+)'
-												: 'Stock Out (-)'}
-										/>
-									</div>
-
-									<!-- Movement Details -->
-									<div class="space-y-1 text-sm">
-										<div class="flex items-baseline gap-2">
-											<span class="flex-shrink-0 text-gray-500">Quantity:</span>
-											<span class="font-medium text-gray-900">
-												{movement.quantity}
-												{movement.unit}
+							<Field.Description>Min and max, in the item's unit.</Field.Description>
+						</Field.Field>
+						<Field.Field>
+							<Field.Label for="filter-remark">Remark contains</Field.Label>
+							<Input
+								id="filter-remark"
+								bind:value={filterDraft.remark}
+								placeholder="e.g. expired"
+							/>
+						</Field.Field>
+						<Field.Field>
+							<Field.Label for="filter-item">Item</Field.Label>
+							<Popover.Root bind:open={itemPickerOpen}>
+								<Popover.Trigger>
+									{#snippet child({ props })}
+										<Button
+											{...props}
+											id="filter-item"
+											variant="outline"
+											role="combobox"
+											aria-expanded={itemPickerOpen}
+											class={cn(
+												'w-full justify-between font-normal',
+												filterDraft.itemId === null && 'text-muted-foreground',
+											)}
+										>
+											<span class="truncate">
+												{filterDraft.itemId === null ? 'Any item' : itemName(filterDraft.itemId)}
 											</span>
-										</div>
-										<div class="flex items-baseline gap-2">
-											<span class="flex-shrink-0 text-gray-500">Batch Expiry:</span>
-											<span class="font-medium text-gray-900">
-												{formatExpiry(movement.expiry_date)}
-											</span>
-										</div>
-										<div class="flex items-baseline gap-2">
-											<span class="flex-shrink-0 text-gray-500">Date/Time:</span>
-											<span class="font-medium text-gray-900">
-												{formatDateTime(movement.created_at)}
-											</span>
-										</div>
-										<div class="flex items-start gap-2">
-											<span class="flex-shrink-0 text-gray-500">Remark:</span>
-											<span class="font-medium whitespace-pre-wrap text-gray-900">
-												{movement.remark || 'No remark'}
-											</span>
-										</div>
-									</div>
-
-									<!-- Actions -->
-									<div class="border-t border-gray-100 pt-2">
-										<ActionButtonGroup
-											class="w-full"
-											actions={getMovementActions()}
-											size="sm"
-											loading={stockMovementsStore.loading}
-											onactionclick={(actionKey) => handleActionClick(actionKey, movement)}
-										/>
-									</div>
-								</div>
-							</div>
-						{/each}
-					</div>
-				{/if}
-
-				<!-- Mobile Pagination -->
-				{#if stockMovementsStore.currentPage > 1 || !stockMovementsStore.isDone}
-					{@render pager(false)}
-				{/if}
-			</div>
-		</div>
-
-		<!-- Desktop Table View -->
-		<div class="hidden lg:block">
-			<div class="overflow-hidden bg-white shadow sm:rounded-md">
-				<div class="border-b border-gray-200 px-4 py-5 sm:px-6">
-					<h3 class="text-lg leading-6 font-medium text-gray-900">
-						{#if stockMovementsStore.countIsExact}
-							Movements ({stockMovementsStore.totalCount})
-						{:else}
-							Movements
-						{/if}
-					</h3>
-				</div>
-
-				{#if isInitialLoad}
-					<LoadingSpinner message="Loading movements..." />
-				{:else if isEmpty}
-					<EmptyState
-						icon="chart"
-						title="No movements found"
-						description={searchQuery || hasActiveFilters
-							? 'Try adjusting your search terms.'
-							: 'Stock movements will appear here when you manage inventory.'}
-					/>
-				{:else}
-					<Table.Root>
-						<SortableTableHeader columns={tableColumns} {sortConfig} onsortchange={toggleSort} />
-						<Table.Body>
-							{#each stockMovementsStore.movements as movement (movement.id)}
-								<Table.Row>
-									<Table.Cell
-										class="max-w-xs min-w-0 px-6 py-4 text-sm font-medium whitespace-normal text-gray-900"
-									>
-										<div class="break-words">{movement.item_name}</div>
-									</Table.Cell>
-									<Table.Cell class="px-6 py-4 text-sm whitespace-nowrap text-gray-900">
-										{movement.quantity}
-										{movement.unit}
-									</Table.Cell>
-									<Table.Cell class="px-6 py-4 whitespace-nowrap">
-										<StatusBadge
-											variant={movement.movement_type === 'stock_in' ? 'green' : 'red'}
-											text={movement.movement_type === 'stock_in'
-												? 'Stock In (+)'
-												: 'Stock Out (-)'}
-										/>
-									</Table.Cell>
-									<Table.Cell class="px-6 py-4 text-sm whitespace-nowrap text-gray-900">
-										{formatExpiry(movement.expiry_date)}
-									</Table.Cell>
-									<Table.Cell class="px-6 py-4 text-sm text-gray-900" style="white-space: pre-line">
-										{formatDateTime(movement.created_at)}
-									</Table.Cell>
-									<Table.Cell class="px-6 py-4 text-sm whitespace-normal text-gray-900">
-										<div class="max-w-xs whitespace-pre-wrap">
-											<p>{movement.remark || 'No remark'}</p>
-										</div>
-									</Table.Cell>
-									<Table.Cell class="px-6 py-4 text-sm font-medium whitespace-nowrap">
-										<ActionButtonGroup
-											actions={getMovementActions()}
-											size="sm"
-											loading={stockMovementsStore.loading}
-											onactionclick={(actionKey) => handleActionClick(actionKey, movement)}
-										/>
-									</Table.Cell>
-								</Table.Row>
-							{/each}
-						</Table.Body>
-					</Table.Root>
-				{/if}
-
-				<!-- Desktop Pagination -->
-				{@render pager(true)}
-			</div>
-		</div>
-	</div>
-
-	<!-- Edit Remark Modal -->
-	<ActionModal
-		bind:open={showEditRemarkModal}
-		title={`Edit Remark: ${editingMovement?.item_name}`}
-		variant="green"
-		loading={stockMovementsStore.loading}
-		confirmText="Save Remark"
-		disabled={!isRemarkChanged}
-		onclose={closeEditRemarkModal}
-		oncancel={closeEditRemarkModal}
-		onconfirm={confirmSaveRemark}
-	>
-		<div class="space-y-4">
-			<div class="rounded-md border border-blue-200 bg-blue-50 p-3">
-				<div class="mb-2 flex items-center gap-2">
-					<CogIcon class="h-4 w-4 text-blue-500" />
-					<span class="text-sm font-medium text-blue-800"> Update Movement Information </span>
-				</div>
-				<p class="text-sm text-blue-700">
-					Add notes or comments about this stock movement for future reference.
-				</p>
-			</div>
-
-			<FormField
-				bind:value={newRemark}
-				type="textarea"
-				label="Remark"
-				rows={3}
-				placeholder="Enter remark..."
-				caretAtEnd
-			/>
-		</div>
-	</ActionModal>
-
-	<!-- Cursor paging: Previous / Next only, since the server pages by cursor -->
-	{#snippet pager(showPageSize: boolean)}
-		<div class="border-t border-gray-200 bg-gray-50 px-4 py-3 sm:px-6">
-			<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-				<div class="text-sm text-gray-700">
-					{rangeLabel}
-					{#if stockMovementsStore.countIsExact}
-						· Page {stockMovementsStore.currentPage} of {stockMovementsStore.totalPages}
-					{:else}
-						· Page {stockMovementsStore.currentPage}
-					{/if}
-				</div>
-				<div class="flex items-center gap-2">
-					{#if showPageSize}
-						<label for="movements-page-size" class="text-sm text-gray-700">Items per page:</label>
-						<select
-							id="movements-page-size"
-							value={pageSize}
-							onchange={(event) => updatePageSize(Number(event.currentTarget.value))}
-							class="rounded border border-gray-300 px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+											<ChevronsUpDownIcon data-icon="inline-end" class="opacity-50" />
+										</Button>
+									{/snippet}
+								</Popover.Trigger>
+								<Popover.Content class="w-(--bits-popover-anchor-width) p-0" align="start">
+									<Command.Root>
+										<Command.Input placeholder="Search items" />
+										<Command.List>
+											<Command.Empty>No item found.</Command.Empty>
+											<Command.Group>
+												<Command.Item
+													value="any item"
+													onSelect={() => {
+														filterDraft.itemId = null
+														itemPickerOpen = false
+													}}
+												>
+													<CheckIcon
+														class={cn(filterDraft.itemId !== null && 'text-transparent')}
+													/>
+													Any item
+												</Command.Item>
+												{#each itemOptions as item (item.id)}
+													<Command.Item
+														value={item.item_name}
+														onSelect={() => {
+															filterDraft.itemId = item.id
+															itemPickerOpen = false
+														}}
+													>
+														<CheckIcon
+															class={cn(filterDraft.itemId !== item.id && 'text-transparent')}
+														/>
+														{item.item_name}
+													</Command.Item>
+												{/each}
+											</Command.Group>
+										</Command.List>
+									</Command.Root>
+								</Popover.Content>
+							</Popover.Root>
+						</Field.Field>
+						<p class="text-muted-foreground text-xs">
+							Quantity, remark and item filters apply page by page, so the total is shown only when
+							they are empty.
+						</p>
+					</Field.Group>
+					<div class="mt-4 flex items-center justify-between gap-2">
+						<Button type="button" variant="ghost" size="sm" onclick={clearFilterDraft}>Clear</Button
 						>
-							{#each PAGE_SIZE_OPTIONS as option (option)}
-								<option value={option}>{option}</option>
-							{/each}
-						</select>
-					{/if}
-					<Button
-						variant="outline"
-						size="sm"
-						disabled={stockMovementsStore.currentPage <= 1 || stockMovementsStore.loading}
-						onclick={stockMovementsStore.firstPage}
+						<Button type="submit" size="sm">Apply</Button>
+					</div>
+				</form>
+			</Popover.Content>
+		</Popover.Root>
+	</div>
+</PageHeader>
+
+{#if hasChips}
+	<div class="flex flex-wrap items-center gap-1.5">
+		{#if hasDateRange}
+			{@render chip(dateLabel, 'Remove date range', () => {
+				applied.startDate = ''
+				applied.endDate = ''
+			})}
+		{/if}
+		{#if hasQuantity}
+			{@render chip(quantityLabel, 'Remove quantity filter', () => {
+				applied.quantityMin = null
+				applied.quantityMax = null
+			})}
+		{/if}
+		{#if hasRemark}
+			{@render chip(`Remark contains “${applied.remark}”`, 'Remove remark filter', () => {
+				applied.remark = ''
+			})}
+		{/if}
+		{#if hasItem}
+			{@render chip(`Item: ${itemName(applied.itemId)}`, 'Remove item filter', () => {
+				applied.itemId = null
+			})}
+		{/if}
+		<Button variant="ghost" size="xs" onclick={clearFilters}>Clear Filters</Button>
+	</div>
+{/if}
+
+{#snippet chip(label: string, removeLabel: string, onremove: () => void)}
+	<Badge variant="secondary" class="pe-1">
+		{label}
+		<button
+			type="button"
+			class="hover:bg-foreground/10 rounded-full p-0.5 transition-colors"
+			aria-label={removeLabel}
+			onclick={onremove}
+		>
+			<XIcon class="size-3" />
+		</button>
+	</Badge>
+{/snippet}
+
+{#if initialLoading}
+	<Table.Root>
+		<Table.Header>
+			<Table.Row>
+				<Table.Head>Date</Table.Head>
+				<Table.Head>Item</Table.Head>
+				<Table.Head class="text-end">Change</Table.Head>
+				<Table.Head>Batch expiry</Table.Head>
+				<Table.Head>Remark</Table.Head>
+				<Table.Head><span class="sr-only">Actions</span></Table.Head>
+			</Table.Row>
+		</Table.Header>
+		<Table.Body>
+			{#each { length: 8 } as _, i (i)}
+				<Table.Row>
+					<Table.Cell class="py-3"><Skeleton class="h-4 w-32" /></Table.Cell>
+					<Table.Cell><Skeleton class="h-4 w-44" /></Table.Cell>
+					<Table.Cell><Skeleton class="ms-auto h-4 w-16" /></Table.Cell>
+					<Table.Cell><Skeleton class="h-4 w-24" /></Table.Cell>
+					<Table.Cell><Skeleton class="h-4 w-48" /></Table.Cell>
+					<Table.Cell><Skeleton class="ms-auto size-7" /></Table.Cell>
+				</Table.Row>
+			{/each}
+		</Table.Body>
+	</Table.Root>
+{:else if movements.length === 0}
+	<Empty.Root class="my-auto">
+		<Empty.Header>
+			<Empty.Media variant="icon">
+				<HistoryIcon />
+			</Empty.Media>
+			<Empty.Title>{isFiltered ? 'No movements match' : 'No movements yet'}</Empty.Title>
+			<Empty.Description>
+				{isFiltered
+					? 'Try another search or clear the filters.'
+					: 'Every Stock In and Stock Out from Inventory is recorded here.'}
+			</Empty.Description>
+		</Empty.Header>
+		<Empty.Content>
+			{#if isFiltered}
+				<Button variant="outline" onclick={clearEverything}>Clear Filters</Button>
+			{:else}
+				<Button variant="outline" href="/inventory">Go to Inventory</Button>
+			{/if}
+		</Empty.Content>
+	</Empty.Root>
+{:else}
+	<Table.Root>
+		<Table.Header>
+			<Table.Row>
+				{#if canSort}
+					<SortHeader key="created_at" {sort} onsort={toggleSort}>Date</SortHeader>
+				{:else}
+					<Table.Head title="Search results are ordered by relevance">Date</Table.Head>
+				{/if}
+				<Table.Head>Item</Table.Head>
+				<Table.Head class="text-end">Change</Table.Head>
+				<Table.Head>Batch expiry</Table.Head>
+				<Table.Head class="w-[32%]">Remark</Table.Head>
+				<Table.Head><span class="sr-only">Actions</span></Table.Head>
+			</Table.Row>
+		</Table.Header>
+		<Table.Body>
+			{#each movements as movement (movement.id)}
+				{@const badge = expiryBadge(movement.expiry_date)}
+				{@const isIn = movement.movement_type === 'stock_in'}
+				<Table.Row>
+					<Table.Cell class="py-2.5 tabular-nums">
+						{formatDate(movement.created_at)}
+						<span class="text-muted-foreground ms-1 text-xs">{formatTime(movement.created_at)}</span
+						>
+					</Table.Cell>
+					<Table.Cell class="max-w-md min-w-48 py-2.5 whitespace-normal">
+						<div class="font-medium break-words">{movement.item_name}</div>
+					</Table.Cell>
+					<Table.Cell
+						class={cn(
+							'py-2.5 text-end font-semibold tabular-nums',
+							isIn ? 'text-success' : 'text-destructive',
+						)}
 					>
-						First
-					</Button>
-					<Button
-						variant="outline"
-						size="sm"
-						disabled={stockMovementsStore.currentPage <= 1 || stockMovementsStore.loading}
-						onclick={stockMovementsStore.previousPage}
-					>
-						Previous
-					</Button>
-					<Button
-						variant="outline"
-						size="sm"
-						disabled={stockMovementsStore.isDone || stockMovementsStore.loading}
-						onclick={stockMovementsStore.nextPage}
-					>
-						Next
-					</Button>
-				</div>
-			</div>
-		</div>
-	{/snippet}
-</div>
+						{changeLabel(movement)}
+					</Table.Cell>
+					<Table.Cell class="py-2.5">
+						{#if movement.expiry_date}
+							<div class="tabular-nums">{formatDate(movement.expiry_date)}</div>
+							{#if badge}
+								<ToneBadge tone={badge.tone} class="mt-1">{badge.text}</ToneBadge>
+							{/if}
+						{:else}
+							<span class="text-muted-foreground">—</span>
+						{/if}
+					</Table.Cell>
+					<Table.Cell class="py-2.5 whitespace-normal">
+						{#if movement.remark}
+							<div class="text-foreground/80 break-words whitespace-pre-wrap">
+								{movement.remark}
+							</div>
+						{:else}
+							<span class="text-muted-foreground">No remark</span>
+						{/if}
+					</Table.Cell>
+					<Table.Cell class="py-2.5">
+						<div class="flex justify-end">
+							<Tooltip.Root>
+								<Tooltip.Trigger>
+									{#snippet child({ props })}
+										<Button
+											{...props}
+											variant="ghost"
+											size="icon-sm"
+											aria-label="Edit Remark…"
+											onclick={() => openRemark(movement)}
+										>
+											<PencilIcon />
+										</Button>
+									{/snippet}
+								</Tooltip.Trigger>
+								<Tooltip.Content>Edit remark</Tooltip.Content>
+							</Tooltip.Root>
+						</div>
+					</Table.Cell>
+				</Table.Row>
+			{/each}
+		</Table.Body>
+	</Table.Root>
+	<div class="text-muted-foreground flex items-center justify-between gap-3 text-sm">
+		<span>
+			{#if stockMovementsStore.countIsExact}
+				Showing {movements.length} of {plural(stockMovementsStore.totalCount, 'movement')}
+			{:else}
+				Showing {plural(movements.length, 'movement')}
+			{/if}
+		</span>
+		{#if stockMovementsStore.hasMore}
+			<Button
+				variant="outline"
+				size="sm"
+				disabled={loadingMore}
+				onclick={stockMovementsStore.loadMore}
+			>
+				{#if loadingMore}
+					<Spinner data-icon="inline-start" />
+				{/if}
+				Load More
+			</Button>
+		{/if}
+	</div>
+{/if}
+
+<!-- Edit Remark -->
+<ActionModal
+	bind:open={showRemarkDialog}
+	title={`Edit Remark · ${remarkMovement?.item_name ?? ''}`}
+	description={remarkMovement
+		? `${changeLabel(remarkMovement)} on ${formatDateTime(remarkMovement.created_at)}.`
+		: undefined}
+	loading={stockMovementsStore.loading}
+	disabled={!isRemarkChanged}
+	confirmText="Save"
+	onconfirm={confirmRemark}
+	oncancel={closeRemark}
+	onclose={closeRemark}
+>
+	<Field.Group>
+		<Field.Field>
+			<Field.Label for="movement-remark">Remark</Field.Label>
+			<Textarea
+				id="movement-remark"
+				bind:value={remark}
+				rows={3}
+				placeholder="e.g. Expired batch disposed"
+				{@attach caretAtEnd()}
+			/>
+		</Field.Field>
+	</Field.Group>
+</ActionModal>

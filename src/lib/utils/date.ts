@@ -35,3 +35,11 @@ export const formatDateTime = (value: string | number | Date | null | undefined)
 	const minutes = String(date.getMinutes()).padStart(2, '0')
 	return `${formatDate(date)}, ${hours}:${minutes}`
 }
+
+/** Time of day only: "14:05" */
+export const formatTime = (value: string | number | Date | null | undefined): string => {
+	if (value === null || value === undefined || value === '') return '—'
+	const date = toDate(value)
+	if (!date) return '—'
+	return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+}
