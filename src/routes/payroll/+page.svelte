@@ -20,7 +20,6 @@
 	import PageHeader from '$lib/components/app/PageHeader.svelte'
 	import SortHeader from '$lib/components/app/SortHeader.svelte'
 	import type { SortState } from '$lib/components/app/sort'
-	import ToneBadge from '$lib/components/app/ToneBadge.svelte'
 	import * as Alert from '$lib/components/ui/alert'
 	import { Button } from '$lib/components/ui/button'
 	import * as Card from '$lib/components/ui/card'
@@ -762,7 +761,7 @@
 						</Table.Cell>
 						<Table.Cell class="py-2.5">
 							{#if employee.lindung_24_jam}
-								<ToneBadge tone="success">Opted in</ToneBadge>
+								Opted in
 							{:else}
 								<span class="text-muted-foreground">—</span>
 							{/if}

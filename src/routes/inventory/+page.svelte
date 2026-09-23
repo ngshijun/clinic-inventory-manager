@@ -998,7 +998,7 @@
 	<div class="text-muted-foreground flex items-center justify-between gap-3 text-sm">
 		<span>Showing {list.shown} of {plural(list.total, 'item')}</span>
 		{#if list.hasMore}
-			<Button variant="outline" size="sm" onclick={list.loadMore}>Load More</Button>
+			<Button variant="outline" onclick={list.loadMore}>Load More</Button>
 		{/if}
 	</div>
 {/if}

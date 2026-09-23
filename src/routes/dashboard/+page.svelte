@@ -7,6 +7,7 @@
 	import PageHeader from '$lib/components/app/PageHeader.svelte'
 	import ReasonBadge from '$lib/components/app/ReasonBadge.svelte'
 	import StockOutDialog from '$lib/components/app/StockOutDialog.svelte'
+	import StatusDot from '$lib/components/app/StatusDot.svelte'
 	import ToneBadge from '$lib/components/app/ToneBadge.svelte'
 	import { Button } from '$lib/components/ui/button'
 	import * as Card from '$lib/components/ui/card'
@@ -233,9 +234,9 @@
 								<div class="font-medium break-words">{item.item_name}</div>
 							</Table.Cell>
 							<Table.Cell class="py-2.5">
-								<ToneBadge tone={out ? 'danger' : 'warning'}>
+								<StatusDot tone={out ? 'danger' : 'warning'}>
 									{out ? 'Out of stock' : 'Low stock'}
-								</ToneBadge>
+								</StatusDot>
 							</Table.Cell>
 							<Table.Cell class="py-2.5">
 								<div
@@ -399,7 +400,7 @@
 	<div class="text-muted-foreground flex items-center justify-between gap-3 text-sm">
 		<span>Showing {shown} of {total}</span>
 		{#if list.hasMore}
-			<Button variant="outline" size="sm" onclick={list.loadMore}>Load More</Button>
+			<Button variant="outline" onclick={list.loadMore}>Load More</Button>
 		{/if}
 	</div>
 {/snippet}

@@ -7,6 +7,11 @@
 	 * A status word with a small coloured dot before it, for tables where a
 	 * filled badge on every row would be noise. The word carries the meaning;
 	 * the dot only reinforces it, so the text stays in the normal ink.
+	 *
+	 * Rule: a row's own state (in stock, low, out) is a dot in any table that
+	 * already carries other colour. Everything else stays a ToneBadge, as in
+	 * HealthOS: decision outcomes (Pending, Approved), warnings (expiry,
+	 * "Only N on hand") and facts about an item (Ordered, Back-ordered).
 	 */
 	let {
 		tone = 'neutral',
