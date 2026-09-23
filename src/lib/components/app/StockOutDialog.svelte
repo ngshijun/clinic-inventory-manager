@@ -39,9 +39,6 @@
 		return rows
 	})
 
-	const plural = (count: number, noun: string, many = `${noun}s`): string =>
-		`${count} ${count === 1 ? noun : many}`
-
 	export function open(target: InventoryItem): void {
 		item = target
 		quantity = 1
