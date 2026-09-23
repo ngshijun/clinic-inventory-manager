@@ -356,10 +356,10 @@
 	description="Last purchase price, supplier, or anything the next person ordering should know."
 	loading={inventoryStore.loading}
 	disabled={!isRemarkChanged}
+	dirty={isRemarkChanged}
 	confirmText="Save"
 	onconfirm={confirmRemark}
 	oncancel={closeRemark}
-	onclose={closeRemark}
 >
 	<Field.Group>
 		<Field.Field>

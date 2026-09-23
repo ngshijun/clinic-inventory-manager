@@ -206,6 +206,8 @@
 			Number(newItem.reorder_level) >= -1,
 	)
 
+	const isNewItemDirty = $derived(JSON.stringify(newItem) !== JSON.stringify(emptyNewItem()))
+
 	const openAddDialog = async (): Promise<void> => {
 		newItem = emptyNewItem()
 		showAddDialog = true
@@ -249,6 +251,14 @@
 		keepUntracked = item.not_track
 		showStockInDialog = true
 	}
+
+	const isStockInDirty = $derived(
+		stockInItem !== null &&
+			(Number(stockInQuantity) !== 1 ||
+				stockInExpiryDate !== '' ||
+				clearOrderDate !== !!stockInItem.order_date ||
+				keepUntracked !== stockInItem.not_track),
+	)
 
 	const closeStockIn = (): void => {
 		showStockInDialog = false
@@ -629,7 +639,7 @@
 		<Button
 			variant="ghost"
 			size="icon-xs"
-			class="absolute top-2 right-2"
+			class="absolute end-2 top-2"
 			aria-label="Dismiss"
 			onclick={() => (importError = null)}
 		>
@@ -836,10 +846,10 @@
 	title="Add Item"
 	loading={inventoryStore.loading}
 	disabled={!isNewItemValid}
+	dirty={isNewItemDirty}
 	confirmText="Add Item"
 	onconfirm={confirmAddItem}
 	oncancel={closeAddDialog}
-	onclose={closeAddDialog}
 >
 	<form
 		id="add-item-form"
@@ -924,10 +934,10 @@
 	description={`On hand ${stockInItem?.quantity ?? 0} ${stockInItem?.unit ?? ''}. This stock is recorded as its own batch; stock out takes from the earliest-expiring batch first.`}
 	loading={inventoryStore.loading}
 	disabled={Number(stockInQuantity) <= 0}
+	dirty={isStockInDirty}
 	confirmText="Stock In"
 	onconfirm={confirmStockIn}
 	oncancel={closeStockIn}
-	onclose={closeStockIn}
 >
 	<form
 		onsubmit={(e) => {
@@ -992,10 +1002,10 @@
 	title={`Edit Item · ${editingItem?.item_name ?? ''}`}
 	loading={inventoryStore.loading}
 	disabled={!isEditValid || !isEditChanged}
+	dirty={isEditChanged}
 	confirmText="Save"
 	onconfirm={confirmEdit}
 	oncancel={closeEdit}
-	onclose={closeEdit}
 >
 	{#snippet leading()}
 		<Button variant="destructive" onclick={deleteFromEdit}>Delete Item…</Button>
@@ -1057,11 +1067,11 @@
 	description={`${batchesLive?.quantity ?? 0} ${batchesLive?.unit ?? ''} across ${plural(batchesForDialog.length, 'batch', 'batches')}. Changing a quantity is logged as a stock movement.`}
 	loading={stockBatchesStore.loading}
 	disabled={!editingBatch || !isBatchChanged}
+	dirty={isBatchChanged}
 	confirmText="Save"
 	cancelText="Close"
 	onconfirm={confirmSaveBatch}
 	oncancel={closeBatches}
-	onclose={closeBatches}
 >
 	{#if batchesForDialog.length === 0}
 		<Empty.Root class="py-6">
@@ -1163,5 +1173,4 @@
 	confirmText="Delete"
 	onconfirm={confirmDelete}
 	oncancel={closeDelete}
-	onclose={closeDelete}
 />

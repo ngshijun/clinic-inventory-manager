@@ -724,10 +724,10 @@
 		: undefined}
 	loading={stockMovementsStore.loading}
 	disabled={!isRemarkChanged}
+	dirty={isRemarkChanged}
 	confirmText="Save"
 	onconfirm={confirmRemark}
 	oncancel={closeRemark}
-	onclose={closeRemark}
 >
 	<Field.Group>
 		<Field.Field>

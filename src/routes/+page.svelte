@@ -63,8 +63,7 @@
 					<div class="flex flex-col gap-1.5 text-center">
 						<h1 class="text-2xl font-extrabold tracking-tight">Sign in</h1>
 						<p class="text-muted-foreground text-sm text-balance">
-							Enter the clinic password. The manager password opens inventory and payroll; the
-							requester password opens stock requests.
+							Enter the clinic password to continue.
 						</p>
 					</div>
 
@@ -126,7 +125,7 @@
 				</form>
 			</div>
 
-			<p class="text-muted-foreground/70 text-xs">Poliklinik Ng PLT</p>
+			<p class="text-muted-foreground/70 text-xs lg:hidden">Poliklinik Ng PLT</p>
 		</div>
 
 		<div
@@ -143,13 +142,7 @@
 					></i>
 				{/each}
 			</div>
-			<h2 class="text-[22px] font-extrabold tracking-tight">
-				Stock, orders and payroll in one place
-			</h2>
-			<p class="max-w-[40ch] text-sm text-white/80">
-				Live counts from every batch, first-expiry-first stock out, approvals for the ward, and a
-				frozen record for every payroll month.
-			</p>
+			<h2 class="text-[22px] font-extrabold tracking-tight">Poliklinik Ng PLT</h2>
 		</div>
 	</div>
 </div>

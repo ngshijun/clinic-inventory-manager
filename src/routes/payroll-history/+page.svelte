@@ -540,5 +540,4 @@
 	confirmText="Delete"
 	onconfirm={confirmDelete}
 	oncancel={closeDelete}
-	onclose={closeDelete}
 />

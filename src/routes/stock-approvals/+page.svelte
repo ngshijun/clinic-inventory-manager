@@ -559,7 +559,6 @@
 	confirmText="Approve"
 	onconfirm={confirmBulkApprove}
 	oncancel={() => (showBulkApprove = false)}
-	onclose={() => (showBulkApprove = false)}
 >
 	<ul class="divide-y rounded-md border text-sm">
 		{#each approvable as request (request.id)}
@@ -589,10 +588,10 @@
 	bind:open={showReject}
 	title={rejectTitle}
 	loading={stockRequestsStore.loading}
+	dirty={rejectReason.trim() !== ''}
 	confirmText="Reject"
 	onconfirm={confirmReject}
 	oncancel={closeReject}
-	onclose={closeReject}
 >
 	{#if rejectTargets.length > 1}
 		<p class="text-muted-foreground mb-4 text-sm">

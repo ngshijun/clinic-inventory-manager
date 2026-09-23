@@ -16,10 +16,13 @@
 	let isOpen = $state(false)
 	let orderDate = $state('')
 	let backOrder = $state(false)
+	let openedWith = $state('')
+	const dirty = $derived(orderDate !== openedWith || backOrder)
 
 	export function open(target: InventoryItem): void {
 		item = target
 		orderDate = todayIsoDate()
+		openedWith = orderDate
 		backOrder = false
 		isOpen = true
 	}
@@ -44,11 +47,11 @@
 	bind:open={isOpen}
 	title={`Mark “${item?.item_name ?? ''}” as Ordered`}
 	loading={inventoryStore.loading}
+	{dirty}
 	disabled={!orderDate}
 	confirmText="Mark Ordered"
 	onconfirm={confirm}
 	oncancel={close}
-	onclose={close}
 >
 	<form
 		onsubmit={(e) => {

@@ -60,11 +60,11 @@
 	bind:open={isOpen}
 	title={`Edit Request · ${request?.item_name ?? ''}`}
 	loading={stockRequestsStore.loading}
+	dirty={isChanged}
 	disabled={!isValid || !isChanged}
 	confirmText="Save"
 	onconfirm={confirm}
 	oncancel={close}
-	onclose={close}
 >
 	<form
 		onsubmit={(event) => {

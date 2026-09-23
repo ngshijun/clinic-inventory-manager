@@ -11,6 +11,10 @@
 	 * is the plain default button, never red: the destructive style is for an
 	 * action people did not deliberately choose. Clicking outside does nothing
 	 * and there is no X; Escape cancels unless a request is in flight.
+	 *
+	 * A form dialog passes `dirty` while it holds unsaved edits: cancelling or
+	 * pressing Escape then asks before the edits are thrown away. Keep Editing
+	 * is the default, so Return and Escape both keep the draft.
 	 */
 	interface Props {
 		open: boolean
@@ -18,12 +22,13 @@
 		description?: string
 		loading?: boolean
 		disabled?: boolean
+		/** Unsaved edits that closing would lose */
+		dirty?: boolean
 		confirmText?: string
 		cancelText?: string
 		onconfirm?: () => void
 		oncancel?: () => void
-		onclose?: () => void
-		/** Rendered on the leading edge of the footer, e.g. a tinted Delete… button. */
+		/** Rendered on the leading edge of the footer, e.g. a tinted Delete button. */
 		leading?: Snippet
 		children?: Snippet
 	}
@@ -34,35 +39,42 @@
 		description,
 		loading = false,
 		disabled = false,
+		dirty = false,
 		confirmText = 'Confirm',
 		cancelText = 'Cancel',
 		onconfirm,
 		oncancel,
-		onclose,
 		leading,
 		children,
 	}: Props = $props()
+
+	let askDiscard = $state(false)
 
 	function handleConfirm() {
 		if (!loading && !disabled) onconfirm?.()
 	}
 
 	function handleCancel() {
-		if (!loading) oncancel?.()
+		if (loading) return
+		if (dirty) askDiscard = true
+		else oncancel?.()
+	}
+
+	function discard() {
+		askDiscard = false
+		oncancel?.()
 	}
 </script>
 
-<Dialog.Root
-	bind:open
-	onOpenChange={(next) => {
-		// The only way bits-ui closes this dialog by itself is Escape.
-		if (!next && !loading) onclose?.()
-	}}
->
+<Dialog.Root bind:open>
 	<Dialog.Content
 		showCloseButton={false}
 		interactOutsideBehavior="ignore"
-		escapeKeydownBehavior={loading ? 'ignore' : 'close'}
+		onEscapeKeydown={(event) => {
+			// Take over the close so a dirty form can ask first and a request in flight is not abandoned.
+			event.preventDefault()
+			handleCancel()
+		}}
 		class="sm:max-w-md"
 	>
 		<Dialog.Header>
@@ -93,6 +105,24 @@
 				{/if}
 				{confirmText}
 			</Button>
+		</Dialog.Footer>
+	</Dialog.Content>
+</Dialog.Root>
+
+<Dialog.Root bind:open={askDiscard}>
+	<Dialog.Content
+		role="alertdialog"
+		showCloseButton={false}
+		interactOutsideBehavior="ignore"
+		class="sm:max-w-sm"
+	>
+		<Dialog.Header>
+			<Dialog.Title>Discard Changes?</Dialog.Title>
+			<Dialog.Description>What you entered here has not been saved.</Dialog.Description>
+		</Dialog.Header>
+		<Dialog.Footer>
+			<Button variant="outline" onclick={() => (askDiscard = false)} autofocus>Keep Editing</Button>
+			<Button variant="destructive" onclick={discard}>Discard</Button>
 		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>

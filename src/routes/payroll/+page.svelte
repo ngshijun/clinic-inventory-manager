@@ -217,28 +217,29 @@
 	}
 
 	// ---------- Delete employee ----------
-	let showDelete = $state(false)
-	let deleting = $state<Employee | null>(null)
-
-	const openDelete = (): void => {
+	// Saved payroll records keep their frozen figures, and the employee can be
+	// added straight back, so deleting takes an undo toast rather than a
+	// confirmation. Delete skips the discard guard: losing the edits is the point.
+	const deleteEmployee = async (): Promise<void> => {
 		if (!editing) return
-		deleting = editing
-		showDelete = true
-	}
-
-	const closeDelete = (): void => {
-		showDelete = false
-		deleting = null
-	}
-
-	const confirmDelete = async (): Promise<void> => {
-		if (!deleting) return
-		const target = deleting
-		if (await payrollStore.deleteEmployee(target.id)) {
-			toast.success(`Deleted ${target.name}`)
-			closeDelete()
-			closeEmployeeDialog()
-		}
+		const target = editing
+		if (!(await payrollStore.deleteEmployee(target.id))) return
+		closeEmployeeDialog()
+		toast.success(`Deleted ${target.name}`, {
+			duration: 8000,
+			action: {
+				label: 'Undo',
+				onClick: async () => {
+					const ok = await payrollStore.addEmployee({
+						name: target.name,
+						basic_salary: target.basic_salary,
+						epf_employer: target.epf_employer,
+						lindung_24_jam: target.lindung_24_jam,
+					})
+					if (ok) toast.success(`Restored ${target.name}`)
+				},
+			},
+		})
 	}
 
 	// ---------- Run payroll dialog ----------
@@ -602,7 +603,6 @@
 		confirmText={existingRun ? 'Overwrite Record' : 'Save Record'}
 		onconfirm={confirmSave}
 		oncancel={() => (showSave = false)}
-		onclose={() => (showSave = false)}
 	>
 		<dl class="divide-y rounded-md border text-sm">
 			<div class="flex justify-between gap-3 px-3 py-2">
@@ -809,7 +809,6 @@
 		confirmText="Open Payroll"
 		onconfirm={confirmRun}
 		oncancel={() => (showRun = false)}
-		onclose={() => (showRun = false)}
 	>
 		<Field.Group>
 			<div class="grid grid-cols-2 gap-3">
@@ -857,14 +856,14 @@
 		title={editing ? `Edit Employee · ${editing.name}` : 'Add Employee'}
 		loading={payrollStore.loading}
 		disabled={!isFormValid || !isFormChanged}
+		dirty={editing ? isFormChanged : JSON.stringify(form) !== JSON.stringify(emptyForm())}
 		confirmText={editing ? 'Save' : 'Add Employee'}
 		onconfirm={confirmEmployee}
 		oncancel={closeEmployeeDialog}
-		onclose={closeEmployeeDialog}
 	>
 		{#snippet leading()}
 			{#if editing}
-				<Button variant="destructive" onclick={openDelete}>Delete Employee…</Button>
+				<Button variant="destructive" onclick={deleteEmployee}>Delete Employee</Button>
 			{/if}
 		{/snippet}
 		<form
@@ -946,16 +945,4 @@
 			<button type="submit" class="hidden" aria-hidden="true" tabindex="-1"></button>
 		</form>
 	</ActionModal>
-
-	<!-- Delete employee -->
-	<ActionModal
-		bind:open={showDelete}
-		title={`Delete “${deleting?.name ?? ''}”?`}
-		description="Saved payroll records keep the frozen figures. Future runs will not include this employee. This cannot be undone."
-		loading={payrollStore.loading}
-		confirmText="Delete"
-		onconfirm={confirmDelete}
-		oncancel={closeDelete}
-		onclose={closeDelete}
-	/>
 {/if}

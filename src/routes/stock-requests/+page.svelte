@@ -186,27 +186,27 @@
 	let editDialog = $state<EditRequestDialog | null>(null)
 
 	// ---------- Remove ----------
-	let showRemove = $state(false)
-	let removeTarget = $state<StockRequest | null>(null)
-
-	const openRemove = (request: StockRequest): void => {
-		removeTarget = request
-		showRemove = true
-	}
-
-	const closeRemove = (): void => {
-		showRemove = false
-		removeTarget = null
-	}
-
-	const confirmRemove = async (): Promise<void> => {
-		if (!removeTarget) return
-		const target = removeTarget
-		await stockRequestsStore.removeRequest(target.id)
-		if (!stockRequestsStore.error) {
-			toast.success(`Removed the request for ${target.item_name}`)
-			closeRemove()
-		}
+	// Removing is reversible (the request is simply added again), so it takes
+	// an undo toast rather than a confirmation.
+	const removeRequest = async (request: StockRequest): Promise<void> => {
+		await stockRequestsStore.removeRequest(request.id)
+		if (stockRequestsStore.error) return
+		toast.success(`Removed the request for ${request.item_name}`, {
+			duration: 8000,
+			action: {
+				label: 'Undo',
+				onClick: async () => {
+					await stockRequestsStore.addRequest({
+						item_id: request.item_id,
+						quantity: request.quantity,
+						remark: request.remark ?? '',
+					})
+					if (!stockRequestsStore.error) {
+						toast.success(`Restored the request for ${request.item_name}`)
+					}
+				},
+			},
+		})
 	}
 </script>
 
@@ -373,8 +373,8 @@
 												{...props}
 												variant="destructive"
 												size="icon-sm"
-												aria-label="Remove Request…"
-												onclick={() => openRemove(request)}
+												aria-label="Remove Request"
+												onclick={() => removeRequest(request)}
 											>
 												<Trash2Icon />
 											</Button>
@@ -412,10 +412,10 @@
 	title="New Request"
 	loading={stockRequestsStore.loading}
 	disabled={!isNewValid}
+	dirty={newItemId !== null || newQuantity !== '' || newRemark !== ''}
 	confirmText="Create Request"
 	onconfirm={confirmNew}
 	oncancel={closeNew}
-	onclose={closeNew}
 >
 	<form
 		onsubmit={(event) => {
@@ -490,17 +490,3 @@
 		<button type="submit" class="hidden" aria-hidden="true" tabindex="-1"></button>
 	</form>
 </ActionModal>
-
-<!-- Remove -->
-<ActionModal
-	bind:open={showRemove}
-	title="Remove This Request?"
-	description={removeTarget
-		? `${removeTarget.item_name}, ${withUnit(removeTarget.quantity, removeTarget.unit)}. The manager will no longer see it.`
-		: undefined}
-	loading={stockRequestsStore.loading}
-	confirmText="Remove"
-	onconfirm={confirmRemove}
-	oncancel={closeRemove}
-	onclose={closeRemove}
-/>

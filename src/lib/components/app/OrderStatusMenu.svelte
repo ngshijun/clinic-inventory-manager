@@ -37,9 +37,21 @@
 		danger: 'text-destructive',
 	}
 
+	// Clearing is reversible: undo marks the item ordered again on the same date.
 	const clearDate = async (): Promise<void> => {
-		await inventoryStore.clearOrderDate(item.id)
-		if (!inventoryStore.error) toast.success(`Cleared the order date of ${item.item_name}`)
+		const { id, item_name: name, order_date: date, back_order: backOrder } = item
+		await inventoryStore.clearOrderDate(id)
+		if (inventoryStore.error || !date) return
+		toast.success(`Cleared the order date of ${name}`, {
+			duration: 8000,
+			action: {
+				label: 'Undo',
+				onClick: async () => {
+					await inventoryStore.markAsOrdered(id, date, backOrder ?? false)
+					if (!inventoryStore.error) toast.success(`Marked ${name} as ordered again`)
+				},
+			},
+		})
 	}
 
 	const setReason = async (reason: string | null): Promise<void> => {

@@ -81,11 +81,11 @@
 	title={`Stock Out · ${item?.item_name ?? ''}`}
 	description={`On hand ${max} ${unit} across ${plural(batchCount, 'batch', 'batches')}.`}
 	loading={inventoryStore.loading}
+	dirty={Number(quantity) !== 1}
 	disabled={!isValid}
 	confirmText="Stock Out"
 	onconfirm={confirm}
 	oncancel={close}
-	onclose={close}
 >
 	<form
 		onsubmit={(e) => {
