@@ -16,8 +16,6 @@
 		open: boolean
 		title: string
 		description?: string
-		/** Kept for call-site compatibility; every confirm is the default button. */
-		variant?: 'blue' | 'green' | 'red' | 'yellow' | 'cyan'
 		loading?: boolean
 		disabled?: boolean
 		confirmText?: string

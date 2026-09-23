@@ -17,20 +17,6 @@
 				destructive:
 					'bg-destructive/10 hover:bg-destructive/20 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/20 text-destructive focus-visible:border-destructive/40 dark:hover:bg-destructive/30',
 				link: 'text-primary underline-offset-4 hover:underline',
-				/* Legacy variants from the Vue port, mapped onto the tokens. Remove once every page is migrated. */
-				green: 'bg-primary text-primary-foreground hover:bg-primary/80',
-				blue: 'bg-primary text-primary-foreground hover:bg-primary/80',
-				yellow: 'bg-primary text-primary-foreground hover:bg-primary/80',
-				cyan: 'bg-primary text-primary-foreground hover:bg-primary/80',
-				red: 'bg-destructive/10 hover:bg-destructive/20 text-destructive',
-				gray: 'border-border bg-background hover:bg-muted hover:text-foreground',
-				'soft-blue': 'border-border bg-background hover:bg-muted hover:text-foreground',
-				'soft-gray': 'border-border bg-background hover:bg-muted hover:text-foreground',
-				'soft-green': 'border-border bg-background hover:bg-muted hover:text-foreground',
-				'soft-yellow': 'border-border bg-background hover:bg-muted hover:text-foreground',
-				'soft-red': 'bg-destructive/10 hover:bg-destructive/20 text-destructive',
-				'soft-cyan': 'border-border bg-background hover:bg-muted hover:text-foreground',
-				'soft-orange': 'border-border bg-background hover:bg-muted hover:text-foreground',
 			},
 			size: {
 				default:
@@ -44,10 +30,6 @@
 				'icon-sm':
 					'size-7 rounded-[min(var(--radius-md),12px)] in-data-[slot=button-group]:rounded-lg',
 				'icon-lg': 'size-9',
-				/* Legacy row sizes. Remove once every page is migrated. */
-				row: 'h-8 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2',
-				'row-sm':
-					"h-7 gap-1 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] [&_svg:not([class*='size-'])]:size-3.5",
 			},
 		},
 		defaultVariants: {

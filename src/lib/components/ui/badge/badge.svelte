@@ -17,13 +17,6 @@
 				warning: 'bg-warning-soft text-warning',
 				info: 'bg-info-soft text-info',
 				violet: 'bg-violet-soft text-violet',
-				/* Legacy colour names from the Vue port. Remove once every page is migrated. */
-				green: 'bg-success-soft text-success',
-				yellow: 'bg-warning-soft text-warning',
-				blue: 'bg-info-soft text-info',
-				red: 'bg-destructive/10 text-destructive',
-				gray: 'bg-secondary text-secondary-foreground',
-				count: 'bg-destructive text-destructive-foreground',
 			},
 		},
 		defaultVariants: {
