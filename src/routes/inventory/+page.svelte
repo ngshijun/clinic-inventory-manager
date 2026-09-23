@@ -1158,10 +1158,9 @@
 						{@attach selectOnFocus()}
 					/>
 					{#if Number(stockInQuantity) > 0}
-						<Field.Description>
-							{stockInAfter}
-							{stockInItem?.unit} after this stock in.
-						</Field.Description>
+						<Field.Description
+							><Quantity value={stockInAfter} unit={stockInItem?.unit ?? ''} /> after this stock in.</Field.Description
+						>
 					{/if}
 				</Field.Field>
 				<Field.Field>

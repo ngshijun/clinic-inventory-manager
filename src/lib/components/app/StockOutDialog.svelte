@@ -3,6 +3,7 @@
 	import { selectOnFocus } from '$lib/attachments/focus'
 	import ActionModal from '$lib/components/app/ActionModal.svelte'
 	import DialogSubject from '$lib/components/app/DialogSubject.svelte'
+	import Quantity from '$lib/components/app/Quantity.svelte'
 	import ToneBadge from '$lib/components/app/ToneBadge.svelte'
 	import * as Field from '$lib/components/ui/field'
 	import { Input } from '$lib/components/ui/input'
@@ -122,7 +123,9 @@
 				{#if overMax}
 					<Field.Error>Only {max} {unit} on hand.</Field.Error>
 				{:else if isValid}
-					<Field.Description>{left} {unit} left after this stock out.</Field.Description>
+					<Field.Description
+						><Quantity value={left} {unit} /> left after this stock out.</Field.Description
+					>
 				{/if}
 			</Field.Field>
 			{#if plan.length > 0}

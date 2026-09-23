@@ -468,7 +468,9 @@
 				{:else if newItem && newOnHand === 0}
 					<Field.Error>Nothing on hand.</Field.Error>
 				{:else if newItem}
-					<Field.Description>{withUnit(newOnHand, newUnit)} on hand.</Field.Description>
+					<Field.Description
+						><Quantity value={newOnHand} unit={newUnit} /> on hand.</Field.Description
+					>
 				{/if}
 			</Field.Field>
 			<Field.Field>

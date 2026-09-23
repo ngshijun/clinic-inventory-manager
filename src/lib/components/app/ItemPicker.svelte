@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { tick } from 'svelte'
 	import SearchIcon from '@lucide/svelte/icons/search'
 	import XIcon from '@lucide/svelte/icons/x'
 	import Quantity from '$lib/components/app/Quantity.svelte'
@@ -46,7 +47,6 @@
 	const selected = $derived(
 		value === null ? null : (items.find((item) => item.id === value) ?? null),
 	)
-	const display = $derived(selected ? selected.item_name : text)
 	const query = $derived(text.trim().toLowerCase())
 	const results = $derived(
 		query.length === 0
@@ -70,10 +70,11 @@
 		onSelect?.(item)
 	}
 
-	function clear() {
+	async function clear() {
 		value = null
 		text = ''
 		open = false
+		await tick()
 		inputRef?.focus()
 	}
 
@@ -112,42 +113,59 @@
 </script>
 
 <div class="relative" data-picker={id}>
-	<div class="relative">
-		<SearchIcon
-			class="text-muted-foreground pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2"
-		/>
-		<Input
+	{#if selected}
+		<!-- The pick shows whole, wrapping if it must; a click anywhere on it starts a new search. -->
+		<button
+			type="button"
 			{id}
-			bind:ref={inputRef}
-			type="text"
-			role="combobox"
-			aria-expanded={showDropdown}
-			aria-controls={listId}
-			aria-autocomplete="list"
-			autocomplete="off"
-			{placeholder}
-			{autofocus}
-			value={display}
-			class={cn('ps-9', display.length > 0 && 'pe-9', capsClass(display))}
-			oninput={handleInput}
-			onfocus={() => (open = true)}
-			onblur={onBlur}
-			onkeydown={handleKeydown}
-		/>
-		{#if display.length > 0}
-			<Button
-				type="button"
-				variant="ghost"
-				size="icon-sm"
-				class="absolute end-0.5 top-1/2 -translate-y-1/2"
-				aria-label="Clear item"
-				onmousedown={(event) => event.preventDefault()}
-				onclick={clear}
-			>
-				<XIcon />
-			</Button>
-		{/if}
-	</div>
+			class="bg-input/50 focus-visible:border-ring focus-visible:ring-ring/30 flex min-h-9 w-full items-start gap-2 rounded-3xl border border-transparent px-3 py-2 text-start text-sm outline-none focus-visible:ring-3"
+			aria-label={`${selected.item_name}. Change item`}
+			onclick={clear}
+		>
+			<SearchIcon class="text-muted-foreground mt-0.5 size-4 shrink-0" />
+			<span class={cn('min-w-0 flex-1 font-medium', capsClass(selected.item_name))}>
+				{selected.item_name}
+			</span>
+			<XIcon class="text-muted-foreground mt-0.5 size-4 shrink-0" />
+		</button>
+	{:else}
+		<div class="relative">
+			<SearchIcon
+				class="text-muted-foreground pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2"
+			/>
+			<Input
+				{id}
+				bind:ref={inputRef}
+				type="text"
+				role="combobox"
+				aria-expanded={showDropdown}
+				aria-controls={listId}
+				aria-autocomplete="list"
+				autocomplete="off"
+				{placeholder}
+				{autofocus}
+				value={text}
+				class={cn('ps-9', text.length > 0 && 'pe-9')}
+				oninput={handleInput}
+				onfocus={() => (open = true)}
+				onblur={onBlur}
+				onkeydown={handleKeydown}
+			/>
+			{#if text.length > 0}
+				<Button
+					type="button"
+					variant="ghost"
+					size="icon-sm"
+					class="absolute end-0.5 top-1/2 -translate-y-1/2"
+					aria-label="Clear search"
+					onmousedown={(event) => event.preventDefault()}
+					onclick={clear}
+				>
+					<XIcon />
+				</Button>
+			{/if}
+		</div>
+	{/if}
 
 	{#if showDropdown}
 		<div
