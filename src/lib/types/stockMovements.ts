@@ -26,14 +26,3 @@ export interface MovementsQuery {
 	sortDirection: 'asc' | 'desc'
 	filters: MovementFilters
 }
-
-export const emptyMovementFilters = (): MovementFilters => ({
-	itemName: '',
-	itemId: null,
-	quantityMin: null,
-	quantityMax: null,
-	movementType: '',
-	startDate: '',
-	endDate: '',
-	remark: '',
-})

@@ -10,10 +10,11 @@
 	}: WithElementRef<HTMLAttributes<HTMLTableSectionElement>> = $props()
 </script>
 
+<!-- Every body row is one 48px line: nothing a cell holds is taller than 32px. -->
 <tbody
 	bind:this={ref}
 	data-slot="table-body"
-	class={cn('divide-y divide-gray-200 bg-white', className)}
+	class={cn('[&_tr:last-child]:border-0 [&>tr]:h-12', className)}
 	{...restProps}
 >
 	{@render children?.()}

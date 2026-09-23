@@ -10,34 +10,56 @@ const startOfLocalDay = (date: string): number => new Date(`${date}T00:00:00`).g
 /** End of a local calendar day in ms */
 const endOfLocalDay = (date: string): number => new Date(`${date}T23:59:59.999`).getTime()
 
+/** One server page: the cursor it was fetched with and its live rows */
+interface Page {
+	cursor: string | null
+	rows: StockMovement[]
+	continueCursor: string | null
+	isDone: boolean
+	unsubscribe: () => void
+	/** Ends this page's loading state, if it has not yet */
+	settle: () => void
+}
+
 /**
- * Stock movements are paginated on the server with cursors: this store holds
- * the page on screen and the cursor of every page visited, so Previous and
- * Next work but jumping to an arbitrary page does not. Both the page and the
- * count are live subscriptions, so a stock out elsewhere shows up here at
- * once.
+ * Stock movements are paginated on the server with cursors. The store keeps
+ * every page loaded so far as its own live subscription and shows them as one
+ * list, so "load more" appends the next page and a stock out elsewhere shows
+ * up here at once.
  *
  * The count comes from an aggregate that only knows movement type and date,
  * so it is exact for those filters and unavailable for the others.
  */
 class StockMovementsStore {
-	// State
-	movements = $state<StockMovement[]>([])
+	// Raw: pages are replaced, never mutated, so no deep proxy is needed
+	#pages = $state.raw<Page[]>([])
 	totalCount = $state(0)
 	countIsExact = $state(true)
-	currentPage = $state(1)
-	isDone = $state(true)
 	#loadingCount = $state(0)
 	error = $state<string | null>(null)
 
 	#query: MovementsQuery | null = null
-	/** Cursor that fetches page n is `#cursors[n - 1]`; page 1 starts at null */
-	#cursors: (string | null)[] = [null]
-	#continueCursor: string | null = null
-	#unsubscribePage: (() => void) | null = null
 	#unsubscribeCount: (() => void) | null = null
-	/** Ends the loading state of the current page subscription, if it has not yet */
-	#settlePage: (() => void) | null = null
+
+	/** Every loaded row in order. A row that moved between live pages appears once. */
+	movements = $derived.by((): StockMovement[] => {
+		const seen = new Set<string>()
+		const rows: StockMovement[] = []
+		for (const page of this.#pages) {
+			for (const row of page.rows) {
+				if (seen.has(row.id)) continue
+				seen.add(row.id)
+				rows.push(row)
+			}
+		}
+		return rows
+	})
+
+	/** Whether the server has more rows past the last loaded page */
+	hasMore = $derived.by((): boolean => {
+		const last = this.#pages.at(-1)
+		return last !== undefined && !last.isDone && last.continueCursor !== null
+	})
 
 	get loading(): boolean {
 		return this.#loadingCount > 0
@@ -45,20 +67,6 @@ class StockMovementsStore {
 
 	get pageSize(): number {
 		return this.#query?.pageSize ?? 25
-	}
-
-	/** Index of the first row on screen, zero based */
-	get startIndex(): number {
-		return (this.currentPage - 1) * this.pageSize
-	}
-
-	get endIndex(): number {
-		return this.startIndex + this.movements.length
-	}
-
-	/** Number of pages, only meaningful when the count is exact */
-	get totalPages(): number {
-		return Math.max(1, Math.ceil(this.totalCount / this.pageSize))
 	}
 
 	#serverFilters = () => {
@@ -77,14 +85,18 @@ class StockMovementsStore {
 		}
 	}
 
-	#subscribePage = () => {
-		// A replaced subscription may never deliver its first result, so settle
-		// it here rather than leaving the loading counter raised forever.
-		this.#settlePage?.()
-		this.#settlePage = null
-		// Convex throws if an unsubscribe handle is called twice, so drop it
-		this.#unsubscribePage?.()
-		this.#unsubscribePage = null
+	#dropPages = () => {
+		for (const page of this.#pages) {
+			// A replaced subscription may never deliver its first result, so
+			// settle it here rather than leaving the loading counter raised.
+			page.settle()
+			// Convex throws if an unsubscribe handle is called twice
+			page.unsubscribe()
+		}
+		this.#pages = []
+	}
+
+	#subscribePage = (cursor: string | null) => {
 		if (!this.#query) return
 
 		let settled = false
@@ -93,24 +105,32 @@ class StockMovementsStore {
 			settled = true
 			this.#loadingCount--
 		}
-		this.#settlePage = settle
 		this.#loadingCount++
 
-		this.#unsubscribePage = convex.onUpdate(
+		// The entry exists before subscribing, in case the first result is delivered synchronously
+		const index = this.#pages.length
+		this.#pages = [
+			...this.#pages,
+			{ cursor, rows: [], continueCursor: null, isDone: true, unsubscribe: () => {}, settle },
+		]
+		const unsubscribe = convex.onUpdate(
 			api.movements.page,
 			{
 				auth: authStore.token,
-				paginationOpts: {
-					cursor: this.#cursors[this.currentPage - 1] ?? null,
-					numItems: this.#query.pageSize,
-				},
+				paginationOpts: { cursor, numItems: this.#query.pageSize },
 				sort_direction: this.#query.sortDirection,
 				...this.#serverFilters(),
 			},
 			(result) => {
-				this.movements = result.page.map(withLegacy)
-				this.isDone = result.isDone
-				this.#continueCursor = result.continueCursor
+				const live = this.#pages[index]
+				// Ignore a late result from a page that has since been dropped
+				if (!live || live.cursor !== cursor) return
+				this.#pages = this.#pages.with(index, {
+					...live,
+					rows: result.page.map(withLegacy),
+					isDone: result.isDone,
+					continueCursor: result.continueCursor,
+				})
 				this.error = null
 				settle()
 			},
@@ -120,6 +140,13 @@ class StockMovementsStore {
 				settle()
 			},
 		)
+		const entry = this.#pages[index]
+		if (entry && entry.cursor === cursor) {
+			this.#pages = this.#pages.with(index, { ...entry, unsubscribe })
+		} else {
+			// Dropped while subscribing
+			unsubscribe()
+		}
 	}
 
 	#subscribeCount = () => {
@@ -156,33 +183,19 @@ class StockMovementsStore {
 
 	// Actions
 
-	/** Apply new filters, sort or page size and go back to the first page */
+	/** Apply new filters or sort and start again from the first page */
 	setQuery = (query: MovementsQuery): void => {
 		this.#query = query
-		this.#cursors = [null]
-		this.#continueCursor = null
-		this.currentPage = 1
-		this.#subscribePage()
+		this.#dropPages()
+		this.#subscribePage(null)
 		this.#subscribeCount()
 	}
 
-	nextPage = (): void => {
-		if (this.isDone || this.#continueCursor === null) return
-		this.#cursors[this.currentPage] = this.#continueCursor
-		this.currentPage++
-		this.#subscribePage()
-	}
-
-	previousPage = (): void => {
-		if (this.currentPage <= 1) return
-		this.currentPage--
-		this.#subscribePage()
-	}
-
-	firstPage = (): void => {
-		if (this.currentPage === 1) return
-		this.currentPage = 1
-		this.#subscribePage()
+	/** Append the next server page */
+	loadMore = (): void => {
+		const last = this.#pages.at(-1)
+		if (!last || last.isDone || last.continueCursor === null) return
+		this.#subscribePage(last.continueCursor)
 	}
 
 	updateRemark = async (movementId: StockMovement['id'], newRemark: string): Promise<void> => {
@@ -206,20 +219,12 @@ class StockMovementsStore {
 	initializeStore = async (): Promise<void> => {}
 
 	cleanup = () => {
-		this.#settlePage?.()
-		this.#settlePage = null
-		this.#unsubscribePage?.()
+		this.#dropPages()
 		this.#unsubscribeCount?.()
-		this.#unsubscribePage = null
 		this.#unsubscribeCount = null
 		this.#query = null
-		this.#cursors = [null]
-		this.#continueCursor = null
-		this.movements = []
 		this.totalCount = 0
 		this.countIsExact = true
-		this.currentPage = 1
-		this.isDone = true
 		this.error = null
 	}
 }

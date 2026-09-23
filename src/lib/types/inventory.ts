@@ -28,8 +28,3 @@ export interface InventoryItemUpdate {
 	order_date?: string | null
 	non_order_reason?: string | null
 }
-
-export interface StockStatus {
-	text: string
-	class: string
-}

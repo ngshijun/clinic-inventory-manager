@@ -1,961 +1,560 @@
 <script lang="ts">
+	import { untrack } from 'svelte'
+	import { toast } from 'svelte-sonner'
+	import CircleCheckIcon from '@lucide/svelte/icons/circle-check'
+	import ClipboardCheckIcon from '@lucide/svelte/icons/clipboard-check'
+	import PencilIcon from '@lucide/svelte/icons/pencil'
+	import SearchIcon from '@lucide/svelte/icons/search'
+	import TriangleAlertIcon from '@lucide/svelte/icons/triangle-alert'
+	import XIcon from '@lucide/svelte/icons/x'
+	import ActionModal from '$lib/components/app/ActionModal.svelte'
+	import EditRequestDialog from '$lib/components/app/EditRequestDialog.svelte'
+	import PageHeader from '$lib/components/app/PageHeader.svelte'
+	import RequestDayFilter from '$lib/components/app/RequestDayFilter.svelte'
+	import SortHeader from '$lib/components/app/SortHeader.svelte'
+	import type { SortState } from '$lib/components/app/sort'
+	import ToneBadge from '$lib/components/app/ToneBadge.svelte'
+	import * as Alert from '$lib/components/ui/alert'
+	import { Button } from '$lib/components/ui/button'
+	import { Checkbox } from '$lib/components/ui/checkbox'
+	import * as Empty from '$lib/components/ui/empty'
+	import * as Field from '$lib/components/ui/field'
+	import * as InputGroup from '$lib/components/ui/input-group'
+	import { Skeleton } from '$lib/components/ui/skeleton'
+	import * as Table from '$lib/components/ui/table'
+	import { Textarea } from '$lib/components/ui/textarea'
+	import * as Tooltip from '$lib/components/ui/tooltip'
+	import { useErrorToast } from '$lib/composables/errorToast.svelte'
+	import { createLoadMore } from '$lib/composables/loadMore.svelte'
 	import { inventoryStore } from '$lib/stores/inventory.svelte'
 	import { stockRequestsStore } from '$lib/stores/stockRequests.svelte'
+	import { todayIsoDate } from '$lib/types/stockBatches'
 	import type { StockRequest, StockRequestId } from '$lib/types/stockRequests'
+	import { formatDate, formatDayMonth, formatTime } from '$lib/utils/date'
+	import {
+		STATUS_RANK,
+		STATUS_TONE,
+		isOlderPending,
+		localDateKey,
+		matchesDay,
+		matchesSearch,
+		withUnit,
+		type DayMode,
+	} from '$lib/utils/requests'
+	import Quantity from '$lib/components/app/Quantity.svelte'
+	import { cn } from '$lib/utils'
+	import { capsClass } from '$lib/utils/text'
 
-	// Component imports
-	import ActionButtonGroup, {
-		type ActionButtonGroupAction,
-	} from '$lib/components/app/ActionButtonGroup.svelte'
-	import ActionModal from '$lib/components/app/ActionModal.svelte'
-	import EmptyState from '$lib/components/app/EmptyState.svelte'
-	import ErrorAlert from '$lib/components/app/ErrorAlert.svelte'
-	import FormField from '$lib/components/app/FormField.svelte'
-	import LoadingSpinner from '$lib/components/app/LoadingSpinner.svelte'
-	import SearchInput from '$lib/components/app/SearchInput.svelte'
-	import StatusBadge from '$lib/components/app/StatusBadge.svelte'
-	import TablePagination from '$lib/components/app/TablePagination.svelte'
-	import CalendarIcon from '$lib/components/icons/CalendarIcon.svelte'
-	import CheckCircleIcon from '$lib/components/icons/CheckCircleIcon.svelte'
-	import ChevronDownSolidIcon from '$lib/components/icons/ChevronDownSolidIcon.svelte'
-	import ChevronUpSolidIcon from '$lib/components/icons/ChevronUpSolidIcon.svelte'
-	import CogIcon from '$lib/components/icons/CogIcon.svelte'
-	import WarningTriangleIcon from '$lib/components/icons/WarningTriangleIcon.svelte'
-	import { Button } from '$lib/components/ui/button/index.js'
-	import { Input } from '$lib/components/ui/input/index.js'
-	import * as Table from '$lib/components/ui/table/index.js'
-	import { createPagination } from '$lib/composables/pagination.svelte'
+	// ---------- Toolbar state ----------
+	type SortKey = 'item_name' | 'created_at' | 'quantity' | 'status'
 
-	// State
-	let searchQuery = $state<string>('')
-	const today = new Date()
-	let filterDate = $state<string>(
-		`${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`,
-	)
-	let selectedRequests = $state<StockRequestId[]>([])
-	let showOlderPending = $state<boolean>(false)
+	let searchQuery = $state('')
+	let searchInput = $state<HTMLInputElement | null>(null)
+	let dayMode = $state<DayMode>('today')
+	let dayDate = $state(todayIsoDate())
+	let sort = $state<SortState<SortKey>>({ key: null, direction: 'asc' })
 
-	// Edit state
-	const editForm = $state<{
-		quantity: string | number | undefined
-		remark: string | number | undefined
-	}>({
-		quantity: 1,
-		remark: '',
-	})
+	useErrorToast(() => stockRequestsStore.error)
+	useErrorToast(() => inventoryStore.error)
 
-	// Reject modal state
-	let showRejectModal = $state<boolean>(false)
-	let rejectRequestIds = $state<StockRequestId[]>([])
-	let rejectRemark = $state<string | number | undefined>('')
+	const requests = $derived(stockRequestsStore.requests)
 
-	// Bulk approval modal
-	let showBulkApprovalModal = $state<boolean>(false)
+	// ---------- Rows ----------
+	const todayKey = $derived(todayIsoDate())
+	const olderPending = $derived(requests.filter(isOlderPending))
 
-	// Edit modal
-	let showEditModal = $state<boolean>(false)
-	let editingRequest = $state<StockRequest | null>(null)
+	const onHand = (request: StockRequest): number =>
+		inventoryStore.getItemById(request.item_id)?.quantity ?? 0
 
-	// Sorting configuration
-	const sortConfig = $state<{
-		key: keyof StockRequest | null
-		direction: 'asc' | 'desc'
-	}>({
-		key: null,
-		direction: 'asc',
-	})
+	const hasEnoughStock = (request: StockRequest): boolean => onHand(request) >= request.quantity
 
-	// Computed properties
-	const pendingRequests = $derived.by(() => {
-		const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
-		return stockRequestsStore.requests.filter((request) => {
-			if (request.status !== 'Pending') return false
-			const requestDate = new Date(request.created_at)
-			const requestDateString = `${requestDate.getFullYear()}-${String(requestDate.getMonth() + 1).padStart(2, '0')}-${String(requestDate.getDate()).padStart(2, '0')}`
-			return requestDateString === todayString
+	const plural = (count: number, noun: string): string =>
+		`${count} ${count === 1 ? noun : `${noun}s`}`
+
+	/** "Today" or "22 Sep"; the time follows in the cell */
+	const requestedDay = (request: StockRequest): string =>
+		localDateKey(request.created_at) === todayKey ? 'Today' : formatDayMonth(request.created_at)
+
+	const sortedRequests = $derived.by((): StockRequest[] => {
+		const rows = requests.filter(
+			(r) => matchesSearch(r, searchQuery) && matchesDay(r, dayMode, dayDate),
+		)
+		const key = sort.key
+		if (!key) return rows
+		const dir = sort.direction === 'asc' ? 1 : -1
+		return [...rows].sort((a, b) => {
+			if (key === 'item_name') {
+				return dir * a.item_name.toLowerCase().localeCompare(b.item_name.toLowerCase())
+			}
+			if (key === 'quantity') return dir * (a.quantity - b.quantity)
+			if (key === 'created_at') return dir * a.created_at.localeCompare(b.created_at)
+			return dir * (STATUS_RANK[a.status] - STATUS_RANK[b.status])
 		})
 	})
 
-	const nonTodayPendingCount = $derived.by(() => {
-		const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
-		return stockRequestsStore.requests.filter((request) => {
-			if (request.status !== 'Pending') return false
-			const requestDate = new Date(request.created_at)
-			const requestDateString = `${requestDate.getFullYear()}-${String(requestDate.getMonth() + 1).padStart(2, '0')}-${String(requestDate.getDate()).padStart(2, '0')}`
-			return requestDateString !== todayString
-		}).length
+	const list = createLoadMore(() => sortedRequests)
+
+	const toggleSort = (key: SortKey): void => {
+		if (sort.key === key) {
+			sort.direction = sort.direction === 'asc' ? 'desc' : 'asc'
+		} else {
+			sort = { key, direction: 'asc' }
+		}
+	}
+
+	// A new search, day or sort starts the list from the top again
+	$effect(() => {
+		void searchQuery
+		void dayMode
+		void dayDate
+		void sort.key
+		void sort.direction
+		untrack(() => list.reset())
 	})
 
-	const approvedToday = $derived.by(() => {
-		const today = new Date()
-		today.setHours(0, 0, 0, 0) // Set to start of day
+	const isFiltered = $derived(searchQuery !== '' || dayMode !== 'today')
+	const clearFilters = (): void => {
+		searchQuery = ''
+		dayMode = 'today'
+		dayDate = todayIsoDate()
+	}
 
-		const tomorrow = new Date(today)
-		tomorrow.setDate(today.getDate() + 1) // Next day start
+	// ⌥⌘F focuses the search field
+	const onKeydown = (event: KeyboardEvent): void => {
+		if (event.metaKey && event.altKey && event.code === 'KeyF') {
+			event.preventDefault()
+			searchInput?.focus()
+			searchInput?.select()
+		}
+	}
 
-		return stockRequestsStore.requests.filter((request) => {
-			if (request.status !== 'Approved') return false
+	const initialLoading = $derived(stockRequestsStore.loading && requests.length === 0)
 
-			const updatedDate = new Date(request.updated_at)
+	// ---------- Selection ----------
+	let selectedIds = $state<StockRequestId[]>([])
 
-			return updatedDate >= today && updatedDate < tomorrow
-		}).length
-	})
-
-	// Get item names for rejected requests
-	const rejectRequestItemNames = $derived(
-		rejectRequestIds
-			.map((id) => {
-				const request = stockRequestsStore.requests.find((r) => r.id === id)
-				return request?.item_name || ''
-			})
-			.filter(Boolean),
+	// Selection only ever holds pending rows; a decision elsewhere drops the row
+	const selected = $derived(
+		selectedIds
+			.map((id) => requests.find((r) => r.id === id))
+			.filter((r): r is StockRequest => r !== undefined && r.status === 'Pending'),
+	)
+	const visiblePendingIds = $derived(
+		list.visible.filter((r) => r.status === 'Pending').map((r) => r.id),
+	)
+	const allVisibleSelected = $derived(
+		visiblePendingIds.length > 0 && visiblePendingIds.every((id) => selectedIds.includes(id)),
+	)
+	const someVisibleSelected = $derived(
+		!allVisibleSelected && visiblePendingIds.some((id) => selectedIds.includes(id)),
 	)
 
-	// Helper function to get item max quantity
-	const getItemMaxQuantity = (itemId: string): number => {
-		const item = inventoryStore.items.find((item) => item.id === itemId)
-		return item?.quantity || 0
-	}
+	const isSelected = (id: StockRequestId): boolean => selectedIds.includes(id)
 
-	// Edit form validation
-	const isEditFormValid = $derived.by(() => {
-		if (!editingRequest) return false
-
-		const maxQuantity = getItemMaxQuantity(editingRequest.item_id)
-		const quantity = Number(editForm.quantity)
-		return (
-			quantity > 0 &&
-			quantity <= maxQuantity &&
-			(quantity !== editingRequest.quantity ||
-				String(editForm.remark ?? '') !== (editingRequest.remark || ''))
-		)
-	})
-
-	// Computed properties for filtering and sorting
-	const sortedAndFilteredRequests = $derived.by((): StockRequest[] => {
-		let requests = [...stockRequestsStore.requests]
-
-		// Search filter
-		if (searchQuery) {
-			requests = stockRequestsStore.searchRequests(searchQuery)
-		}
-
-		// Date filter (applied to whatever results we have from search)
-		if (filterDate && !showOlderPending) {
-			const filterDateObj = new Date(filterDate)
-			requests = requests.filter((request) => {
-				const requestDate = new Date(request.created_at)
-				return requestDate.toDateString() === filterDateObj.toDateString()
-			})
-		}
-
-		// Show older pending filter
-		if (showOlderPending) {
-			const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
-			requests = requests.filter((request) => {
-				if (request.status !== 'Pending') return false
-				const requestDate = new Date(request.created_at)
-				const requestDateString = `${requestDate.getFullYear()}-${String(requestDate.getMonth() + 1).padStart(2, '0')}-${String(requestDate.getDate()).padStart(2, '0')}`
-				return requestDateString !== todayString
-			})
-		}
-
-		// Sorting
-		if (sortConfig.key) {
-			requests.sort((a, b) => {
-				const aValue = a[sortConfig.key as keyof StockRequest]
-				const bValue = b[sortConfig.key as keyof StockRequest]
-
-				if (typeof aValue === 'string' && typeof bValue === 'string') {
-					const comparison = aValue.toLowerCase().localeCompare(bValue.toLowerCase())
-					return sortConfig.direction === 'asc' ? comparison : -comparison
-				}
-
-				if (typeof aValue === 'number' && typeof bValue === 'number') {
-					return sortConfig.direction === 'asc' ? aValue - bValue : bValue - aValue
-				}
-
-				return 0
-			})
-		}
-
-		return requests
-	})
-
-	const pagination = createPagination(() => sortedAndFilteredRequests)
-
-	const allPendingSelected = $derived.by(() => {
-		const pendingIds = pagination.paginatedItems
-			.filter((request) => request.status === 'Pending')
-			.map((request) => request.id)
-		return pendingIds.length > 0 && pendingIds.every((id) => selectedRequests.includes(id))
-	})
-
-	// Check if reset to today button should be shown
-	const showResetButton = $derived.by((): boolean => {
-		const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
-		const isDateToday = filterDate === todayString
-		return !!(filterDate && !isDateToday)
-	})
-
-	// Helper functions
-	const getAvailableStock = (itemId: string): number => {
-		const item = inventoryStore.items.find((item) => item.id === itemId)
-		return item?.quantity || 0
-	}
-
-	const hasEnoughStock = (request: StockRequest): boolean => {
-		return getAvailableStock(request.item_id) >= request.quantity
-	}
-
-	// Helper function to get status badge color
-	const getStatusColor = (status: string): 'yellow' | 'green' | 'red' => {
-		switch (status) {
-			case 'Pending':
-				return 'yellow'
-			case 'Approved':
-				return 'green'
-			case 'Rejected':
-				return 'red'
-			default:
-				return 'yellow'
-		}
-	}
-
-	// Action button configurations
-	const getRequestActions = (request: StockRequest): Array<ActionButtonGroupAction> => {
-		if (request.status !== 'Pending') return []
-
-		return [
-			{
-				key: 'edit',
-				label: 'Edit',
-				variant: 'blue',
-			},
-			{
-				key: 'approve',
-				label: 'Approve',
-				variant: 'green',
-				disabled: !hasEnoughStock(request),
-			},
-			{
-				key: 'reject',
-				label: 'Reject',
-				variant: 'red',
-			},
-		]
-	}
-
-	// Handle action button clicks
-	const handleActionClick = (actionKey: string, request: StockRequest) => {
-		switch (actionKey) {
-			case 'edit':
-				startEdit(request)
-				break
-			case 'approve':
-				approveRequest(request.id)
-				break
-			case 'reject':
-				showRejectDialog(request.id)
-				break
-		}
-	}
-
-	// Edit functions
-	const startEdit = (request: StockRequest): void => {
-		editingRequest = request
-		editForm.quantity = request.quantity
-		editForm.remark = request.remark || ''
-		showEditModal = true
-	}
-
-	const closeEditModal = (): void => {
-		showEditModal = false
-		editingRequest = null
-		editForm.quantity = 1
-		editForm.remark = ''
-	}
-
-	const confirmEdit = async (): Promise<void> => {
-		if (!editingRequest || !isEditFormValid) return
-
-		await saveEdit(editingRequest.id)
-		if (!stockRequestsStore.error) {
-			closeEditModal()
-		}
-	}
-
-	const saveEdit = async (requestId: StockRequestId): Promise<void> => {
-		if (!isEditFormValid) return
-
-		await stockRequestsStore.updateRequest(
-			requestId,
-			Number(editForm.quantity),
-			String(editForm.remark ?? ''),
-		)
-
-		// Modal cleanup is handled by confirmEdit function
-	}
-
-	// Reject functions
-	const showRejectDialog = (requestId: StockRequestId): void => {
-		rejectRequestIds = [requestId]
-		rejectRemark = ''
-		showRejectModal = true
-	}
-
-	const bulkReject = (): void => {
-		if (selectedRequests.length === 0) return
-		rejectRequestIds = [...selectedRequests]
-		rejectRemark = ''
-		showRejectModal = true
-	}
-
-	const closeRejectModal = (): void => {
-		showRejectModal = false
-		rejectRequestIds = []
-		rejectRemark = ''
-	}
-
-	const confirmReject = async (): Promise<void> => {
-		if (rejectRequestIds.length === 0) return
-
-		for (const requestId of rejectRequestIds) {
-			await stockRequestsStore.rejectRequest(requestId, String(rejectRemark ?? ''))
-		}
-
-		// Remove rejected requests from selection
-		selectedRequests = selectedRequests.filter((id) => !rejectRequestIds.includes(id))
-
-		closeRejectModal()
-	}
-
-	// Pagination functions
-	const goToPage = (page: number): void => {
-		pagination.currentPage = page
-	}
-
-	const updateItemsPerPage = (newItemsPerPage: number): void => {
-		pagination.itemsPerPage = newItemsPerPage
-		pagination.currentPage = 1 // Reset to first page
-	}
-
-	// Reset to first page when filters change
-	$effect(() => {
-		// reading both filters registers them as dependencies of this effect
-		void searchQuery
-		void filterDate
-		pagination.currentPage = 1
-	})
-
-	// Sorting functions
-	const toggleSort = (key: keyof StockRequest): void => {
-		if (sortConfig.key === key) {
-			// Same column clicked - toggle direction
-			sortConfig.direction = sortConfig.direction === 'asc' ? 'desc' : 'asc'
+	const toggleSelected = (id: StockRequestId, checked: boolean): void => {
+		if (checked) {
+			if (!selectedIds.includes(id)) selectedIds = [...selectedIds, id]
 		} else {
-			// New column clicked - set ascending
-			sortConfig.key = key
-			sortConfig.direction = 'asc'
-		}
-		pagination.resetToFirstPage() // Reset to first page when sorting changes
-	}
-
-	// Reset date filter to today
-	const resetToToday = (): void => {
-		const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
-		filterDate = todayString
-		pagination.resetToFirstPage()
-	}
-
-	// Selection functions
-	const toggleSelection = (requestId: StockRequestId): void => {
-		const index = selectedRequests.indexOf(requestId)
-		if (index > -1) {
-			selectedRequests.splice(index, 1)
-		} else {
-			selectedRequests.push(requestId)
+			selectedIds = selectedIds.filter((other) => other !== id)
 		}
 	}
 
-	const toggleAllSelection = (): void => {
-		const pendingIds = pagination.paginatedItems
-			.filter((request) => request.status === 'Pending')
-			.map((request) => request.id)
-
-		if (allPendingSelected) {
-			// Deselect all
-			selectedRequests = selectedRequests.filter((id) => !pendingIds.includes(id))
+	const toggleAllVisible = (checked: boolean): void => {
+		if (checked) {
+			selectedIds = [...new Set([...selectedIds, ...visiblePendingIds])]
 		} else {
-			// Select all pending
-			pendingIds.forEach((id) => {
-				if (!selectedRequests.includes(id)) {
-					selectedRequests.push(id)
-				}
-			})
+			selectedIds = selectedIds.filter((id) => !visiblePendingIds.includes(id))
 		}
 	}
 
 	const clearSelection = (): void => {
-		selectedRequests = []
+		selectedIds = []
 	}
 
-	// Action functions
-	const approveRequest = async (requestId: StockRequestId): Promise<void> => {
-		await stockRequestsStore.approveRequest(requestId)
-		// Remove from selection after approval
-		const index = selectedRequests.indexOf(requestId)
-		if (index > -1) {
-			selectedRequests.splice(index, 1)
+	// ---------- Approve ----------
+	const approveOne = async (request: StockRequest): Promise<void> => {
+		await stockRequestsStore.approveRequest(request.id)
+		if (!stockRequestsStore.error) {
+			toast.success(`Approved ${withUnit(request.quantity, request.unit)} of ${request.item_name}`)
+			toggleSelected(request.id, false)
 		}
 	}
 
-	const bulkApprove = (): void => {
-		if (selectedRequests.length === 0) return
-		showBulkApprovalModal = true
-	}
+	let showBulkApprove = $state(false)
+	const approvable = $derived(selected.filter(hasEnoughStock))
+	const skipped = $derived(selected.filter((r) => !hasEnoughStock(r)))
 
 	const confirmBulkApprove = async (): Promise<void> => {
-		for (const requestId of selectedRequests) {
-			const request = stockRequestsStore.requests.find((r) => r.id === requestId)
-			if (request && request.status === 'Pending' && hasEnoughStock(request)) {
-				await stockRequestsStore.approveRequest(requestId)
-			}
+		const targets = [...approvable]
+		let approved = 0
+		for (const request of targets) {
+			await stockRequestsStore.approveRequest(request.id)
+			if (stockRequestsStore.error) break
+			approved++
 		}
-		showBulkApprovalModal = false
-		clearSelection()
+		showBulkApprove = false
+		if (approved > 0) toast.success(`Approved ${plural(approved, 'request')}`)
+		selectedIds = selectedIds.filter((id) => !targets.some((r) => r.id === id))
 	}
 
-	const closeBulkApprovalModal = (): void => {
-		showBulkApprovalModal = false
+	// ---------- Reject ----------
+	let showReject = $state(false)
+	let rejectTargets = $state<StockRequest[]>([])
+	let rejectReason = $state('')
+
+	const openReject = (targets: StockRequest[]): void => {
+		rejectTargets = targets
+		rejectReason = ''
+		showReject = true
 	}
+
+	const closeReject = (): void => {
+		showReject = false
+		rejectTargets = []
+	}
+
+	const confirmReject = async (): Promise<void> => {
+		const targets = [...rejectTargets]
+		const reason = rejectReason.trim()
+		let rejected = 0
+		for (const request of targets) {
+			await stockRequestsStore.rejectRequest(request.id, reason)
+			if (stockRequestsStore.error) break
+			rejected++
+		}
+		closeReject()
+		if (rejected === 1 && targets.length === 1) {
+			toast.success(`Rejected the request for ${targets[0].item_name}`)
+		} else if (rejected > 0) {
+			toast.success(`Rejected ${plural(rejected, 'request')}`)
+		}
+		selectedIds = selectedIds.filter((id) => !targets.some((r) => r.id === id))
+	}
+
+	const rejectTitle = $derived(
+		rejectTargets.length === 1
+			? 'Reject Request?'
+			: `Reject ${plural(rejectTargets.length, 'Request')}?`,
+	)
+	const rejectDescription = $derived(rejectTargets.map((r) => r.item_name).join(', '))
+
+	// ---------- Edit ----------
+	let editDialog = $state<EditRequestDialog | null>(null)
 </script>
 
-<div class="px-2 py-3 sm:px-0 sm:py-6">
-	<div class="rounded-lg border-4 border-dashed border-gray-200 p-3 sm:p-6">
-		<!-- Header -->
-		<div class="mb-4 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between">
-			<h2 class="text-xl font-bold text-gray-900 sm:text-2xl">Stock Approvals</h2>
-			<div class="flex items-center gap-4 text-sm text-gray-600">
-				{#if nonTodayPendingCount > 0}
-					<span class="rounded-full bg-red-100 px-2 py-1 text-xs font-medium text-red-800">
-						{nonTodayPendingCount} Older Pending
-					</span>
-				{/if}
-				<span class="rounded-full bg-yellow-100 px-2 py-1 text-xs font-medium text-yellow-800">
-					{pendingRequests.length} Pending
-				</span>
-				<span class="rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-800">
-					{approvedToday} Approved
-				</span>
-			</div>
-		</div>
+<svelte:window onkeydown={onKeydown} />
 
-		<!-- Search and Filter Bar -->
-		<div class="mb-4 space-y-4 sm:mb-6">
-			<!-- Search and Date Filter -->
-			<div class="flex flex-col gap-4 sm:flex-row">
-				<!-- Search -->
-				<div class="flex-1 sm:max-w-md">
-					<SearchInput bind:value={searchQuery} placeholder="Search requests..." />
-				</div>
-
-				<!-- Date Filter and Clear Filters -->
-				<div class="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
-					<div class="w-full sm:w-40">
-						<Input
-							bind:value={filterDate}
-							type="date"
-							class="box-border block max-w-full px-3 py-2 text-sm focus:ring-1 disabled:bg-white disabled:text-gray-900 disabled:opacity-50"
-							disabled={showOlderPending}
-							placeholder="Filter by date"
-						/>
-					</div>
-
-					<!-- Clear Filters -->
-					{#if showResetButton}
-						<Button
-							onclick={resetToToday}
-							variant="soft-blue"
-							class="w-full border-blue-300 sm:w-auto"
-							disabled={showOlderPending}
-						>
-							<CalendarIcon class="h-4 w-4" />
-							Show Today
-						</Button>
-					{/if}
-				</div>
-			</div>
-
-			<!-- Show Older Pending Checkbox -->
-			{#if nonTodayPendingCount > 0}
-				<div class="flex items-center gap-2">
-					<input
-						id="show-older-pending"
-						bind:checked={showOlderPending}
-						type="checkbox"
-						class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-					/>
-					<label for="show-older-pending" class="text-sm font-medium text-gray-700">
-						Show only {nonTodayPendingCount} older pending
-					</label>
-				</div>
+<PageHeader title="Stock Approvals">
+	<div class="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+		<InputGroup.Root class="w-full sm:w-96">
+			<InputGroup.Addon>
+				<SearchIcon />
+			</InputGroup.Addon>
+			<InputGroup.Input
+				bind:ref={searchInput}
+				bind:value={searchQuery}
+				type="search"
+				placeholder="Search by item or remark"
+				aria-label="Search by item or remark"
+			/>
+			{#if searchQuery}
+				<InputGroup.Addon align="inline-end">
+					<InputGroup.Button
+						size="icon-sm"
+						aria-label="Clear search"
+						onclick={() => (searchQuery = '')}
+					>
+						<XIcon />
+					</InputGroup.Button>
+				</InputGroup.Addon>
 			{/if}
-		</div>
-
-		<!-- Bulk Actions -->
-		{#if selectedRequests.length > 0}
-			<div class="mb-4 rounded-md border border-blue-200 bg-blue-50 p-4">
-				<div class="flex items-center justify-between">
-					<span class="text-sm text-blue-800">
-						{selectedRequests.length} request(s) selected
-					</span>
-					<div class="flex gap-2">
-						<Button
-							onclick={bulkApprove}
-							disabled={stockRequestsStore.loading}
-							variant="green"
-							size="sm"
-						>
-							Approve Selected
-						</Button>
-						<Button
-							onclick={bulkReject}
-							disabled={stockRequestsStore.loading}
-							variant="red"
-							size="sm"
-						>
-							Reject Selected
-						</Button>
-						<Button
-							onclick={clearSelection}
-							variant="gray"
-							size="sm"
-							class="bg-gray-500 hover:bg-gray-600"
-						>
-							Clear Selection
-						</Button>
-					</div>
-				</div>
-			</div>
-		{/if}
-
-		<!-- Error Display -->
-		{#if stockRequestsStore.error}
-			<ErrorAlert message={stockRequestsStore.error} />
-		{/if}
-
-		<!-- Reject Modal -->
-		<ActionModal
-			bind:open={showRejectModal}
-			title={`Reject Request${rejectRequestIds.length > 1 ? 's' : ''}: ${rejectRequestItemNames.join(', ')}`}
-			variant="red"
-			loading={stockRequestsStore.loading}
-			confirmText={`Reject Request${rejectRequestIds.length > 1 ? 's' : ''}`}
-			cancelText={`Keep Request${rejectRequestIds.length > 1 ? 's' : ''}`}
-			onclose={closeRejectModal}
-			oncancel={closeRejectModal}
-			onconfirm={confirmReject}
-		>
-			<div class="space-y-4">
-				<!-- Confirmation Message -->
-				<div class="rounded-md border border-red-200 bg-red-50 p-3">
-					<div class="mb-2 flex items-center gap-2">
-						<WarningTriangleIcon class="h-4 w-4 text-red-500" />
-						<span class="text-sm font-medium text-red-800">
-							Warning: This action cannot be undone
-						</span>
-					</div>
-					<p class="text-sm text-red-700">
-						Are you sure you want to reject
-						{rejectRequestIds.length > 1 ? `${rejectRequestIds.length} requests` : 'this request'}?
-					</p>
-				</div>
-
-				<!-- Rejection Reason -->
-				<FormField
-					bind:value={rejectRemark}
-					type="textarea"
-					label="Rejection Reason (Optional)"
-					rows={3}
-					placeholder="Enter reason for rejection..."
-				/>
-			</div>
-		</ActionModal>
-
-		<!-- Bulk Approval Modal -->
-		<ActionModal
-			bind:open={showBulkApprovalModal}
-			title="Approve Requests"
-			variant="green"
-			loading={stockRequestsStore.loading}
-			confirmText="Approve Requests"
-			cancelText="Cancel"
-			onclose={closeBulkApprovalModal}
-			oncancel={closeBulkApprovalModal}
-			onconfirm={confirmBulkApprove}
-		>
-			<div class="space-y-4">
-				<div class="rounded-md border border-green-200 bg-green-50 p-3">
-					<div class="mb-2 flex items-center gap-2">
-						<CheckCircleIcon class="h-4 w-4 text-green-500" />
-						<span class="text-sm font-medium text-green-800"> Approve Selected Requests </span>
-					</div>
-					<p class="text-sm text-green-700">
-						Are you sure you want to approve {selectedRequests.length} request(s)?
-					</p>
-				</div>
-			</div>
-		</ActionModal>
-
-		<!-- Edit Request Modal -->
-		<ActionModal
-			bind:open={showEditModal}
-			title={`Edit Request: ${editingRequest?.item_name}`}
-			variant="green"
-			loading={stockRequestsStore.loading}
-			confirmText="Save Changes"
-			disabled={!isEditFormValid}
-			onclose={closeEditModal}
-			oncancel={closeEditModal}
-			onconfirm={confirmEdit}
-		>
-			<div class="space-y-4">
-				<div class="rounded-md border border-blue-200 bg-blue-50 p-3">
-					<div class="mb-2 flex items-center gap-2">
-						<CogIcon class="h-4 w-4 text-blue-500" />
-						<span class="text-sm font-medium text-blue-800"> Modify Request Details </span>
-					</div>
-					<p class="text-sm text-blue-700">
-						Update the quantity and add remarks for this stock request.
-					</p>
-				</div>
-
-				<div>
-					<FormField
-						bind:value={editForm.quantity}
-						type="number"
-						label="Quantity"
-						min={1}
-						max={editingRequest ? getItemMaxQuantity(editingRequest.item_id) : undefined}
-						placeholder="Enter quantity"
-						required={true}
-						selectOnFocus
-					/>
-					{#if editingRequest}
-						<p class="mt-1 text-xs text-gray-500">
-							Max available: {getItemMaxQuantity(editingRequest.item_id)}
-							{editingRequest.unit}
-						</p>
-					{/if}
-				</div>
-
-				<FormField
-					bind:value={editForm.remark}
-					type="textarea"
-					label="Remark (Optional)"
-					rows={3}
-					placeholder="Add any notes or comments..."
-					caretAtEnd
-				/>
-			</div>
-		</ActionModal>
-
-		<!-- Mobile Card View -->
-		<div class="block lg:hidden">
-			<div class="overflow-hidden bg-white shadow sm:rounded-md">
-				<div class="border-b border-gray-200 px-4 py-5 sm:px-6">
-					<h3 class="text-lg leading-6 font-medium text-gray-900">
-						Requests ({sortedAndFilteredRequests.length})
-					</h3>
-				</div>
-
-				{#if stockRequestsStore.loading && sortedAndFilteredRequests.length === 0}
-					<LoadingSpinner message="Loading requests..." />
-				{:else if sortedAndFilteredRequests.length === 0}
-					<EmptyState
-						icon="document"
-						title="No requests found"
-						description={showResetButton
-							? 'Try adjusting your search terms or filters.'
-							: 'No requests need approval at the moment.'}
-					/>
-				{:else}
-					<div class="divide-y divide-gray-200">
-						{#each pagination.paginatedItems as request (request.id)}
-							<div class="px-4 py-4">
-								<!-- View Mode -->
-								<div class="space-y-3">
-									<!-- Request Header -->
-									<div class="flex items-center justify-between">
-										<div class="flex min-w-0 flex-1 items-center gap-3">
-											{#if request.status === 'Pending'}
-												<input
-													type="checkbox"
-													checked={selectedRequests.includes(request.id)}
-													onchange={() => toggleSelection(request.id)}
-													class="h-4 w-4 flex-shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-												/>
-											{/if}
-											<h4 class="mr-2 flex-1 truncate text-sm font-medium text-gray-900">
-												{request.item_name}
-											</h4>
-										</div>
-										<StatusBadge variant={getStatusColor(request.status)} text={request.status} />
-									</div>
-
-									<!-- Request Details -->
-									<div class="space-y-1 text-sm">
-										<div class="flex items-baseline gap-2">
-											<span class="flex-shrink-0 text-gray-500">Quantity:</span>
-											<span class="font-medium text-gray-900">
-												{request.quantity}
-												{request.unit}
-											</span>
-										</div>
-										<div class="flex items-start gap-2">
-											<span class="flex-shrink-0 text-gray-500">Remark:</span>
-											<span class="font-medium whitespace-pre-wrap text-gray-900">
-												{request.remark || 'No Remark'}
-											</span>
-										</div>
-									</div>
-
-									<!-- Stock Availability Warning -->
-									{#if request.status === 'Pending' && !hasEnoughStock(request)}
-										<div class="rounded border border-red-200 bg-red-50 p-2">
-											<div class="flex items-center gap-2">
-												<WarningTriangleIcon class="h-4 w-4 text-red-400" />
-												<span class="text-xs text-red-800">Insufficient stock available</span>
-											</div>
-										</div>
-									{/if}
-
-									<!-- Actions -->
-									{#if request.status === 'Pending'}
-										<div class="border-t border-gray-100 pt-2">
-											<ActionButtonGroup
-												class="w-full"
-												actions={getRequestActions(request)}
-												size="sm"
-												loading={stockRequestsStore.loading}
-												onactionclick={(actionKey) => handleActionClick(actionKey, request)}
-											/>
-										</div>
-									{/if}
-								</div>
-							</div>
-						{/each}
-					</div>
-				{/if}
-
-				<!-- Mobile Pagination -->
-				{#if pagination.totalPages > 1}
-					<TablePagination
-						currentPage={pagination.currentPage}
-						totalPages={pagination.totalPages}
-						itemsPerPage={pagination.itemsPerPage}
-						totalItems={sortedAndFilteredRequests.length}
-						startIndex={pagination.startIndex}
-						endIndex={pagination.endIndex}
-						showItemsPerPageSelector={false}
-						onpagechange={goToPage}
-						onitemsperpagechange={updateItemsPerPage}
-					/>
-				{/if}
-			</div>
-		</div>
-
-		<!-- Desktop Table View -->
-		<div class="hidden lg:block">
-			<div class="overflow-hidden bg-white shadow sm:rounded-md">
-				<div class="border-b border-gray-200 px-4 py-5 sm:px-6">
-					<div class="flex items-center justify-between">
-						<h3 class="text-lg leading-6 font-medium text-gray-900">
-							Requests ({sortedAndFilteredRequests.length})
-						</h3>
-						<div class="flex items-center gap-2">
-							<input
-								type="checkbox"
-								checked={allPendingSelected}
-								onchange={toggleAllSelection}
-								class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-							/>
-							<span class="text-sm text-gray-500">Select All Pending</span>
-						</div>
-					</div>
-				</div>
-
-				{#if stockRequestsStore.loading && sortedAndFilteredRequests.length === 0}
-					<LoadingSpinner message="Loading requests..." />
-				{:else if sortedAndFilteredRequests.length === 0}
-					<EmptyState
-						icon="document"
-						title="No requests found"
-						description={showResetButton
-							? 'Try adjusting your search terms or filters.'
-							: 'No requests need approval at the moment.'}
-					/>
-				{:else}
-					<Table.Root>
-						<Table.Header>
-							<Table.Row class="hover:bg-transparent">
-								<Table.Head class="px-0 ps-6">
-									<input
-										type="checkbox"
-										checked={allPendingSelected}
-										onchange={toggleAllSelection}
-										class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-									/>
-								</Table.Head>
-								<Table.Head
-									onclick={() => toggleSort('item_name')}
-									class="cursor-pointer select-none hover:bg-gray-100"
-								>
-									<div class="flex items-center justify-between">
-										<span>Item Name</span>
-										<div class="ml-2 flex flex-col">
-											<ChevronUpSolidIcon
-												class="h-3 w-3 transition-colors {sortConfig.key === 'item_name' &&
-												sortConfig.direction === 'asc'
-													? 'text-blue-600'
-													: 'text-gray-400'}"
-											/>
-											<ChevronDownSolidIcon
-												class="-mt-1 h-3 w-3 transition-colors {sortConfig.key === 'item_name' &&
-												sortConfig.direction === 'desc'
-													? 'text-blue-600'
-													: 'text-gray-400'}"
-											/>
-										</div>
-									</div>
-								</Table.Head>
-								<Table.Head
-									onclick={() => toggleSort('quantity')}
-									class="cursor-pointer select-none hover:bg-gray-100"
-								>
-									<div class="flex items-center justify-between">
-										<span>Requested</span>
-										<div class="ml-2 flex flex-col">
-											<ChevronUpSolidIcon
-												class="h-3 w-3 transition-colors {sortConfig.key === 'quantity' &&
-												sortConfig.direction === 'asc'
-													? 'text-blue-600'
-													: 'text-gray-400'}"
-											/>
-											<ChevronDownSolidIcon
-												class="-mt-1 h-3 w-3 transition-colors {sortConfig.key === 'quantity' &&
-												sortConfig.direction === 'desc'
-													? 'text-blue-600'
-													: 'text-gray-400'}"
-											/>
-										</div>
-									</div>
-								</Table.Head>
-								<Table.Head>Remark</Table.Head>
-								<Table.Head
-									onclick={() => toggleSort('status')}
-									class="cursor-pointer select-none hover:bg-gray-100"
-								>
-									<div class="flex items-center justify-between">
-										<span>Status</span>
-										<div class="ml-2 flex flex-col">
-											<ChevronUpSolidIcon
-												class="h-3 w-3 transition-colors {sortConfig.key === 'status' &&
-												sortConfig.direction === 'asc'
-													? 'text-blue-600'
-													: 'text-gray-400'}"
-											/>
-											<ChevronDownSolidIcon
-												class="-mt-1 h-3 w-3 transition-colors {sortConfig.key === 'status' &&
-												sortConfig.direction === 'desc'
-													? 'text-blue-600'
-													: 'text-gray-400'}"
-											/>
-										</div>
-									</div>
-								</Table.Head>
-								<Table.Head>Actions</Table.Head>
-							</Table.Row>
-						</Table.Header>
-						<Table.Body>
-							{#each pagination.paginatedItems as request (request.id)}
-								<Table.Row
-									class={request.status === 'Pending' && !hasEnoughStock(request)
-										? 'bg-red-50'
-										: ''}
-								>
-									<Table.Cell class="px-0 ps-6">
-										{#if request.status === 'Pending'}
-											<input
-												type="checkbox"
-												checked={selectedRequests.includes(request.id)}
-												onchange={() => toggleSelection(request.id)}
-												class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-											/>
-										{/if}
-									</Table.Cell>
-									<Table.Cell class="max-w-xs min-w-0 font-medium whitespace-normal">
-										<div class="flex items-center gap-2">
-											<div class="break-words">{request.item_name}</div>
-											{#if request.status === 'Pending' && !hasEnoughStock(request)}
-												<WarningTriangleIcon class="h-4 w-4 text-red-400" />
-											{/if}
-										</div>
-									</Table.Cell>
-									<Table.Cell>
-										{request.quantity}
-										{request.unit}
-									</Table.Cell>
-									<Table.Cell class="max-w-xs whitespace-normal">
-										<div
-											class="break-words whitespace-pre-wrap"
-											title={request.remark || 'No Remark'}
-										>
-											{request.remark || 'No Remark'}
-										</div>
-									</Table.Cell>
-									<Table.Cell>
-										<StatusBadge variant={getStatusColor(request.status)} text={request.status} />
-									</Table.Cell>
-									<Table.Cell class="font-medium">
-										{#if request.status === 'Pending'}
-											<ActionButtonGroup
-												actions={getRequestActions(request)}
-												size="sm"
-												loading={stockRequestsStore.loading}
-												onactionclick={(actionKey) => handleActionClick(actionKey, request)}
-											/>
-										{:else}
-											<span class="text-xs text-gray-400">
-												{request.status === 'Approved'
-													? 'Approved'
-													: request.status === 'Rejected'
-														? 'Rejected'
-														: 'Completed'}
-											</span>
-										{/if}
-									</Table.Cell>
-								</Table.Row>
-							{/each}
-						</Table.Body>
-					</Table.Root>
-				{/if}
-
-				<!-- Desktop Pagination -->
-				<TablePagination
-					currentPage={pagination.currentPage}
-					totalPages={pagination.totalPages}
-					itemsPerPage={pagination.itemsPerPage}
-					totalItems={sortedAndFilteredRequests.length}
-					startIndex={pagination.startIndex}
-					endIndex={pagination.endIndex}
-					showItemsPerPageSelector={true}
-					onpagechange={goToPage}
-					onitemsperpagechange={updateItemsPerPage}
-				/>
-			</div>
-		</div>
+		</InputGroup.Root>
+		<RequestDayFilter
+			bind:mode={dayMode}
+			bind:date={dayDate}
+			olderPendingCount={olderPending.length}
+		/>
 	</div>
-</div>
+</PageHeader>
+
+{#if selected.length > 0}
+	<Alert.Root class="bg-primary/5 border-primary/30 flex flex-wrap items-center gap-x-3 gap-y-2">
+		<CircleCheckIcon class="text-primary" />
+		<Alert.Description class="text-foreground">
+			<span class="font-medium">{plural(selected.length, 'request')} selected.</span>
+			Approving deducts stock now; requests without enough stock are skipped.
+		</Alert.Description>
+		<div class="ms-auto flex items-center gap-1.5">
+			<Button variant="ghost" size="sm" onclick={clearSelection}>Clear</Button>
+			<Button variant="destructive" size="sm" onclick={() => openReject(selected)}>Reject…</Button>
+			<Button size="sm" onclick={() => (showBulkApprove = true)}>Approve…</Button>
+		</div>
+	</Alert.Root>
+{/if}
+
+{#if initialLoading}
+	<Table.Root>
+		<Table.Header>
+			<Table.Row>
+				<Table.Head class="w-9"></Table.Head>
+				<Table.Head>Item</Table.Head>
+				<Table.Head>Quantity</Table.Head>
+				<Table.Head>On hand</Table.Head>
+				<Table.Head>Remark</Table.Head>
+				<Table.Head>Status</Table.Head>
+				<Table.Head><span class="sr-only">Actions</span></Table.Head>
+			</Table.Row>
+		</Table.Header>
+		<Table.Body>
+			{#each { length: 6 } as _, i (i)}
+				<Table.Row>
+					<Table.Cell><Skeleton class="size-4 rounded-[4px]" /></Table.Cell>
+					<Table.Cell><Skeleton class="h-4 w-44" /></Table.Cell>
+					<Table.Cell><Skeleton class="h-4 w-24" /></Table.Cell>
+					<Table.Cell><Skeleton class="h-4 w-16" /></Table.Cell>
+					<Table.Cell><Skeleton class="h-4 w-16" /></Table.Cell>
+					<Table.Cell><Skeleton class="h-4 w-40" /></Table.Cell>
+					<Table.Cell><Skeleton class="h-5 w-16 rounded-full" /></Table.Cell>
+					<Table.Cell><Skeleton class="ms-auto h-7 w-36" /></Table.Cell>
+				</Table.Row>
+			{/each}
+		</Table.Body>
+	</Table.Root>
+{:else if sortedRequests.length === 0}
+	<Empty.Root class="my-auto">
+		<Empty.Header>
+			<Empty.Media variant="icon">
+				<ClipboardCheckIcon />
+			</Empty.Media>
+			<Empty.Title>
+				{#if searchQuery}
+					No requests match
+				{:else if dayMode === 'older'}
+					Nothing older is waiting
+				{:else if dayMode === 'date'}
+					No requests on {formatDate(dayDate)}
+				{:else}
+					No requests today
+				{/if}
+			</Empty.Title>
+			<Empty.Description>
+				{#if searchQuery}
+					Try another search or clear the filter.
+				{:else if dayMode === 'today'}
+					Requests made today appear here as they arrive.
+				{:else}
+					Pick another day, or go back to today.
+				{/if}
+			</Empty.Description>
+		</Empty.Header>
+		{#if isFiltered}
+			<Empty.Content>
+				<Button variant="outline" onclick={clearFilters}>Show Today</Button>
+			</Empty.Content>
+		{/if}
+	</Empty.Root>
+{:else}
+	<Table.Root>
+		<Table.Header>
+			<Table.Row>
+				<Table.Head class="w-9 pe-0">
+					<Checkbox
+						checked={allVisibleSelected}
+						indeterminate={someVisibleSelected}
+						disabled={visiblePendingIds.length === 0}
+						aria-label="Select all pending requests"
+						onCheckedChange={(checked) => toggleAllVisible(checked === true)}
+					/>
+				</Table.Head>
+				<SortHeader key="item_name" {sort} onsort={toggleSort}>Item</SortHeader>
+				<SortHeader key="created_at" {sort} onsort={toggleSort}>Requested</SortHeader>
+				<SortHeader key="quantity" {sort} onsort={toggleSort}>Quantity</SortHeader>
+				<Table.Head>On hand</Table.Head>
+				<Table.Head class="w-[26%]">Remark</Table.Head>
+				<SortHeader key="status" {sort} onsort={toggleSort}>Status</SortHeader>
+				<Table.Head><span class="sr-only">Actions</span></Table.Head>
+			</Table.Row>
+		</Table.Header>
+		<Table.Body>
+			{#each list.visible as request (request.id)}
+				{@const pending = request.status === 'Pending'}
+				{@const stock = onHand(request)}
+				{@const short = pending && stock < request.quantity}
+				{@const checked = isSelected(request.id)}
+				<Table.Row
+					data-state={checked ? 'selected' : undefined}
+					class={cn(short && 'shadow-[inset_2px_0_0_var(--destructive)]')}
+				>
+					<Table.Cell class="pe-0">
+						{#if pending}
+							<Checkbox
+								{checked}
+								aria-label={`Select ${request.item_name}`}
+								onCheckedChange={(value) => toggleSelected(request.id, value === true)}
+							/>
+						{/if}
+					</Table.Cell>
+					<Table.Cell class={cn('font-medium', capsClass(request.item_name))}
+						>{request.item_name}</Table.Cell
+					>
+					<Table.Cell class="tabular-nums">
+						{requestedDay(request)}
+						<span class="text-muted-foreground ms-1 text-xs">{formatTime(request.created_at)}</span>
+					</Table.Cell>
+					<Table.Cell>
+						<Quantity
+							value={request.quantity}
+							unit={request.unit}
+							valueClass={cn(pending && 'font-semibold')}
+						/>
+					</Table.Cell>
+					<Table.Cell class="tabular-nums">
+						{#if short}
+							<ToneBadge tone="danger">
+								<TriangleAlertIcon />
+								Only {withUnit(stock, request.unit)}
+							</ToneBadge>
+						{:else}
+							<Quantity
+								value={stock}
+								unit={request.unit}
+								pack={false}
+								valueClass={cn(stock === 0 ? 'text-destructive' : 'font-normal')}
+							/>
+						{/if}
+					</Table.Cell>
+					<!-- One line: the full remark is the title and opens in Edit Request. -->
+					<Table.Cell class="max-w-0">
+						{#if request.remark}
+							<div class="text-foreground/80 truncate" title={request.remark}>{request.remark}</div>
+						{:else}
+							<span class="text-muted-foreground">No remark</span>
+						{/if}
+					</Table.Cell>
+					<Table.Cell>
+						<ToneBadge tone={STATUS_TONE[request.status]}>{request.status}</ToneBadge>
+					</Table.Cell>
+					<Table.Cell>
+						<div class="flex items-center justify-end gap-1">
+							{#if pending}
+								<Tooltip.Root>
+									<Tooltip.Trigger>
+										{#snippet child({ props })}
+											<Button
+												{...props}
+												variant="ghost"
+												size="icon-sm"
+												aria-label="Edit Request…"
+												onclick={() => editDialog?.open(request)}
+											>
+												<PencilIcon />
+											</Button>
+										{/snippet}
+									</Tooltip.Trigger>
+									<Tooltip.Content>Edit request</Tooltip.Content>
+								</Tooltip.Root>
+								<Button variant="destructive" size="sm" onclick={() => openReject([request])}>
+									Reject…
+								</Button>
+								<Tooltip.Root>
+									<Tooltip.Trigger>
+										{#snippet child({ props })}
+											<span {...props}>
+												<Button
+													variant="outline"
+													size="sm"
+													disabled={short || stockRequestsStore.loading}
+													onclick={() => approveOne(request)}
+												>
+													Approve
+												</Button>
+											</span>
+										{/snippet}
+									</Tooltip.Trigger>
+									{#if short}
+										<Tooltip.Content>Not enough stock on hand</Tooltip.Content>
+									{/if}
+								</Tooltip.Root>
+							{:else}
+								<span
+									class="text-muted-foreground text-xs tabular-nums"
+									title={`${request.status} ${formatDate(request.updated_at)}`}
+								>
+									{formatTime(request.updated_at)}
+								</span>
+							{/if}
+						</div>
+					</Table.Cell>
+				</Table.Row>
+			{/each}
+		</Table.Body>
+	</Table.Root>
+	<div class="text-muted-foreground flex items-center justify-between gap-3 text-sm">
+		<span>Showing {list.shown} of {plural(list.total, 'request')}</span>
+		{#if list.hasMore}
+			<Button variant="outline" onclick={list.loadMore}>Load More</Button>
+		{/if}
+	</div>
+{/if}
+
+<EditRequestDialog bind:this={editDialog} />
+
+<!-- Approve selected -->
+<ActionModal
+	bind:open={showBulkApprove}
+	title={`Approve ${plural(approvable.length, 'Request')}?`}
+	description="Stock is deducted as soon as you approve."
+	loading={stockRequestsStore.loading}
+	disabled={approvable.length === 0}
+	confirmText="Approve"
+	onconfirm={confirmBulkApprove}
+	oncancel={() => (showBulkApprove = false)}
+>
+	<ul class="divide-y rounded-2xl border text-sm">
+		{#each approvable as request (request.id)}
+			<li class="flex items-center justify-between gap-3 px-3 py-2">
+				<span class="truncate">{request.item_name}</span>
+				<span class="shrink-0 font-medium tabular-nums">
+					{withUnit(request.quantity, request.unit)}
+					<span class="text-muted-foreground font-normal">
+						· {onHand(request)} on hand
+					</span>
+				</span>
+			</li>
+		{/each}
+		{#each skipped as request (request.id)}
+			<li class="text-muted-foreground flex items-center justify-between gap-3 px-3 py-2">
+				<span class="truncate">{request.item_name}</span>
+				<span class="text-destructive shrink-0 text-xs">
+					Skipped, only {withUnit(onHand(request), request.unit)} on hand
+				</span>
+			</li>
+		{/each}
+	</ul>
+</ActionModal>
+
+<!-- Reject -->
+<ActionModal
+	bind:open={showReject}
+	title={rejectTitle}
+	description={rejectDescription}
+	loading={stockRequestsStore.loading}
+	dirty={rejectReason.trim() !== ''}
+	confirmText="Reject"
+	onconfirm={confirmReject}
+	oncancel={closeReject}
+>
+	<Field.Group>
+		<Field.Field>
+			<Field.Label for="reject-reason">
+				Reason <span class="text-muted-foreground font-normal">optional</span>
+			</Field.Label>
+			<Textarea
+				id="reject-reason"
+				bind:value={rejectReason}
+				rows={3}
+				placeholder="e.g. Supplier has no stock, use the alternative in cabinet B"
+			/>
+		</Field.Field>
+	</Field.Group>
+</ActionModal>

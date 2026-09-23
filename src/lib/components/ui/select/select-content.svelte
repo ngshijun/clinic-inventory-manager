@@ -27,7 +27,7 @@
 		{preventScroll}
 		data-slot="select-content"
 		class={cn(
-			'data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 relative z-50 max-h-(--bits-select-content-available-height) min-w-36 origin-(--bits-select-content-transform-origin) overflow-x-hidden overflow-y-auto rounded-md border border-gray-200 bg-white text-gray-900 shadow-lg duration-100',
+			'bg-popover text-popover-foreground data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 data-closed:zoom-out-95 data-open:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 ring-foreground/5 dark:ring-foreground/10 relative z-50 max-h-(--bits-select-content-available-height) min-w-36 origin-(--bits-select-content-transform-origin) overflow-x-hidden overflow-y-auto rounded-3xl shadow-lg ring-1 duration-100',
 			className,
 		)}
 		{...restProps}
@@ -35,7 +35,7 @@
 		<SelectScrollUpButton />
 		<SelectPrimitive.Viewport
 			class={cn(
-				'h-(--bits-select-anchor-height) w-full min-w-(--bits-select-anchor-width) scroll-my-1',
+				'h-(--bits-select-anchor-height) w-full min-w-(--bits-select-anchor-width) scroll-my-1 p-1',
 			)}
 		>
 			{@render children?.()}

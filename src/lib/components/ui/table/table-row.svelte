@@ -13,7 +13,10 @@
 <tr
 	bind:this={ref}
 	data-slot="table-row"
-	class={cn('transition-colors hover:bg-gray-50', className)}
+	class={cn(
+		'hover:bg-muted/50 data-[state=selected]:bg-muted has-aria-expanded:bg-muted/50 border-b transition-colors',
+		className,
+	)}
 	{...restProps}
 >
 	{@render children?.()}
