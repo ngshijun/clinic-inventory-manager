@@ -21,8 +21,8 @@
 		"xlsx": "^0.18.5"
 	},
 	"devDependencies": {
-		"@fontsource-variable/figtree": "^5.3.0",
 		"@fontsource-variable/jetbrains-mono": "^5.3.0",
+		"@fontsource-variable/plus-jakarta-sans": "^5.3.0",
 		"@internationalized/date": "^3.12.4",
 		"@lucide/svelte": "^1.47.0",
 		"@sveltejs/adapter-vercel": "^6.3.4",
@@ -33,7 +33,6 @@
 		"bits-ui": "^2.19.1",
 		"clsx": "^2.1.1",
 		"cn": "^0.3.3",
-		"layerchart": "^2.4.1",
 		"mode-watcher": "^1.1.0",
 		"prettier": "^3.5.3",
 		"prettier-plugin-svelte": "^3.3.3",

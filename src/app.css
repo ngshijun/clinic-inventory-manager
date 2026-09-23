@@ -1,7 +1,7 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @import 'shadcn-svelte/tailwind.css';
-@import '@fontsource-variable/figtree';
+@import '@fontsource-variable/plus-jakarta-sans';
 @import '@fontsource-variable/jetbrains-mono';
 
 @custom-variant dark (&:is(.dark *));
@@ -21,12 +21,13 @@
  *
  * Deep teal brand framing a cool grey ground with white cards. Green is kept
  * free to mean "in stock / approved"; amber means "needs attention"; red means
- * "out / expired / rejected"; blue means "on order". Radius is 8px at the
- * control and grows with the container: controls xl (12px), cards 2xl (16px),
- * the sidebar frame 3xl (20px). Nested shapes stay concentric.
+ * "out / expired / rejected"; blue means "on order". Components follow the
+ * shadcn-svelte Luma style: pill buttons, filled fields, soft elevation.
+ * Radius is 10px at the control and grows with the container: cards 2xl,
+ * the sidebar frame 3xl. Nested shapes stay concentric.
  */
 :root {
-	--radius: 0.5rem;
+	--radius: 0.625rem;
 
 	--background: #f1f4f6;
 	--foreground: #152028;
@@ -81,7 +82,7 @@
 }
 
 @theme inline {
-	--font-sans: 'Figtree Variable', 'Helvetica Neue', Arial, sans-serif;
+	--font-sans: 'Plus Jakarta Sans Variable', 'Helvetica Neue', Arial, sans-serif;
 	--font-mono: 'JetBrains Mono Variable', ui-monospace, SFMono-Regular, Menlo, monospace;
 
 	--radius-sm: calc(var(--radius) - 4px);
