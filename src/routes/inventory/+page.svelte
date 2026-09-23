@@ -1,15 +1,16 @@
 <script lang="ts">
 	import { tick, untrack } from 'svelte'
+	import { SvelteSet } from 'svelte/reactivity'
 	import { page } from '$app/state'
 	import { toast } from 'svelte-sonner'
 	import * as XLSX from 'xlsx'
 	import ArrowDownToLineIcon from '@lucide/svelte/icons/arrow-down-to-line'
 	import ArrowUpFromLineIcon from '@lucide/svelte/icons/arrow-up-from-line'
 	import CalendarIcon from '@lucide/svelte/icons/calendar'
+	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right'
 	import ClockIcon from '@lucide/svelte/icons/clock'
 	import DownloadIcon from '@lucide/svelte/icons/download'
 	import EllipsisIcon from '@lucide/svelte/icons/ellipsis'
-	import LayersIcon from '@lucide/svelte/icons/layers'
 	import PackageOpenIcon from '@lucide/svelte/icons/package-open'
 	import PencilIcon from '@lucide/svelte/icons/pencil'
 	import PlusIcon from '@lucide/svelte/icons/plus'
@@ -20,6 +21,7 @@
 	import XIcon from '@lucide/svelte/icons/x'
 	import { selectOnFocus } from '$lib/attachments/focus'
 	import ActionModal from '$lib/components/app/ActionModal.svelte'
+	import DiscardDialog from '$lib/components/app/DiscardDialog.svelte'
 	import PageHeader from '$lib/components/app/PageHeader.svelte'
 	import ReasonBadge from '$lib/components/app/ReasonBadge.svelte'
 	import SortHeader from '$lib/components/app/SortHeader.svelte'
@@ -36,6 +38,7 @@
 	import * as InputGroup from '$lib/components/ui/input-group'
 	import { Progress } from '$lib/components/ui/progress'
 	import { Skeleton } from '$lib/components/ui/skeleton'
+	import { Spinner } from '$lib/components/ui/spinner'
 	import * as Table from '$lib/components/ui/table'
 	import { Textarea } from '$lib/components/ui/textarea'
 	import * as ToggleGroup from '$lib/components/ui/toggle-group'
@@ -390,39 +393,22 @@
 		}
 	}
 
-	// ---------- Batches ----------
-	let showBatchesDialog = $state(false)
-	let batchesItem = $state<InventoryItem | null>(null)
+	// ---------- Batches (inline rows under the item) ----------
+	const expandedIds = new SvelteSet<string>()
 	let editingBatchId = $state<string | null>(null)
 	let batchForm = $state<{ quantity: number; expiry_date: string }>({
 		quantity: 0,
 		expiry_date: '',
 	})
+	let askDiscardBatch = $state(false)
+	// The item whose rows collapse once the unsaved batch edit is discarded, if any.
+	let collapseAfterDiscard: string | null = null
 
-	const batchesForDialog = $derived(
-		batchesItem ? stockBatchesStore.getBatchesForItem(batchesItem.id) : [],
+	const editingBatch = $derived(
+		editingBatchId
+			? (stockBatchesStore.batches.find((batch) => batch.id === editingBatchId) ?? null)
+			: null,
 	)
-	const batchesLive = $derived(
-		batchesItem ? (inventoryStore.getItemById(batchesItem.id) ?? batchesItem) : null,
-	)
-	const editingBatch = $derived(batchesForDialog.find((b) => b.id === editingBatchId) ?? null)
-
-	const openBatches = (item: InventoryItem): void => {
-		batchesItem = item
-		editingBatchId = null
-		showBatchesDialog = true
-	}
-
-	const closeBatches = (): void => {
-		showBatchesDialog = false
-		batchesItem = null
-		editingBatchId = null
-	}
-
-	const startEditBatch = (batch: StockBatch): void => {
-		editingBatchId = batch.id
-		batchForm = { quantity: batch.quantity, expiry_date: batch.expiry_date ?? '' }
-	}
 
 	const isBatchChanged = $derived.by((): boolean => {
 		if (!editingBatch) return false
@@ -432,14 +418,64 @@
 		)
 	})
 
+	/** Open or close an item's batch rows. Closing over a dirty edit asks first. */
+	const toggleBatches = (item: InventoryItem): void => {
+		if (!expandedIds.has(item.id)) {
+			expandedIds.add(item.id)
+			return
+		}
+		if (editingBatch?.item_id === item.id) {
+			if (isBatchChanged) {
+				collapseAfterDiscard = item.id
+				askDiscardBatch = true
+				return
+			}
+			editingBatchId = null
+		}
+		expandedIds.delete(item.id)
+	}
+
+	const startEditBatch = async (batch: StockBatch): Promise<void> => {
+		editingBatchId = batch.id
+		batchForm = { quantity: batch.quantity, expiry_date: batch.expiry_date ?? '' }
+		await tick()
+		document.getElementById('batch-quantity')?.focus()
+	}
+
+	/** Cancel from the button or Escape: a dirty edit asks before it is dropped. */
+	const requestCancelBatch = (): void => {
+		if (isBatchChanged) {
+			collapseAfterDiscard = null
+			askDiscardBatch = true
+		} else {
+			editingBatchId = null
+		}
+	}
+
+	const discardBatchEdit = (): void => {
+		editingBatchId = null
+		if (collapseAfterDiscard) expandedIds.delete(collapseAfterDiscard)
+		collapseAfterDiscard = null
+	}
+
 	const confirmSaveBatch = async (): Promise<void> => {
-		if (!editingBatch || !isBatchChanged) return
+		if (!editingBatch || !isBatchChanged || stockBatchesStore.loading) return
 		const quantity = Math.floor(Number(batchForm.quantity) || 0)
 		if (quantity < 0) return
 		await stockBatchesStore.updateBatch(editingBatch.id, quantity, batchForm.expiry_date || null)
 		if (!stockBatchesStore.error) {
 			toast.success('Batch saved')
 			editingBatchId = null
+		}
+	}
+
+	const onBatchKeydown = (event: KeyboardEvent): void => {
+		if (event.key === 'Enter') {
+			event.preventDefault()
+			confirmSaveBatch()
+		} else if (event.key === 'Escape') {
+			event.preventDefault()
+			requestCancelBatch()
 		}
 	}
 
@@ -701,6 +737,7 @@
 	<Table.Root>
 		<Table.Header>
 			<Table.Row>
+				<Table.Head class="w-9"><span class="sr-only">Batches</span></Table.Head>
 				<SortHeader key="item_name" {sort} onsort={toggleSort}>Item</SortHeader>
 				<SortHeader key="quantity" {sort} onsort={toggleSort}>On hand</SortHeader>
 				<SortHeader key="reorder_level" {sort} onsort={toggleSort}>Reorder level</SortHeader>
@@ -716,7 +753,22 @@
 				{@const badge = expiryBadge(nearest)}
 				{@const batches = batchCount(item)}
 				{@const showBar = !item.not_track && item.reorder_level > 0}
-				<Table.Row>
+				{@const open = expandedIds.has(item.id)}
+				<Table.Row class={cn(open && 'bg-muted/40 hover:bg-muted/40')}>
+					<Table.Cell class="w-9 py-2.5 ps-1 pe-0">
+						<Button
+							variant="ghost"
+							size="icon-sm"
+							aria-expanded={open}
+							aria-label={open
+								? `Hide batches for ${item.item_name}`
+								: `Show batches for ${item.item_name}`}
+							class={cn('[&>svg]:transition-transform', open && 'bg-muted [&>svg]:rotate-90')}
+							onclick={() => toggleBatches(item)}
+						>
+							<ChevronRightIcon />
+						</Button>
+					</Table.Cell>
 					<Table.Cell class="max-w-md min-w-56 py-2.5 whitespace-normal">
 						<div class="font-medium break-words">{item.item_name}</div>
 						{#if item.order_date}
@@ -731,8 +783,10 @@
 							</ToneBadge>
 						{:else if item.non_order_reason}
 							<ReasonBadge reason={item.non_order_reason} class="mt-1" />
-						{:else if batches > 1}
-							<div class="text-muted-foreground mt-0.5 text-xs">{batches} batches</div>
+						{:else if batches > 0}
+							<div class="text-muted-foreground mt-0.5 text-xs">
+								{plural(batches, 'batch', 'batches')}
+							</div>
 						{/if}
 					</Table.Cell>
 					<Table.Cell class="py-2.5">
@@ -812,10 +866,6 @@
 											<PencilIcon />
 											Edit…
 										</DropdownMenu.Item>
-										<DropdownMenu.Item onclick={() => openBatches(item)}>
-											<LayersIcon />
-											Batches…
-										</DropdownMenu.Item>
 									</DropdownMenu.Group>
 									<DropdownMenu.Separator />
 									<DropdownMenu.Group>
@@ -829,6 +879,125 @@
 						</div>
 					</Table.Cell>
 				</Table.Row>
+				{#if open}
+					{@const itemBatches = stockBatchesStore.getBatchesForItem(item.id)}
+					{#if itemBatches.length === 0}
+						<Table.Row class="bg-muted/40 hover:bg-muted/40">
+							<Table.Cell class="border-border-strong border-s-2 py-2"></Table.Cell>
+							<Table.Cell colspan={6} class="py-2.5 whitespace-normal">
+								<div class="flex flex-wrap items-center justify-between gap-3">
+									<div>
+										<div class="text-sm font-medium">No stock on hand</div>
+										<div class="text-muted-foreground text-xs">Stock In adds the first batch.</div>
+									</div>
+									<Button variant="outline" size="sm" onclick={() => openStockIn(item)}>
+										<ArrowDownToLineIcon data-icon="inline-start" />
+										Stock In…
+									</Button>
+								</div>
+							</Table.Cell>
+						</Table.Row>
+					{:else}
+						<!-- One lighter row per batch, in stock-out (FEFO) order, using the item's own columns. -->
+						{#each itemBatches as batch, index (batch.id)}
+							{@const editing = editingBatchId === batch.id}
+							{@const batchBadge = expiryBadge(batch.expiry_date)}
+							<Table.Row
+								class={cn(
+									'bg-muted/40 hover:bg-muted/40',
+									editing && 'bg-muted/70 hover:bg-muted/70',
+								)}
+							>
+								<Table.Cell class="border-border-strong border-s-2 py-2"></Table.Cell>
+								<Table.Cell class="py-2 whitespace-normal">
+									<div class="flex items-center gap-2 text-sm">
+										<span
+											class="bg-muted text-muted-foreground flex size-5 shrink-0 items-center justify-center rounded-md text-[11px] font-semibold tabular-nums"
+										>
+											{index + 1}
+										</span>
+										<span class="font-medium">Batch {index + 1}</span>
+									</div>
+									<div class="text-muted-foreground mt-0.5 ps-7 text-xs">
+										Received {formatDate(batch._creationTime)}
+									</div>
+								</Table.Cell>
+								<Table.Cell class="py-2 tabular-nums">
+									{#if editing}
+										<Input
+											id="batch-quantity"
+											type="number"
+											min={0}
+											step={1}
+											bind:value={batchForm.quantity}
+											class="h-8 w-28"
+											aria-label="Quantity ({item.unit})"
+											onkeydown={onBatchKeydown}
+											{@attach selectOnFocus()}
+										/>
+									{:else}
+										<span class="font-medium">{batch.quantity} {item.unit}</span>
+									{/if}
+								</Table.Cell>
+								<Table.Cell class="py-2"></Table.Cell>
+								<Table.Cell class="py-2 tabular-nums">
+									{#if editing}
+										<Input
+											type="date"
+											bind:value={batchForm.expiry_date}
+											class="h-8 w-40"
+											aria-label="Expiry date"
+											onkeydown={onBatchKeydown}
+										/>
+									{:else if batch.expiry_date}
+										<div>{formatDate(batch.expiry_date)}</div>
+										{#if batchBadge}
+											<ToneBadge tone={batchBadge.tone} class="mt-1">{batchBadge.text}</ToneBadge>
+										{/if}
+									{:else}
+										<span class="text-muted-foreground">No expiry</span>
+									{/if}
+								</Table.Cell>
+								<Table.Cell class="py-2"></Table.Cell>
+								<Table.Cell class="py-2">
+									<div class="flex justify-end gap-1">
+										{#if editing}
+											<Button
+												variant="ghost"
+												size="sm"
+												disabled={stockBatchesStore.loading}
+												onclick={requestCancelBatch}
+											>
+												Cancel
+											</Button>
+											<Button
+												size="sm"
+												disabled={!isBatchChanged || stockBatchesStore.loading}
+												onclick={confirmSaveBatch}
+											>
+												{#if stockBatchesStore.loading}
+													<Spinner data-icon="inline-start" />
+												{/if}
+												Save
+											</Button>
+										{:else}
+											<Button
+												variant="ghost"
+												size="icon-sm"
+												aria-label="Edit batch {index + 1}"
+												title="Edit"
+												disabled={editingBatchId !== null || stockBatchesStore.loading}
+												onclick={() => startEditBatch(batch)}
+											>
+												<PencilIcon />
+											</Button>
+										{/if}
+									</div>
+								</Table.Cell>
+							</Table.Row>
+						{/each}
+					{/if}
+				{/if}
 			{/each}
 		</Table.Body>
 	</Table.Root>
@@ -1060,109 +1229,7 @@
 	</form>
 </ActionModal>
 
-<!-- Batches -->
-<ActionModal
-	bind:open={showBatchesDialog}
-	title={`Edit Batches · ${batchesItem?.item_name ?? ''}`}
-	description={`${batchesLive?.quantity ?? 0} ${batchesLive?.unit ?? ''} across ${plural(batchesForDialog.length, 'batch', 'batches')}. Changing a quantity is logged as a stock movement.`}
-	loading={stockBatchesStore.loading}
-	disabled={!editingBatch || !isBatchChanged}
-	dirty={isBatchChanged}
-	confirmText="Save"
-	cancelText="Close"
-	onconfirm={confirmSaveBatch}
-	oncancel={closeBatches}
->
-	{#if batchesForDialog.length === 0}
-		<Empty.Root class="py-6">
-			<Empty.Header>
-				<Empty.Title>No stock on hand</Empty.Title>
-				<Empty.Description>Stock In adds the first batch.</Empty.Description>
-			</Empty.Header>
-		</Empty.Root>
-	{:else}
-		<ul class="divide-border max-h-80 divide-y overflow-y-auto rounded-lg border text-sm">
-			{#each batchesForDialog as batch, index (batch.id)}
-				{@const badge = expiryBadge(batch.expiry_date)}
-				{#if editingBatchId === batch.id}
-					<li class="bg-muted/40 p-3">
-						<form
-							class="flex flex-col gap-3"
-							onsubmit={(e) => {
-								e.preventDefault()
-								confirmSaveBatch()
-							}}
-						>
-							<div class="flex items-center justify-between gap-2">
-								<span class="font-medium">
-									Batch {index + 1} · received {formatDate(batch._creationTime)}
-								</span>
-								<Button
-									type="button"
-									variant="ghost"
-									size="sm"
-									onclick={() => (editingBatchId = null)}
-								>
-									Cancel Edit
-								</Button>
-							</div>
-							<div class="grid grid-cols-2 gap-3">
-								<Field.Field>
-									<Field.Label for="batch-quantity">Quantity ({batchesItem?.unit})</Field.Label>
-									<Input
-										id="batch-quantity"
-										bind:value={batchForm.quantity}
-										type="number"
-										min={0}
-										step={1}
-										{@attach selectOnFocus()}
-									/>
-								</Field.Field>
-								<Field.Field>
-									<Field.Label for="batch-expiry">Expiry date</Field.Label>
-									<Input id="batch-expiry" bind:value={batchForm.expiry_date} type="date" />
-								</Field.Field>
-							</div>
-							<button type="submit" class="hidden" aria-hidden="true" tabindex="-1"></button>
-						</form>
-					</li>
-				{:else}
-					<li class="flex items-center justify-between gap-3 p-3">
-						<div class="min-w-0">
-							<div class="tabular-nums">
-								<span class="font-medium">{batch.quantity} {batchesItem?.unit}</span>
-								<span class="text-muted-foreground"> · Batch {index + 1}</span>
-							</div>
-							<div
-								class="text-muted-foreground mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs"
-							>
-								<span>
-									Received {formatDate(batch._creationTime)} · {batch.expiry_date
-										? `expires ${formatDate(batch.expiry_date)}`
-										: 'no expiry'}
-								</span>
-								{#if badge}
-									<ToneBadge tone={badge.tone}>{badge.text}</ToneBadge>
-								{/if}
-							</div>
-						</div>
-						<Button
-							type="button"
-							variant="ghost"
-							size="icon-sm"
-							aria-label="Edit batch {index + 1}"
-							title="Edit"
-							disabled={stockBatchesStore.loading}
-							onclick={() => startEditBatch(batch)}
-						>
-							<PencilIcon />
-						</Button>
-					</li>
-				{/if}
-			{/each}
-		</ul>
-	{/if}
-</ActionModal>
+<DiscardDialog bind:open={askDiscardBatch} ondiscard={discardBatchEdit} />
 
 <!-- Delete Item -->
 <ActionModal

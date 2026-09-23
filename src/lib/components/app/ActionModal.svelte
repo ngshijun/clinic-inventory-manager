@@ -3,6 +3,7 @@
 	import * as Dialog from '$lib/components/ui/dialog'
 	import { Button } from '$lib/components/ui/button'
 	import { Spinner } from '$lib/components/ui/spinner'
+	import DiscardDialog from './DiscardDialog.svelte'
 
 	/*
 	 * Every confirmation and form dialog in the app goes through this component.
@@ -61,7 +62,6 @@
 	}
 
 	function discard() {
-		askDiscard = false
 		oncancel?.()
 	}
 </script>
@@ -109,20 +109,4 @@
 	</Dialog.Content>
 </Dialog.Root>
 
-<Dialog.Root bind:open={askDiscard}>
-	<Dialog.Content
-		role="alertdialog"
-		showCloseButton={false}
-		interactOutsideBehavior="ignore"
-		class="sm:max-w-sm"
-	>
-		<Dialog.Header>
-			<Dialog.Title>Discard Changes?</Dialog.Title>
-			<Dialog.Description>What you entered here has not been saved.</Dialog.Description>
-		</Dialog.Header>
-		<Dialog.Footer>
-			<Button variant="outline" onclick={() => (askDiscard = false)} autofocus>Keep Editing</Button>
-			<Button variant="destructive" onclick={discard}>Discard</Button>
-		</Dialog.Footer>
-	</Dialog.Content>
-</Dialog.Root>
+<DiscardDialog bind:open={askDiscard} ondiscard={discard} />
