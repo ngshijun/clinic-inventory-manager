@@ -1172,12 +1172,7 @@
 			{#if stockInItem?.not_track}
 				<Field.Field orientation="horizontal">
 					<Checkbox id="stock-in-untracked" bind:checked={keepUntracked} />
-					<Field.Content>
-						<Field.Label for="stock-in-untracked">Keep untracked</Field.Label>
-						<Field.Description>
-							Untick to start counting this item in stock totals and low-stock alerts.
-						</Field.Description>
-					</Field.Content>
+					<Field.Label for="stock-in-untracked">Keep untracked</Field.Label>
 				</Field.Field>
 			{/if}
 		</Field.Group>
