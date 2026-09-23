@@ -94,7 +94,7 @@
 								/>
 								<InputGroup.Addon align="inline-end">
 									<InputGroup.Button
-										size="icon-xs"
+										size="icon-sm"
 										aria-label={revealed ? 'Hide password' : 'Show password'}
 										aria-pressed={revealed}
 										onclick={() => (revealed = !revealed)}

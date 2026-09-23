@@ -75,7 +75,7 @@
 					{#snippet child({ props })}
 						<a href={groups[0].items[0].href} {...props}>
 							<span
-								class="bg-sidebar-primary text-sidebar-primary-foreground flex size-8 shrink-0 items-center justify-center rounded-xl"
+								class="bg-sidebar-primary text-sidebar-primary-foreground flex size-8 shrink-0 items-center justify-center rounded-[8px]"
 							>
 								<BoxesIcon />
 							</span>

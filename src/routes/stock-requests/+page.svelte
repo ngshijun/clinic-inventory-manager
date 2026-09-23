@@ -214,7 +214,7 @@
 
 <PageHeader title="Stock Requests">
 	<div class="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-		<InputGroup.Root class="w-full sm:w-72">
+		<InputGroup.Root class="w-full sm:w-96">
 			<InputGroup.Addon>
 				<SearchIcon />
 			</InputGroup.Addon>
@@ -228,7 +228,7 @@
 			{#if searchQuery}
 				<InputGroup.Addon align="inline-end">
 					<InputGroup.Button
-						size="icon-xs"
+						size="icon-sm"
 						aria-label="Clear search"
 						onclick={() => (searchQuery = '')}
 					>
@@ -426,13 +426,17 @@
 		<Field.Group>
 			<Field.Field>
 				<Field.Label for="new-request-item">Item</Field.Label>
-				<Command.Root class="rounded-md border" loop>
+				<Command.Root class="rounded-2xl border" loop>
 					<Command.Input id="new-request-item" placeholder="Search items" autofocus />
 					<Command.List class="max-h-48">
 						<Command.Empty>No item found.</Command.Empty>
 						<Command.Group>
 							{#each itemOptions as item (item.id)}
-								<Command.Item value={item.item_name} onSelect={() => pickItem(item)}>
+								<Command.Item
+									class="rounded-lg"
+									value={item.item_name}
+									onSelect={() => pickItem(item)}
+								>
 									<CheckIcon class={cn(newItemId !== item.id && 'text-transparent')} />
 									<span class="truncate">{item.item_name}</span>
 									<span

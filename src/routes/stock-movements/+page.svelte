@@ -317,7 +317,7 @@
 
 <PageHeader title="Stock Movements">
 	<div class="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-		<InputGroup.Root class="w-full sm:w-72">
+		<InputGroup.Root class="w-full sm:w-96">
 			<InputGroup.Addon>
 				<SearchIcon />
 			</InputGroup.Addon>
@@ -331,7 +331,7 @@
 			{#if searchQuery}
 				<InputGroup.Addon align="inline-end">
 					<InputGroup.Button
-						size="icon-xs"
+						size="icon-sm"
 						aria-label="Clear search"
 						onclick={() => (searchQuery = '')}
 					>
@@ -343,7 +343,6 @@
 		<ToggleGroup.Root
 			type="single"
 			variant="outline"
-			size="sm"
 			value={typeFilter}
 			onValueChange={(value) => (typeFilter = (value || 'all') as TypeFilter)}
 			aria-label="Filter by movement type"
@@ -357,7 +356,7 @@
 		<Popover.Root open={dateOpen} onOpenChange={openDateRange}>
 			<Popover.Trigger>
 				{#snippet child({ props })}
-					<Button {...props} variant="outline" size="sm">
+					<Button {...props} variant="outline">
 						<CalendarIcon data-icon="inline-start" />
 						{dateLabel}
 					</Button>
@@ -400,7 +399,7 @@
 		<Popover.Root open={filtersOpen} onOpenChange={openFilters}>
 			<Popover.Trigger>
 				{#snippet child({ props })}
-					<Button {...props} variant="outline" size="sm">
+					<Button {...props} variant="outline">
 						<SlidersHorizontalIcon data-icon="inline-start" />
 						Filters
 						{#if popoverFilterCount > 0}
@@ -470,12 +469,13 @@
 									{/snippet}
 								</Popover.Trigger>
 								<Popover.Content class="w-(--bits-popover-anchor-width) p-0" align="start">
-									<Command.Root>
+									<Command.Root class="rounded-3xl">
 										<Command.Input placeholder="Search items" />
 										<Command.List>
 											<Command.Empty>No item found.</Command.Empty>
 											<Command.Group>
 												<Command.Item
+													class="rounded-xl"
 													value="any item"
 													onSelect={() => {
 														filterDraft.itemId = null
@@ -489,6 +489,7 @@
 												</Command.Item>
 												{#each itemOptions as item (item.id)}
 													<Command.Item
+														class="rounded-xl"
 														value={item.item_name}
 														onSelect={() => {
 															filterDraft.itemId = item.id

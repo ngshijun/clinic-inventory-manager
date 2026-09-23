@@ -384,7 +384,6 @@
 				<ToggleGroup.Root
 					type="single"
 					variant="outline"
-					size="sm"
 					value={String(year)}
 					onValueChange={(value) => (chosenYear = value ? Number(value) : null)}
 					aria-label="Year"

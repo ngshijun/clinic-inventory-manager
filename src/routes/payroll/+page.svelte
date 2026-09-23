@@ -604,7 +604,7 @@
 		onconfirm={confirmSave}
 		oncancel={() => (showSave = false)}
 	>
-		<dl class="divide-y rounded-md border text-sm">
+		<dl class="divide-y rounded-2xl border text-sm">
 			<div class="flex justify-between gap-3 px-3 py-2">
 				<dt class="text-muted-foreground">Employees</dt>
 				<dd class="font-medium tabular-nums">{payrollData.length}</dd>
@@ -623,7 +623,7 @@
 	<!-- ===== Employee list ===== -->
 	<PageHeader title="Payroll">
 		<div class="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-			<InputGroup.Root class="w-full sm:w-72">
+			<InputGroup.Root class="w-full sm:w-96">
 				<InputGroup.Addon>
 					<SearchIcon />
 				</InputGroup.Addon>
@@ -637,7 +637,7 @@
 				{#if searchQuery}
 					<InputGroup.Addon align="inline-end">
 						<InputGroup.Button
-							size="icon-xs"
+							size="icon-sm"
 							aria-label="Clear search"
 							onclick={() => (searchQuery = '')}
 						>

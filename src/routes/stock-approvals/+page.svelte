@@ -16,7 +16,6 @@
 	import ToneBadge from '$lib/components/app/ToneBadge.svelte'
 	import * as Alert from '$lib/components/ui/alert'
 	import { Button } from '$lib/components/ui/button'
-	import * as Card from '$lib/components/ui/card'
 	import { Checkbox } from '$lib/components/ui/checkbox'
 	import * as Empty from '$lib/components/ui/empty'
 	import * as Field from '$lib/components/ui/field'
@@ -58,24 +57,10 @@
 
 	const requests = $derived(stockRequestsStore.requests)
 
-	// ---------- Headline strip ----------
-	const todayKey = $derived(todayIsoDate())
-	const pendingToday = $derived(
-		requests.filter((r) => r.status === 'Pending' && localDateKey(r.created_at) === todayKey),
-	)
-	const olderPending = $derived(requests.filter(isOlderPending))
-	const oldestPending = $derived.by((): StockRequest | null =>
-		olderPending.reduce<StockRequest | null>(
-			(oldest, r) => (oldest === null || r._creationTime < oldest._creationTime ? r : oldest),
-			null,
-		),
-	)
-	const decidedToday = (status: 'Approved' | 'Rejected'): number =>
-		requests.filter((r) => r.status === status && localDateKey(r.updated_at) === todayKey).length
-	const approvedToday = $derived(decidedToday('Approved'))
-	const rejectedToday = $derived(decidedToday('Rejected'))
-
 	// ---------- Rows ----------
+	const todayKey = $derived(todayIsoDate())
+	const olderPending = $derived(requests.filter(isOlderPending))
+
 	const onHand = (request: StockRequest): number =>
 		inventoryStore.getItemById(request.item_id)?.quantity ?? 0
 
@@ -260,7 +245,7 @@
 
 <PageHeader title="Stock Approvals">
 	<div class="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-		<InputGroup.Root class="w-full sm:w-72">
+		<InputGroup.Root class="w-full sm:w-96">
 			<InputGroup.Addon>
 				<SearchIcon />
 			</InputGroup.Addon>
@@ -274,7 +259,7 @@
 			{#if searchQuery}
 				<InputGroup.Addon align="inline-end">
 					<InputGroup.Button
-						size="icon-xs"
+						size="icon-sm"
 						aria-label="Clear search"
 						onclick={() => (searchQuery = '')}
 					>
@@ -290,55 +275,6 @@
 		/>
 	</div>
 </PageHeader>
-
-<!-- Headline strip -->
-<div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
-	{@render stat(
-		'Pending today',
-		pendingToday.length,
-		'Requested since midnight',
-		pendingToday.length > 0 ? 'warning' : null,
-	)}
-	{@render stat(
-		'Older pending',
-		olderPending.length,
-		oldestPending ? `Oldest from ${formatDate(oldestPending.created_at)}` : 'None waiting',
-		olderPending.length > 0 ? 'danger' : null,
-	)}
-	{@render stat('Approved today', approvedToday, 'Stock already deducted', null)}
-	{@render stat(
-		'Rejected today',
-		rejectedToday,
-		rejectedToday > 0 ? 'Stock stays put' : 'Nothing turned down',
-		null,
-	)}
-</div>
-
-{#snippet stat(label: string, value: number, sub: string, tone: 'warning' | 'danger' | null)}
-	<Card.Root
-		size="sm"
-		class={cn(
-			'gap-1',
-			tone === 'warning' && 'bg-warning-soft ring-warning/30',
-			tone === 'danger' && 'bg-destructive/10 ring-destructive/30',
-		)}
-	>
-		<Card.Content class="flex flex-col gap-0.5">
-			<span class="text-muted-foreground text-xs font-medium tracking-wide uppercase">{label}</span>
-			<span
-				class={cn(
-					'text-2xl font-semibold tabular-nums',
-					tone === 'warning' && 'text-warning',
-					tone === 'danger' && 'text-destructive',
-					tone === null && value === 0 && 'text-muted-foreground',
-				)}
-			>
-				{value}
-			</span>
-			<span class="text-muted-foreground text-xs">{sub}</span>
-		</Card.Content>
-	</Card.Root>
-{/snippet}
 
 {#if selected.length > 0}
 	<Alert.Root class="bg-primary/5 border-primary/30 flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -560,7 +496,7 @@
 	onconfirm={confirmBulkApprove}
 	oncancel={() => (showBulkApprove = false)}
 >
-	<ul class="divide-y rounded-md border text-sm">
+	<ul class="divide-y rounded-2xl border text-sm">
 		{#each approvable as request (request.id)}
 			<li class="flex items-center justify-between gap-3 px-3 py-2">
 				<span class="truncate">{request.item_name}</span>

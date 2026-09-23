@@ -596,7 +596,7 @@
 
 <PageHeader title="Inventory">
 	<div class="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-		<InputGroup.Root class="w-full sm:w-72">
+		<InputGroup.Root class="w-full sm:w-96">
 			<InputGroup.Addon>
 				<SearchIcon />
 			</InputGroup.Addon>
@@ -610,7 +610,7 @@
 			{#if searchQuery}
 				<InputGroup.Addon align="inline-end">
 					<InputGroup.Button
-						size="icon-xs"
+						size="icon-sm"
 						aria-label="Clear search"
 						onclick={() => (searchQuery = '')}
 					>
@@ -622,7 +622,6 @@
 		<ToggleGroup.Root
 			type="single"
 			variant="outline"
-			size="sm"
 			value={filter}
 			onValueChange={(value) => (filter = (value || 'all') as Filter)}
 			aria-label="Filter by status"

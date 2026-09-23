@@ -35,7 +35,6 @@
 <ToggleGroup.Root
 	type="single"
 	variant="outline"
-	size="sm"
 	value={mode}
 	onValueChange={(value) => (mode = (value || 'today') as DayMode)}
 	aria-label="Which day to show"
@@ -58,7 +57,7 @@
 	<Popover.Root bind:open>
 		<Popover.Trigger>
 			{#snippet child({ props })}
-				<Button {...props} variant="outline" size="sm">
+				<Button {...props} variant="outline">
 					<CalendarIcon data-icon="inline-start" />
 					{formatDate(date)}
 				</Button>

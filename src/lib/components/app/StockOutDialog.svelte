@@ -116,7 +116,7 @@
 			{#if plan.length > 0}
 				<Field.Field>
 					<Field.Label>Taken from</Field.Label>
-					<ul class="divide-border bg-muted/40 divide-y rounded-lg border text-sm">
+					<ul class="divide-border bg-muted/40 divide-y rounded-2xl border text-sm">
 						{#each plan as { batch, take } (batch.id)}
 							{@const badge = expiryBadge(batch.expiry_date)}
 							<li class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-3 py-2">
