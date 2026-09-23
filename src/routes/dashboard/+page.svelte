@@ -181,21 +181,30 @@
 		onValueChange={(value) => {
 			if (isQueue(value)) queue = value
 		}}
-		class="gap-3"
+		class="flex-1 gap-3"
 	>
-		<Tabs.List class="grid w-full grid-cols-3 sm:w-fit">
-			{@render tab('expiring', ClockIcon, 'Expiring Batches', expiring.length, 'warning')}
-			{@render tab('reorder', BoxIcon, 'Needs Reordering', reorder.length, 'danger')}
-			{@render tab('stale', ArchiveIcon, 'Stale Items', stale.length, null)}
-		</Tabs.List>
+		<div class="flex flex-wrap items-center justify-between gap-2">
+			<Tabs.List class="grid w-full grid-cols-3 sm:w-fit">
+				{@render tab('expiring', ClockIcon, 'Expiring Batches', expiring.length, 'warning')}
+				{@render tab('reorder', BoxIcon, 'Needs Reordering', reorder.length, 'danger')}
+				{@render tab('stale', ArchiveIcon, 'Stale Items', stale.length, null)}
+			</Tabs.List>
+			<!-- The page that owns the open queue; Stale has none -->
+			{#if queue !== 'stale'}
+				<Button
+					variant="ghost"
+					size="sm"
+					href={queue === 'expiring' ? '/inventory' : '/price-list'}
+					class="-me-2"
+				>
+					{queue === 'expiring' ? 'Open Inventory' : 'Open Price List'}
+					<ChevronRightIcon data-icon="inline-end" />
+				</Button>
+			{/if}
+		</div>
 
 		<!-- Expiring batches -->
 		<Tabs.Content value="expiring" class="flex flex-col gap-3">
-			{@render paneSub(
-				`Batches that expire in the next ${EXPIRY_WARNING_DAYS} days, soonest first.`,
-				'Open Inventory',
-				'/inventory',
-			)}
 			{#if expiring.length === 0}
 				{@render emptyPane(
 					ClockIcon,
@@ -261,7 +270,6 @@
 
 		<!-- Needs reordering -->
 		<Tabs.Content value="reorder" class="flex flex-col gap-3">
-			{@render paneSub('Out of stock first, then low.', 'Open Price List', '/price-list')}
 			{#if reorder.length === 0}
 				{@render emptyPane(
 					BoxIcon,
@@ -333,7 +341,6 @@
 
 		<!-- Stale items -->
 		<Tabs.Content value="stale" class="flex flex-col gap-3">
-			{@render paneSub('No movement for over a month, oldest first.', null, null)}
 			{#if stale.length === 0}
 				{@render emptyPane(
 					ArchiveIcon,
@@ -460,24 +467,9 @@
 	</Tabs.Trigger>
 {/snippet}
 
-<!-- One line under the tabs: what the list is, and the page that owns it -->
-{#snippet paneSub(text: string, linkLabel: string | null, href: string | null)}
-	<div
-		class="text-muted-foreground flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-sm"
-	>
-		<span>{text}</span>
-		{#if linkLabel && href}
-			<Button variant="ghost" size="sm" {href} class="-me-2">
-				{linkLabel}
-				<ChevronRightIcon data-icon="inline-end" />
-			</Button>
-		{/if}
-	</div>
-{/snippet}
-
-<!-- An empty queue: the queue's glyph, one title, one sentence, no next step -->
+<!-- An empty queue, centred in the space the list would fill: glyph, title, one sentence -->
 {#snippet emptyPane(Icon: Component<{ class?: string }>, title: string, description: string)}
-	<Empty.Root class="flex-none py-8">
+	<Empty.Root class="my-auto">
 		<Empty.Header>
 			<Empty.Media variant="icon"><Icon /></Empty.Media>
 			<Empty.Title>{title}</Empty.Title>
