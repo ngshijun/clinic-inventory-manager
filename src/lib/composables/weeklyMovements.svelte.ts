@@ -27,13 +27,13 @@ export function useWeeklyMovements(): { readonly days: DayMovements[]; readonly 
 	start.setHours(0, 0, 0, 0)
 	start.setDate(start.getDate() - 6)
 
-	let days = $state<DayMovements[]>(
-		Array.from({ length: 7 }, (_, i) => {
-			const date = new Date(start.getTime() + i * DAY_MS)
-			return { date: isoDate(date), label: WEEKDAYS[date.getDay()], stockIn: 0, stockOut: 0 }
-		}),
-	)
-	let pending = $state(14)
+	const initial: DayMovements[] = Array.from({ length: 7 }, (_, i) => {
+		const date = new Date(start.getTime() + i * DAY_MS)
+		return { date: isoDate(date), label: WEEKDAYS[date.getDay()], stockIn: 0, stockOut: 0 }
+	})
+	// Raw: days are replaced, never mutated, so no deep proxy is needed
+	let days = $state.raw(initial)
+	let pending = $state(initial.length * 2)
 
 	$effect(() => {
 		const unsubscribes: Array<() => void> = []
@@ -48,7 +48,8 @@ export function useWeeklyMovements(): { readonly days: DayMovements[]; readonly 
 						api.movements.count,
 						{ auth: authStore.token, movement_type: type, start_ms: dayStart, end_ms: dayEnd },
 						(count) => {
-							days[index][type === 'stock_in' ? 'stockIn' : 'stockOut'] = count
+							const field = type === 'stock_in' ? 'stockIn' : 'stockOut'
+							days = days.with(index, { ...days[index], [field]: count })
 							if (!settled.has(key)) {
 								settled.add(key)
 								pending--

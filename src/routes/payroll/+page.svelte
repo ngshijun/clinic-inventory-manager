@@ -1,1720 +1,961 @@
 <script lang="ts">
 	import { tick, untrack } from 'svelte'
+	import { goto } from '$app/navigation'
+	import { page } from '$app/state'
+	import { toast } from 'svelte-sonner'
+	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right'
+	import CircleCheckIcon from '@lucide/svelte/icons/circle-check'
+	import FileTextIcon from '@lucide/svelte/icons/file-text'
+	import LockIcon from '@lucide/svelte/icons/lock'
+	import PencilIcon from '@lucide/svelte/icons/pencil'
+	import PlusIcon from '@lucide/svelte/icons/plus'
+	import SearchIcon from '@lucide/svelte/icons/search'
+	import SheetIcon from '@lucide/svelte/icons/sheet'
+	import TriangleAlertIcon from '@lucide/svelte/icons/triangle-alert'
+	import UsersIcon from '@lucide/svelte/icons/users'
+	import WalletIcon from '@lucide/svelte/icons/wallet'
+	import XIcon from '@lucide/svelte/icons/x'
 	import { selectOnFocus } from '$lib/attachments/focus'
-	import ActionButtonGroup, {
-		type ActionButtonGroupAction,
-	} from '$lib/components/app/ActionButtonGroup.svelte'
 	import ActionModal from '$lib/components/app/ActionModal.svelte'
-	import EmptyState from '$lib/components/app/EmptyState.svelte'
-	import ErrorAlert from '$lib/components/app/ErrorAlert.svelte'
-	import FormField from '$lib/components/app/FormField.svelte'
-	import LoadingSpinner from '$lib/components/app/LoadingSpinner.svelte'
-	import SearchInput from '$lib/components/app/SearchInput.svelte'
-	import SortableTableHeader, {
-		type SortableTableColumn,
-		type SortConfig,
-	} from '$lib/components/app/SortableTableHeader.svelte'
-	import { Button } from '$lib/components/ui/button/index.js'
-	import * as Table from '$lib/components/ui/table/index.js'
-	import CalendarIcon from '$lib/components/icons/CalendarIcon.svelte'
-	import CheckCircleIcon from '$lib/components/icons/CheckCircleIcon.svelte'
-	import InfoCircleIcon from '$lib/components/icons/InfoCircleIcon.svelte'
-	import WarningTriangleIcon from '$lib/components/icons/WarningTriangleIcon.svelte'
-	import { payrollStore, type Employee, type EmployeeInsert } from '$lib/stores/payroll.svelte'
-	import { payrollRecordsStore } from '$lib/stores/payrollRecords.svelte'
+	import PageHeader from '$lib/components/app/PageHeader.svelte'
+	import SortHeader from '$lib/components/app/SortHeader.svelte'
+	import type { SortState } from '$lib/components/app/sort'
+	import ToneBadge from '$lib/components/app/ToneBadge.svelte'
+	import * as Alert from '$lib/components/ui/alert'
+	import { Button } from '$lib/components/ui/button'
+	import * as Card from '$lib/components/ui/card'
+	import { Checkbox } from '$lib/components/ui/checkbox'
+	import * as Empty from '$lib/components/ui/empty'
+	import * as Field from '$lib/components/ui/field'
+	import { Input } from '$lib/components/ui/input'
+	import * as InputGroup from '$lib/components/ui/input-group'
+	import { Label } from '$lib/components/ui/label'
+	import * as Select from '$lib/components/ui/select'
+	import { Skeleton } from '$lib/components/ui/skeleton'
+	import { Switch } from '$lib/components/ui/switch'
+	import * as Table from '$lib/components/ui/table'
+	import * as Tooltip from '$lib/components/ui/tooltip'
+	import { useErrorToast } from '$lib/composables/errorToast.svelte'
+	import { exportPayrollExcel, type PayrollPeriod } from '$lib/payrollExcel'
 	import {
 		allPayslipsFilename,
+		formatPeriod,
 		generatePayslipPdf,
-		payslipFilename,
 		type PayslipEmployee,
 	} from '$lib/payslip'
+	import { payrollStore, type Employee } from '$lib/stores/payroll.svelte'
+	import { payrollRecordsStore } from '$lib/stores/payrollRecords.svelte'
 	import type { PayrollData } from '$lib/types/payroll'
-	import * as XLSX from 'xlsx'
+	import { formatDate } from '$lib/utils/date'
+	import { formatAmount, formatRM } from '$lib/utils/money'
+	import { cn } from '$lib/utils'
 
-	let showAddForm = $state(false)
-	let nameInputRef = $state<HTMLInputElement | null>(null)
-	let showSalaries = $state(false)
-	let showPayrollTable = $state(false)
-	let showMonthSelection = $state(false)
-	let selectedMonth = $state<string | number | undefined>('')
-	let selectedYear = $state<string | number | undefined>(new Date().getFullYear())
-	let payrollData = $state<PayrollData[]>([])
-	let searchQuery = $state('')
-
-	// Sort configuration
-	let sortConfig = $state<SortConfig>({
-		key: null,
-		direction: 'asc',
-	})
-
-	// Employee table columns
-	const employeeColumns: SortableTableColumn[] = [
-		{ key: 'name', label: 'Employee Name', sortable: true, align: 'left' as const },
-		{ key: 'basic_salary', label: 'Basic Salary', sortable: true, align: 'left' as const },
-		{ key: 'epf_employer', label: 'EPF Employer', sortable: true, align: 'left' as const },
-		{ key: 'lindung_24_jam', label: 'Lindung 24 Jam', sortable: true, align: 'left' as const },
-		{ key: 'actions', label: 'Actions', sortable: false, align: 'left' as const },
+	const MONTHS = [
+		'January',
+		'February',
+		'March',
+		'April',
+		'May',
+		'June',
+		'July',
+		'August',
+		'September',
+		'October',
+		'November',
+		'December',
 	]
 
-	// The bound fields of FormField are wider than the database row, so the two
-	// editable copies of an employee carry the widened field types.
-	type EmployeeForm = {
-		name: string | number | undefined
-		basic_salary: string | number | undefined
-		epf_employer: string | number | undefined
+	useErrorToast(() => payrollStore.error)
+	useErrorToast(() => payrollRecordsStore.error)
+
+	const employees = $derived(payrollStore.employees)
+	const initialLoading = $derived(payrollStore.loading && employees.length === 0)
+
+	const plural = (count: number, noun: string): string =>
+		`${count} ${count === 1 ? noun : `${noun}s`}`
+
+	// The run view lives at ?period=YYYY-MM, so the Payroll crumb is the way back
+	const period = $derived.by((): PayrollPeriod | null => {
+		const match = /^(\d{4})-(\d{2})$/.exec(page.url.searchParams.get('period') ?? '')
+		if (!match) return null
+		const year = Number(match[1])
+		const month = Number(match[2])
+		return month >= 1 && month <= 12 ? { year, month } : null
+	})
+	const periodKey = $derived(period ? `${period.year}-${period.month}` : '')
+	const periodLabel = $derived(period ? formatPeriod(period) : '')
+
+	// ---------- Employee list ----------
+	type SortKey = 'name' | 'basic_salary' | 'epf_employer' | 'lindung_24_jam'
+
+	let searchQuery = $state('')
+	let searchInput = $state<HTMLInputElement | null>(null)
+	let showSalaries = $state(false)
+	let sort = $state<SortState<SortKey>>({ key: null, direction: 'asc' })
+
+	const sortedEmployees = $derived.by((): Employee[] => {
+		const query = searchQuery.trim().toLowerCase()
+		const rows = employees.filter((e) => !query || e.name.toLowerCase().includes(query))
+		const key = sort.key
+		if (!key) return rows
+		const dir = sort.direction === 'asc' ? 1 : -1
+		return [...rows].sort((a, b) => {
+			if (key === 'name') return dir * a.name.toLowerCase().localeCompare(b.name.toLowerCase())
+			if (key === 'lindung_24_jam')
+				return dir * (Number(a.lindung_24_jam) - Number(b.lindung_24_jam))
+			return dir * (a[key] - b[key])
+		})
+	})
+
+	const toggleSort = (key: SortKey): void => {
+		if (sort.key === key) {
+			sort.direction = sort.direction === 'asc' ? 'desc' : 'asc'
+		} else {
+			sort = { key, direction: 'asc' }
+		}
+	}
+
+	// ⌥⌘F focuses the search field
+	const onKeydown = (event: KeyboardEvent): void => {
+		if (event.metaKey && event.altKey && event.code === 'KeyF') {
+			event.preventDefault()
+			searchInput?.focus()
+			searchInput?.select()
+		}
+	}
+
+	const MASK = '••••••'
+	const money = (amount: number): string => (showSalaries ? formatAmount(amount) : MASK)
+
+	// The newest saved record, for the banner on the list
+	const latestRun = $derived(
+		[...payrollRecordsStore.runs].sort((a, b) => b.updated_at - a.updated_at)[0],
+	)
+
+	// ---------- Employee form (add and edit share it) ----------
+	interface EmployeeForm {
+		name: string
+		basic_salary: string
+		epf_employer: string
+		useDefaultEpf: boolean
 		lindung_24_jam: boolean
 	}
 
-	// Edit modal variables
-	let showEditModal = $state(false)
-	let editEmployee = $state<(EmployeeForm & { id: Employee['id'] }) | null>(null)
-	let useDefaultEpfEdit = $state(true)
-
-	// Save payroll record modal variables
-	let showSaveModal = $state(false)
-	let saveLoading = $state(false)
-	let savedNotice = $state('')
-	// Payslips are only downloadable once the on-screen figures are frozen into a record
-	let recordSaved = $state(false)
-
-	// Delete modal variables
-	let showDeleteModal = $state(false)
-	let deleteEmployee = $state<Employee | null>(null)
-	let deleteLoading = $state(false)
-	let deleteConfirmation = $state(false)
-
-	// Set default month and year to current
-	const now = new Date()
-	selectedMonth = String(now.getMonth() + 1).padStart(2, '0')
-	selectedYear = now.getFullYear()
-
-	let useDefaultEpf = $state(true)
-
-	let newEmployee = $state<EmployeeForm>({
+	const emptyForm = (): EmployeeForm => ({
 		name: '',
-		basic_salary: 0,
-		epf_employer: 0,
+		basic_salary: '',
+		epf_employer: '',
+		useDefaultEpf: true,
 		lindung_24_jam: false,
 	})
 
-	// The widened form fields come back as numbers for every calculation
-	const asNumber = (value: string | number | undefined): number => {
-		const parsed = typeof value === 'number' ? value : parseFloat(String(value ?? ''))
-		return isNaN(parsed) ? 0 : parsed
+	const toNumber = (value: string): number => {
+		const parsed = parseFloat(value)
+		return Number.isFinite(parsed) ? parsed : 0
 	}
 
-	const asText = (value: string | number | undefined): string => String(value ?? '')
+	let form = $state<EmployeeForm>(emptyForm())
+	let editing = $state<Employee | null>(null)
+	let showEmployeeDialog = $state(false)
+	let nameInput = $state<HTMLInputElement | null>(null)
 
-	// Filtered and sorted employees based on search query and sort configuration
-	const filteredEmployees = $derived.by(() => {
-		let employees = payrollStore.employees
+	const formSalary = $derived(toNumber(form.basic_salary))
+	const defaultEpf = $derived(formSalary > 0 ? payrollStore.calculateEPF(formSalary).employer : 0)
+	const formEpf = $derived(form.useDefaultEpf ? defaultEpf : toNumber(form.epf_employer))
+	const lindungPreview = $derived(formSalary > 0 ? payrollStore.calculateLindung24(formSalary) : 0)
 
-		// Apply search filter
-		if (searchQuery) {
-			employees = employees.filter((employee) =>
-				employee.name.toLowerCase().includes(searchQuery.toLowerCase()),
-			)
-		}
-
-		// Apply sorting
-		if (sortConfig.key) {
-			employees = [...employees].sort((a, b) => {
-				const key = sortConfig.key as keyof Employee
-				let aValue = a[key]
-				let bValue = b[key]
-
-				// Handle string sorting (for name)
-				if (typeof aValue === 'string' && typeof bValue === 'string') {
-					aValue = aValue.toLowerCase()
-					bValue = bValue.toLowerCase()
-				}
-
-				let result = 0
-				if (aValue === undefined || bValue === undefined) {
-					result = aValue === bValue ? 0 : aValue === undefined ? 1 : -1
-				} else if (aValue < bValue) result = -1
-				else if (aValue > bValue) result = 1
-
-				return sortConfig.direction === 'desc' ? -result : result
-			})
-		}
-
-		return employees
-	})
-
-	// Available months for selection
-	const monthOptions = $derived([
-		{ value: '01', label: 'January' },
-		{ value: '02', label: 'February' },
-		{ value: '03', label: 'March' },
-		{ value: '04', label: 'April' },
-		{ value: '05', label: 'May' },
-		{ value: '06', label: 'June' },
-		{ value: '07', label: 'July' },
-		{ value: '08', label: 'August' },
-		{ value: '09', label: 'September' },
-		{ value: '10', label: 'October' },
-		{ value: '11', label: 'November' },
-		{ value: '12', label: 'December' },
-	])
-
-	// Available years for selection (current year + previous 2 years + next year)
-	const availableYears = $derived.by(() => {
-		const currentYear = new Date().getFullYear()
-		return [currentYear - 2, currentYear - 1, currentYear, currentYear + 1]
-	})
-
-	// Year options for FormField
-	const yearOptions = $derived(
-		availableYears.map((year) => ({ value: year, label: year.toString() })),
+	const isFormValid = $derived(form.name.trim() !== '' && formSalary > 0 && formEpf >= 0)
+	const isFormChanged = $derived(
+		editing === null ||
+			form.name.trim() !== editing.name ||
+			formSalary !== editing.basic_salary ||
+			formEpf !== editing.epf_employer ||
+			form.lindung_24_jam !== editing.lindung_24_jam,
 	)
 
-	// Format selected period for display
-	const formatSelectedPeriod = $derived.by(() => {
-		if (!selectedMonth || !selectedYear) return ''
-		const monthNames = [
-			'January',
-			'February',
-			'March',
-			'April',
-			'May',
-			'June',
-			'July',
-			'August',
-			'September',
-			'October',
-			'November',
-			'December',
-		]
-		const monthIndex = parseInt(asText(selectedMonth)) - 1
-		return `${monthNames[monthIndex]} ${selectedYear}`
-	})
-
-	// Combined month-year string for internal use
-	const combinedMonthYear = $derived.by(() => {
-		if (!selectedMonth || !selectedYear) return ''
-		return `${selectedYear}-${selectedMonth}`
-	})
-
-	// Payroll totals computed properties
-	const payrollTotals = $derived.by(() => {
-		if (!payrollData.length) {
-			return {
-				basicSalary: 0,
-				epfEmployer: 0,
-				epfEmployee: 0,
-				socsoEmployer: 0,
-				socsoEmployee: 0,
-				eisEmployer: 0,
-				eisEmployee: 0,
-				lindung24: 0,
-				pcb: 0,
-				cp38: 0,
-				netSalary: 0,
-			}
-		}
-
-		return payrollData.reduce(
-			(totals, payroll) => {
-				return {
-					basicSalary: totals.basicSalary + payroll.basicSalary,
-					epfEmployer: totals.epfEmployer + payroll.epfEmployer,
-					epfEmployee: totals.epfEmployee + payroll.epfEmployee,
-					socsoEmployer: totals.socsoEmployer + payroll.socsoEmployer,
-					socsoEmployee: totals.socsoEmployee + payroll.socsoEmployee,
-					eisEmployer: totals.eisEmployer + payroll.eisEmployer,
-					eisEmployee: totals.eisEmployee + payroll.eisEmployee,
-					lindung24: totals.lindung24 + (payroll.lindung24 || 0),
-					pcb: totals.pcb + (payroll.pcb || 0),
-					cp38: totals.cp38 + (payroll.cp38 || 0),
-					netSalary: totals.netSalary + payrollStore.calculateNetSalary(payroll),
-				}
-			},
-			{
-				basicSalary: 0,
-				epfEmployer: 0,
-				epfEmployee: 0,
-				socsoEmployer: 0,
-				socsoEmployee: 0,
-				eisEmployer: 0,
-				eisEmployee: 0,
-				lindung24: 0,
-				pcb: 0,
-				cp38: 0,
-				netSalary: 0,
-			},
-		)
-	})
-
-	// Combined contribution totals for display in totals row
-	const totalEpf = $derived(payrollTotals.epfEmployer + payrollTotals.epfEmployee)
-	const totalSocso = $derived(payrollTotals.socsoEmployer + payrollTotals.socsoEmployee)
-	const totalEis = $derived(payrollTotals.eisEmployer + payrollTotals.eisEmployee)
-
-	// Helper function to get account code and description based on employee name
-	const getEmployeeAccountInfo = (employeeName: string) => {
-		const nameLower = employeeName.toLowerCase()
-
-		if (nameLower.includes('ng sing beng')) {
-			return {
-				salaryCode: ['927-000', 'DR. NG SING BENG'],
-				epfCode: ['908-001', 'EPF CONTRIBUTION - PARTNERS'],
-				socsoCode: ['909-001', 'SOCSO CONTRIBUTION - PARTNERS'],
-				eisCode: ['909-003', 'SOCSO(EIS) CONTRIBUTION - PARTNERS'],
-				description: 'DR. NG SING BENG',
-			}
-		} else if (nameLower.includes('tan choon ling')) {
-			return {
-				salaryCode: ['928-000', 'TAN CHOON LING'],
-				epfCode: ['908-001', 'EPF CONTRIBUTION - PARTNERS'],
-				socsoCode: ['909-001', 'SOCSO CONTRIBUTION - PARTNERS'],
-				eisCode: ['909-003', 'SOCSO(EIS) CONTRIBUTION - PARTNERS'],
-				description: 'TAN CHOON LING',
-			}
-		} else {
-			return {
-				salaryCode: ['904-000', 'SALARIES'],
-				epfCode: ['908-000', 'EPF CONTRIBUTION - STAFF'],
-				socsoCode: ['909-000', 'SOCSO CONTRIBUTION - STAFF'],
-				eisCode: ['909-002', 'SOCSO(EIS) CONTRIBUTION - STAFF'],
-				description: 'SALARIES',
-			}
-		}
-	}
-
-	// Watch for changes in salary or default EPF checkbox (add employee)
-	$effect(() => {
-		const salary = asNumber(newEmployee.basic_salary)
-		const useDefault = useDefaultEpf
-		if (useDefault && salary && salary > 0) {
-			newEmployee.epf_employer = payrollStore.calculateEPF(salary).employer
-		}
-	})
-
-	// Watch for changes in salary or default EPF checkbox (edit employee)
-	$effect(() => {
-		const salary = editEmployee ? asNumber(editEmployee.basic_salary) : undefined
-		const useDefault = useDefaultEpfEdit
-		if (useDefault && salary && salary > 0 && editEmployee) {
-			editEmployee.epf_employer = payrollStore.calculateEPF(salary).employer
-		}
-	})
-
-	const formatCurrency = (amount: number): string => {
-		return amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
-	}
-
-	const formatMonth = (monthString: string): string => {
-		if (!monthString) return formatSelectedPeriod || ''
-		const date = new Date(monthString + '-01')
-		return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long' })
-	}
-
-	const handleSortChange = (key: string) => {
-		if (sortConfig.key === key) {
-			// Toggle direction if same key
-			sortConfig.direction = sortConfig.direction === 'asc' ? 'desc' : 'asc'
-		} else {
-			// Set new key with ascending direction
-			sortConfig.key = key
-			sortConfig.direction = 'asc'
-		}
-	}
-
-	const openAddForm = async () => {
-		showAddForm = true
+	const openAdd = async (): Promise<void> => {
+		editing = null
+		form = emptyForm()
+		showEmployeeDialog = true
 		await tick()
-		nameInputRef?.focus()
+		nameInput?.focus()
 	}
 
-	const addEmployee = async () => {
-		const employee: EmployeeInsert = {
-			name: asText(newEmployee.name),
-			basic_salary: asNumber(newEmployee.basic_salary),
-			epf_employer: asNumber(newEmployee.epf_employer),
-			lindung_24_jam: newEmployee.lindung_24_jam,
-		}
-		const result = await payrollStore.addEmployee(employee)
-		if (result) {
-			cancelAddForm()
-		}
-	}
-
-	// Action button configurations
-	const getEmployeeActions = (): Array<ActionButtonGroupAction> => {
-		return [
-			{
-				key: 'edit',
-				label: 'Edit Employee',
-				variant: 'blue',
-			},
-			{
-				key: 'delete',
-				label: 'Delete',
-				variant: 'red',
-			},
-		]
-	}
-
-	// Handle action button clicks
-	const handleActionClick = (actionKey: string, employee: Employee) => {
-		switch (actionKey) {
-			case 'edit':
-				openEditModal(employee)
-				break
-			case 'delete':
-				openDeleteModal(employee)
-				break
-		}
-	}
-
-	const openEditModal = (employee: Employee) => {
-		editEmployee = {
-			id: employee.id,
+	const openEdit = (employee: Employee): void => {
+		editing = employee
+		const calculated = payrollStore.calculateEPF(employee.basic_salary).employer
+		form = {
 			name: employee.name,
-			basic_salary: employee.basic_salary,
-			epf_employer: employee.epf_employer,
+			basic_salary: String(employee.basic_salary),
+			epf_employer: String(employee.epf_employer),
+			useDefaultEpf: Math.abs(employee.epf_employer - calculated) < 0.01,
 			lindung_24_jam: employee.lindung_24_jam,
 		}
-
-		// Check if current EPF value matches the calculated default value
-		const calculatedEpf = payrollStore.calculateEPF(employee.basic_salary).employer
-		const currentEpf = employee.epf_employer
-
-		// If the current EPF matches the calculated value (within a small tolerance for rounding)
-		// then check the "use default" checkbox, otherwise uncheck it
-		const epfMatches = Math.abs(currentEpf - calculatedEpf) < 0.01
-		useDefaultEpfEdit = epfMatches
-
-		showEditModal = true
+		showEmployeeDialog = true
 	}
 
-	const confirmEditEmployee = async () => {
-		if (!editEmployee) return
+	const closeEmployeeDialog = (): void => {
+		showEmployeeDialog = false
+		editing = null
+	}
 
-		const result = await payrollStore.updateEmployee(editEmployee.id, {
-			name: asText(editEmployee.name),
-			basic_salary: asNumber(editEmployee.basic_salary),
-			epf_employer: asNumber(editEmployee.epf_employer),
-			lindung_24_jam: editEmployee.lindung_24_jam,
+	const confirmEmployee = async (): Promise<void> => {
+		if (!isFormValid || !isFormChanged) return
+		const payload = {
+			name: form.name.trim(),
+			basic_salary: formSalary,
+			epf_employer: formEpf,
+			lindung_24_jam: form.lindung_24_jam,
+		}
+		const ok = editing
+			? await payrollStore.updateEmployee(editing.id, payload)
+			: await payrollStore.addEmployee(payload)
+		if (ok) {
+			toast.success(editing ? `Saved ${payload.name}` : `Added ${payload.name}`)
+			closeEmployeeDialog()
+		}
+	}
+
+	// ---------- Delete employee ----------
+	let showDelete = $state(false)
+	let deleting = $state<Employee | null>(null)
+
+	const openDelete = (): void => {
+		if (!editing) return
+		deleting = editing
+		showDelete = true
+	}
+
+	const closeDelete = (): void => {
+		showDelete = false
+		deleting = null
+	}
+
+	const confirmDelete = async (): Promise<void> => {
+		if (!deleting) return
+		const target = deleting
+		if (await payrollStore.deleteEmployee(target.id)) {
+			toast.success(`Deleted ${target.name}`)
+			closeDelete()
+			closeEmployeeDialog()
+		}
+	}
+
+	// ---------- Run payroll dialog ----------
+	let showRun = $state(false)
+	let runMonth = $state('')
+	let runYear = $state('')
+
+	const now = new Date()
+	const yearOptions = [
+		now.getFullYear() - 2,
+		now.getFullYear() - 1,
+		now.getFullYear(),
+		now.getFullYear() + 1,
+	]
+
+	const runPeriod = $derived.by((): PayrollPeriod | null =>
+		runMonth && runYear ? { month: Number(runMonth), year: Number(runYear) } : null,
+	)
+	const runExisting = $derived(
+		runPeriod ? payrollRecordsStore.getRunByPeriod(runPeriod.year, runPeriod.month) : undefined,
+	)
+
+	const openRun = (): void => {
+		runMonth = String(period?.month ?? now.getMonth() + 1)
+		runYear = String(period?.year ?? now.getFullYear())
+		showRun = true
+	}
+
+	const confirmRun = async (): Promise<void> => {
+		if (!runPeriod) return
+		showRun = false
+		const month = String(runPeriod.month).padStart(2, '0')
+		await goto(`/payroll?period=${runPeriod.year}-${month}`)
+	}
+
+	// ---------- Payroll run view ----------
+	let payrollData = $state<PayrollData[]>([])
+	let generatedFor = ''
+	// Payslips are only downloadable once the on-screen figures are frozen into a record
+	let recordSaved = $state(false)
+
+	// Figures are generated once per period, and again if employees arrive later
+	$effect(() => {
+		const key = periodKey
+		const current = period
+		const count = employees.length
+		untrack(async () => {
+			if (!current) {
+				payrollData = []
+				generatedFor = ''
+				return
+			}
+			if (generatedFor === key && (payrollData.length > 0 || count === 0)) return
+			payrollData = payrollStore.generatePayrollData(current)
+			generatedFor = key
+			recordSaved = false
+			// PCB is the first figure entered by hand, so start there
+			await tick()
+			document.querySelector<HTMLInputElement>('[data-pcb-input]')?.focus()
 		})
-
-		if (result) {
-			cancelEditEmployee()
-		}
-	}
-
-	const cancelEditEmployee = () => {
-		showEditModal = false
-		editEmployee = null
-		useDefaultEpfEdit = true
-	}
-
-	const openDeleteModal = (employee: Employee) => {
-		deleteEmployee = { ...employee }
-		showDeleteModal = true
-		deleteConfirmation = false
-	}
-
-	const confirmDeleteEmployee = async () => {
-		if (!deleteEmployee) return
-
-		deleteLoading = true
-		try {
-			await payrollStore.deleteEmployee(deleteEmployee.id)
-			cancelDeleteEmployee()
-		} finally {
-			deleteLoading = false
-		}
-	}
-
-	const cancelDeleteEmployee = () => {
-		showDeleteModal = false
-		deleteEmployee = null
-		deleteConfirmation = false
-		deleteLoading = false
-	}
-
-	const cancelAddForm = () => {
-		showAddForm = false
-		useDefaultEpf = true
-		newEmployee = {
-			name: '',
-			basic_salary: 0,
-			epf_employer: 0,
-			lindung_24_jam: false,
-		}
-	}
-
-	const cancelMonthSelection = () => {
-		showMonthSelection = false
-		// Don't reset the selected month and year - preserve user's choice
-	}
-
-	const processPayroll = async () => {
-		savedNotice = ''
-		recordSaved = false
-		showMonthSelection = false
-		showPayrollTable = true
-		payrollData = payrollStore.generatePayrollData(selectedPeriod)
-
-		// PCB is the first figure entered by hand, so start there. The desktop
-		// and mobile tables both render, so pick whichever one is displayed.
-		await tick()
-		const pcbInputs = Array.from(document.querySelectorAll<HTMLInputElement>('[data-pcb-input]'))
-		pcbInputs.find((input) => input.offsetParent !== null)?.focus()
-	}
-
-	const backToEmployeeList = () => {
-		savedNotice = ''
-		recordSaved = false
-		showPayrollTable = false
-		showMonthSelection = false
-	}
-
-	// The period currently being processed, as numbers
-	const selectedPeriod = $derived({
-		month: parseInt(asText(selectedMonth)),
-		year: asNumber(selectedYear),
 	})
 
-	// Lindung 24 Jam only applies from the June 2026 payroll onwards
-	const lindung24Applies = $derived(
-		payrollStore.isLindung24Applicable(selectedPeriod.year, selectedPeriod.month),
-	)
-
-	// Editing PCB/CP38, or switching period, puts the figures out of sync with the
-	// saved record, so payslips are locked again until the record is saved
-	const payrollEdits = $derived(
-		payrollData.map((row) => `${row.pcb ?? ''}:${row.cp38 ?? ''}`).join('|'),
-	)
-
+	// Editing PCB or CP38 puts the figures out of sync with the saved record
+	const payrollEdits = $derived(payrollData.map((row) => `${row.pcb}:${row.cp38}`).join('|'))
 	$effect(() => {
 		void payrollEdits
-		untrack(() => {
-			recordSaved = false
-			savedNotice = ''
-		})
+		untrack(() => (recordSaved = false))
 	})
 
-	$effect(() => {
-		void selectedMonth
-		void selectedYear
-		untrack(() => {
-			recordSaved = false
-			savedNotice = ''
-		})
-	})
-
-	// An already saved record for this period means saving again overwrites it
+	const lindungApplies = $derived(
+		period ? payrollStore.isLindung24Applicable(period.year, period.month) : false,
+	)
 	const existingRun = $derived(
-		payrollRecordsStore.getRunByPeriod(selectedPeriod.year, selectedPeriod.month),
+		period ? payrollRecordsStore.getRunByPeriod(period.year, period.month) : undefined,
 	)
 
-	const toPayslipEmployee = (payroll: PayrollData): PayslipEmployee => ({
-		name: payroll.employeeName,
-		basicSalary: payroll.basicSalary,
-		epfEmployee: payroll.epfEmployee,
-		epfEmployer: payroll.epfEmployer,
-		socsoEmployee: payroll.socsoEmployee,
-		socsoEmployer: payroll.socsoEmployer,
-		eisEmployee: payroll.eisEmployee,
-		eisEmployer: payroll.eisEmployer,
-		lindung24: payroll.lindung24,
-		pcb: payroll.pcb || 0,
-		cp38: payroll.cp38 || 0,
-		netSalary: payrollStore.calculateNetSalary(payroll),
+	const net = (row: PayrollData): number => payrollStore.calculateNetSalary(row)
+	const sum = (pick: (row: PayrollData) => number): number =>
+		Math.round(payrollData.reduce((total, row) => total + pick(row), 0) * 100) / 100
+
+	const totals = $derived({
+		basic: sum((r) => r.basicSalary),
+		epfEmployer: sum((r) => r.epfEmployer),
+		epfEmployee: sum((r) => r.epfEmployee),
+		socsoEmployer: sum((r) => r.socsoEmployer),
+		socsoEmployee: sum((r) => r.socsoEmployee),
+		eisEmployer: sum((r) => r.eisEmployer),
+		eisEmployee: sum((r) => r.eisEmployee),
+		lindung: sum((r) => r.lindung24),
+		pcb: sum((r) => r.pcb),
+		cp38: sum((r) => r.cp38),
+		net: sum(net),
+	})
+	const employerTotal = $derived(totals.epfEmployer + totals.socsoEmployer + totals.eisEmployer)
+	const deductionsTotal = $derived(
+		totals.epfEmployee +
+			totals.socsoEmployee +
+			totals.eisEmployee +
+			totals.lindung +
+			totals.pcb +
+			totals.cp38,
+	)
+
+	const setFigure = (row: PayrollData, field: 'pcb' | 'cp38', value: string): void => {
+		const parsed = parseFloat(value)
+		row[field] = Number.isFinite(parsed) && parsed >= 0 ? Math.round(parsed * 100) / 100 : 0
+	}
+
+	const generateExcel = (): void => {
+		if (!period || payrollData.length === 0) return
+		try {
+			exportPayrollExcel(payrollData, period, net)
+			toast.success('Excel downloaded')
+		} catch (error) {
+			console.error('Excel export failed:', error)
+			toast.error('The export failed. Try again.', { duration: Infinity })
+		}
+	}
+
+	const toPayslipEmployee = (row: PayrollData): PayslipEmployee => ({
+		name: row.employeeName,
+		basicSalary: row.basicSalary,
+		epfEmployee: row.epfEmployee,
+		epfEmployer: row.epfEmployer,
+		socsoEmployee: row.socsoEmployee,
+		socsoEmployer: row.socsoEmployer,
+		eisEmployee: row.eisEmployee,
+		eisEmployer: row.eisEmployer,
+		lindung24: row.lindung24,
+		pcb: row.pcb,
+		cp38: row.cp38,
+		netSalary: net(row),
 	})
 
-	const downloadPayslip = (payroll: PayrollData) => {
-		if (!recordSaved) return
-		generatePayslipPdf(
-			[toPayslipEmployee(payroll)],
-			selectedPeriod,
-			payslipFilename(payroll.employeeName, selectedPeriod),
+	const downloadPayslips = (): void => {
+		if (!period || !recordSaved || payrollData.length === 0) return
+		generatePayslipPdf(payrollData.map(toPayslipEmployee), period, allPayslipsFilename(period))
+	}
+
+	// ---------- Save record ----------
+	let showSave = $state(false)
+
+	const confirmSave = async (): Promise<void> => {
+		if (!period) return
+		const wasExisting = existingRun !== undefined
+		const run = await payrollRecordsStore.savePayrollRun(
+			period.year,
+			period.month,
+			$state.snapshot(payrollData),
+			net,
 		)
-	}
-
-	const downloadAllPayslips = () => {
-		if (!recordSaved || !payrollData.length) return
-		generatePayslipPdf(
-			payrollData.map(toPayslipEmployee),
-			selectedPeriod,
-			allPayslipsFilename(selectedPeriod),
-		)
-	}
-
-	const openSaveModal = () => {
-		savedNotice = ''
-		showSaveModal = true
-	}
-
-	const cancelSaveModal = () => {
-		showSaveModal = false
-		saveLoading = false
-	}
-
-	const confirmSavePayroll = async () => {
-		saveLoading = true
-		try {
-			const wasExisting = Boolean(existingRun)
-			const run = await payrollRecordsStore.savePayrollRun(
-				selectedPeriod.year,
-				selectedPeriod.month,
-				payrollData,
-				payrollStore.calculateNetSalary,
-			)
-			if (run) {
-				savedNotice = `${formatSelectedPeriod} payroll ${wasExisting ? 'updated' : 'saved'}.`
-				recordSaved = true
-				cancelSaveModal()
-			}
-		} finally {
-			saveLoading = false
-		}
-	}
-
-	const generateExcel = () => {
-		if (!payrollData.length) {
-			alert('No payroll data to export')
-			return
-		}
-
-		const wb = XLSX.utils.book_new()
-		const monthNames = [
-			'JANUARY',
-			'FEBRUARY',
-			'MARCH',
-			'APRIL',
-			'MAY',
-			'JUNE',
-			'JULY',
-			'AUGUST',
-			'SEPTEMBER',
-			'OCTOBER',
-			'NOVEMBER',
-			'DECEMBER',
-		]
-		const monthName = monthNames[parseInt(asText(selectedMonth)) - 1]
-		const year = selectedYear
-		const excelData: (string | number)[][] = []
-
-		// Helper to add section
-		const addSection = (
-			title: string | null = null,
-			rows: (string | number)[][],
-			accrualEntry: (string | number)[] | null = null,
-			spacing: boolean = true,
-		) => {
-			if (title) excelData.push([title, '', '', '', ''])
-			rows.forEach((row: (string | number)[]) => excelData.push(row))
-			if (accrualEntry && rows.length > 0) excelData.push(accrualEntry)
-			if (spacing) excelData.push(['', '', '', '', ''])
-		}
-
-		// Helper to create employee rows
-		const createEmployeeRows = (
-			type: string,
-			field: keyof PayrollData,
-			codeType: 'salaryCode' | 'epfCode' | 'socsoCode' | 'eisCode',
-		) => {
-			return payrollData.map((emp) => {
-				const info = getEmployeeAccountInfo(emp.employeeName)
-				const value = emp[field] as number
-				const code = info[codeType] as string[]
-				return [
-					code[0],
-					code[1],
-					`${type} - ${monthName} ${year} (${emp.employeeName})`,
-					value.toFixed(2),
-					'0.00',
-				]
+		if (run) {
+			showSave = false
+			recordSaved = true
+			toast.success(`${periodLabel} payroll ${wasExisting ? 'overwritten' : 'saved'}`, {
+				description: 'Payslips are ready to download.',
 			})
 		}
-
-		// Salary section
-		const salaryRows = payrollData.map((emp) => {
-			const info = getEmployeeAccountInfo(emp.employeeName)
-			const netSalary = payrollStore.calculateNetSalary(emp)
-			return [
-				info.salaryCode[0],
-				info.salaryCode[1],
-				`SALARIES - ${monthName} ${year} (${emp.employeeName})`,
-				netSalary.toFixed(2),
-				'0.00',
-			]
-		})
-		const totalSalary = payrollData.reduce(
-			(sum, emp) => sum + payrollStore.calculateNetSalary(emp),
-			0,
-		)
-		addSection(`BEING ACCRUAL SALARY FOR ${monthName} ${year}`, salaryRows, [
-			'410-010',
-			'ACCRUALS - SALARY',
-			`SALARIES - ${monthName} ${year}`,
-			'0.00',
-			totalSalary.toFixed(2),
-		])
-
-		// EPF section
-		const epfEmployerRows = createEmployeeRows('EPF EMPLOYER', 'epfEmployer', 'epfCode')
-		const epfEmployeeRows = createEmployeeRows('EPF EMPLOYEE', 'epfEmployee', 'salaryCode')
-		const totalEpf = payrollData.reduce((sum, emp) => sum + emp.epfEmployer + emp.epfEmployee, 0)
-		addSection(
-			`BEING ACCRUAL KWSP FOR ${monthName} ${year}`,
-			[...epfEmployerRows, ...epfEmployeeRows],
-			[
-				'410-080',
-				'ACCRUALS - KWSP & SOCSO',
-				`EPF CONTRIBUTION - ${monthName} ${year} KWSP`,
-				'0.00',
-				totalEpf.toFixed(2),
-			],
-		)
-
-		// SOCSO section
-		const socsoEmployerRows = createEmployeeRows('SOCSO EMPLOYER', 'socsoEmployer', 'socsoCode')
-		const socsoEmployeeRows = createEmployeeRows('SOCSO EMPLOYEE', 'socsoEmployee', 'salaryCode')
-		const totalSocso = payrollData.reduce(
-			(sum, emp) => sum + emp.socsoEmployer + emp.socsoEmployee,
-			0,
-		)
-
-		// EIS rows
-		const eisEmployerRows = createEmployeeRows('EIS EMPLOYER', 'eisEmployer', 'eisCode')
-		const eisEmployeeRows = createEmployeeRows('EIS EMPLOYEE', 'eisEmployee', 'salaryCode')
-		const totalEis = payrollData.reduce((sum, emp) => sum + emp.eisEmployer + emp.eisEmployee, 0)
-
-		// Lindung 24 Jam (SKBBK) rows - employee-only, so it is charged to the employee's salary
-		// account and accrued to PERKESO alongside SOCSO & EIS.
-		const lindung24Rows = payrollData
-			.filter((emp) => emp.lindung24 > 0)
-			.map((emp) => {
-				const info = getEmployeeAccountInfo(emp.employeeName)
-				return [
-					info.salaryCode[0],
-					info.salaryCode[1],
-					`LINDUNG 24 JAM - ${monthName} ${year} (${emp.employeeName})`,
-					emp.lindung24.toFixed(2),
-					'0.00',
-				]
-			})
-		const totalLindung24 = payrollData.reduce((sum, emp) => sum + (emp.lindung24 || 0), 0)
-
-		addSection(
-			`BEING ACCRUAL SOCSO & EIS${lindung24Rows.length ? ' & LINDUNG 24 JAM' : ''} FOR ${monthName} ${year}`,
-			[...socsoEmployerRows, ...socsoEmployeeRows],
-			[
-				'410-080',
-				'ACCRUALS - KWSP & SOCSO',
-				`SOCSO CONTRIBUTION - ${monthName} ${year} PERKESO`,
-				'0.00',
-				totalSocso.toFixed(2),
-			],
-			false,
-		)
-
-		addSection(
-			null,
-			[...eisEmployerRows, ...eisEmployeeRows],
-			[
-				'410-080',
-				'ACCRUALS - KWSP & SOCSO',
-				`EIS CONTRIBUTION - ${monthName} ${year} PERKESO`,
-				'0.00',
-				totalEis.toFixed(2),
-			],
-			lindung24Rows.length === 0,
-		)
-
-		if (lindung24Rows.length > 0) {
-			addSection(null, lindung24Rows, [
-				'410-080',
-				'ACCRUALS - KWSP & SOCSO',
-				`LINDUNG 24 JAM CONTRIBUTION - ${monthName} ${year} PERKESO`,
-				'0.00',
-				totalLindung24.toFixed(2),
-			])
-		}
-
-		// PCB section
-		const pcbRows = payrollData
-			.filter((emp) => emp.pcb > 0)
-			.map((emp) => {
-				const info = getEmployeeAccountInfo(emp.employeeName)
-				return [
-					info.salaryCode[0],
-					info.salaryCode[1],
-					`PCB - ${monthName} ${year} (${emp.employeeName})`,
-					emp.pcb.toFixed(2),
-					'0.00',
-				]
-			})
-		const cp38Rows = payrollData
-			.filter((emp) => emp.cp38 > 0)
-			.map((emp) => {
-				const info = getEmployeeAccountInfo(emp.employeeName)
-				return [
-					info.salaryCode[0],
-					info.salaryCode[1],
-					`PCB - ${monthName} ${year} (${emp.employeeName}) - CP38`,
-					emp.cp38.toFixed(2),
-					'0.00',
-				]
-			})
-		const totalPcb = payrollData.reduce((sum, emp) => sum + (emp.pcb || 0), 0)
-		const totalCp38 = payrollData.reduce((sum, emp) => sum + (emp.cp38 || 0), 0)
-
-		addSection(
-			`BEING ACCRUAL PCB FOR ${monthName} ${year}`,
-			[...pcbRows],
-			['410-010', 'ACCRUALS - SALARY', `PCB - ${monthName} ${year}`, '0.00', totalPcb.toFixed(2)],
-			false,
-		)
-
-		addSection(
-			null,
-			[...cp38Rows],
-			['410-010', 'ACCRUALS - SALARY', `CP38 - ${monthName} ${year}`, '0.00', totalCp38.toFixed(2)],
-		)
-
-		// Create and style worksheet
-		const ws = XLSX.utils.aoa_to_sheet(excelData)
-		ws['!cols'] = [{ wch: 12 }, { wch: 35 }, { wch: 50 }, { wch: 15 }, { wch: 10 }]
-
-		// Find title rows and merge cells
-		const merges: { s: { r: number; c: number }; e: { r: number; c: number } }[] = []
-		excelData.forEach((row, index) => {
-			if (row[0] && typeof row[0] === 'string' && row[0].includes('BEING ACCRUAL')) {
-				// Merge cells A to E for title rows
-				merges.push({
-					s: { r: index, c: 0 }, // start: row index, column 0 (A)
-					e: { r: index, c: 4 }, // end: row index, column 4 (E)
-				})
-			}
-		})
-
-		// Apply merges to worksheet
-		ws['!merges'] = merges
-
-		XLSX.utils.book_append_sheet(wb, ws, 'Payroll')
-		XLSX.writeFile(wb, `Payroll_${monthName}_${year}.xlsx`)
 	}
 </script>
 
-<div class="px-2 py-3 sm:px-0 sm:py-6">
-	<div class="rounded-lg border-4 border-dashed border-gray-200 p-3 sm:p-6">
-		<!-- Header -->
-		<div class="mb-4 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between">
-			<h2 class="text-xl font-bold text-gray-900 sm:text-2xl">Payroll Management</h2>
-			<div class="flex flex-col gap-3 sm:flex-row">
-				{#if !showAddForm && !showPayrollTable && !showMonthSelection && payrollStore.employees.length > 0}
-					<Button
-						variant="green"
-						class="w-full sm:w-auto"
-						onclick={() => (showMonthSelection = true)}
-					>
-						Process Payroll
-					</Button>
-				{/if}
-				{#if !showAddForm && !showPayrollTable && !showMonthSelection}
-					<Button variant="blue" class="w-full sm:w-auto" onclick={openAddForm}>Add Employee</Button
-					>
-				{/if}
-			</div>
+<svelte:window onkeydown={onKeydown} />
+
+{#if period}
+	<!-- ===== Payroll run ===== -->
+	<PageHeader title={periodLabel} crumbs={[{ label: 'Payroll', href: '/payroll' }]}>
+		<div class="text-muted-foreground min-w-0 flex-1 text-sm">
+			{plural(payrollData.length, 'employee')}
+			{#if lindungApplies}
+				· Lindung 24 Jam applies
+			{:else}
+				· Lindung 24 Jam applies from June 2026
+			{/if}
+		</div>
+		<Button variant="outline" onclick={generateExcel} disabled={payrollData.length === 0}>
+			<SheetIcon data-icon="inline-start" />
+			Generate Excel
+		</Button>
+		<Tooltip.Root>
+			<Tooltip.Trigger>
+				{#snippet child({ props })}
+					<span {...props}>
+						<Button variant="outline" onclick={downloadPayslips} disabled={!recordSaved}>
+							<FileTextIcon data-icon="inline-start" />
+							Download Payslips
+						</Button>
+					</span>
+				{/snippet}
+			</Tooltip.Trigger>
+			{#if !recordSaved}
+				<Tooltip.Content>Save the record first</Tooltip.Content>
+			{/if}
+		</Tooltip.Root>
+		<Button onclick={() => (showSave = true)} disabled={payrollData.length === 0}>
+			<LockIcon data-icon="inline-start" />
+			Save Record…
+		</Button>
+	</PageHeader>
+
+	{#if recordSaved}
+		<Alert.Root class="bg-success-soft border-success/40">
+			<CircleCheckIcon class="text-success" />
+			<Alert.Title>{periodLabel} payroll saved</Alert.Title>
+			<Alert.Description>
+				Payslips are ready to download, and the frozen figures are in Payroll History.
+			</Alert.Description>
+		</Alert.Root>
+	{:else}
+		<Alert.Root class="bg-warning-soft border-warning/40">
+			<TriangleAlertIcon class="text-warning" />
+			<Alert.Description class="text-foreground">
+				Enter PCB and CP38, then save the record to unlock payslips. Editing a figure after saving
+				locks them again.
+			</Alert.Description>
+		</Alert.Root>
+	{/if}
+
+	{#if payrollData.length === 0}
+		<Empty.Root class="my-auto">
+			<Empty.Header>
+				<Empty.Media variant="icon">
+					<UsersIcon />
+				</Empty.Media>
+				<Empty.Title>No employees to pay</Empty.Title>
+				<Empty.Description>Add employees in Payroll, then run the month again.</Empty.Description>
+			</Empty.Header>
+			<Empty.Content>
+				<Button variant="outline" href="/payroll">Back to Payroll</Button>
+			</Empty.Content>
+		</Empty.Root>
+	{:else}
+		<div class="grid grid-cols-2 gap-3 xl:grid-cols-4">
+			{@render stat('Basic salary', totals.basic, plural(payrollData.length, 'employee'))}
+			{@render stat('Employer contributions', employerTotal, 'EPF, SOCSO and EIS')}
+			{@render stat(
+				'Employee deductions',
+				deductionsTotal,
+				lindungApplies ? 'With Lindung 24 Jam, PCB and CP38' : 'With PCB and CP38',
+			)}
+			{@render stat('Net pay', totals.net, 'To be paid out')}
 		</div>
 
-		<!-- Add Employee Form -->
-		{#if showAddForm}
-			<div class="mb-4 rounded-lg bg-white p-4 shadow sm:mb-6 sm:p-6">
-				<h3 class="mb-4 text-base font-medium text-gray-900 sm:text-lg">Add New Employee</h3>
-				<form
-					onsubmit={(e) => {
-						e.preventDefault()
-						addEmployee()
-					}}
-				>
-					<div class="space-y-4 sm:grid sm:grid-cols-3 sm:gap-6 sm:space-y-0">
-						<FormField
-							bind:ref={nameInputRef}
-							bind:value={newEmployee.name}
-							type="text"
-							label="Employee Name"
-							placeholder="Enter employee name"
-							required={true}
-						/>
-
-						<FormField
-							bind:value={newEmployee.basic_salary}
-							type="number"
-							label="Basic Salary (RM)"
-							placeholder="0.00"
-							required={true}
-							min={0}
-							step="0.01"
-							selectOnFocus
-						/>
-
-						<div>
-							<FormField
-								bind:value={newEmployee.epf_employer}
-								type="number"
-								label="EPF Employer Contribution (RM)"
-								placeholder="0.00"
-								required={true}
-								min={0}
-								step="0.01"
-								disabled={useDefaultEpf}
-								selectOnFocus
-							/>
-							<div class="mt-2 flex items-center gap-2">
-								<input
-									id="use-default-epf"
-									bind:checked={useDefaultEpf}
-									type="checkbox"
-									class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-								/>
-								<label for="use-default-epf" class="text-sm text-gray-600">
-									Use Default EPF Employer Contribution
-								</label>
-							</div>
-						</div>
-
-						<div class="sm:col-span-3">
-							<div class="flex items-center gap-2">
-								<input
-									id="lindung-24-jam"
-									bind:checked={newEmployee.lindung_24_jam}
-									type="checkbox"
-									class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-								/>
-								<label for="lindung-24-jam" class="text-sm text-gray-600">
-									Opted in to Lindung 24 Jam (SKBBK)
-								</label>
-							</div>
-							<p class="mt-1 text-xs text-gray-500">
-								Employee-only contribution, auto-calculated from the basic salary.
-								{#if newEmployee.lindung_24_jam && asNumber(newEmployee.basic_salary) > 0}
-									<span>
-										Current deduction: RM
-										{formatCurrency(
-											payrollStore.calculateLindung24(asNumber(newEmployee.basic_salary)),
-										)}
-									</span>
-								{/if}
-							</p>
-						</div>
-					</div>
-					<div class="mt-6 flex justify-end gap-3">
-						<Button type="button" variant="gray" onclick={cancelAddForm}>Cancel</Button>
-						<Button
-							type="submit"
-							variant="green"
-							disabled={payrollStore.loading ||
-								!asText(newEmployee.name).trim() ||
-								!asNumber(newEmployee.basic_salary) ||
-								asNumber(newEmployee.basic_salary) <= 0 ||
-								!asNumber(newEmployee.epf_employer) ||
-								asNumber(newEmployee.epf_employer) < 0}
+		<Table.Root class="text-[13px]">
+			<Table.Header>
+				<Table.Row>
+					<Table.Head>Employee</Table.Head>
+					<Table.Head class="text-end">Basic</Table.Head>
+					{@render pairHead('EPF')}
+					{@render pairHead('SOCSO')}
+					{@render pairHead('EIS')}
+					<Table.Head class="text-end">Lindung</Table.Head>
+					<Table.Head class="text-end">PCB</Table.Head>
+					<Table.Head class="text-end">CP38</Table.Head>
+					<Table.Head class="text-end">Net</Table.Head>
+				</Table.Row>
+			</Table.Header>
+			<Table.Body>
+				{#each payrollData as row, i (row.employeeId)}
+					<Table.Row>
+						<Table.Cell class="py-2 font-medium whitespace-normal">{row.employeeName}</Table.Cell>
+						<Table.Cell class="py-2 text-end tabular-nums"
+							>{formatAmount(row.basicSalary)}</Table.Cell
 						>
-							{payrollStore.loading ? 'Adding...' : 'Add Employee'}
-						</Button>
-					</div>
-				</form>
-			</div>
-		{/if}
-
-		<!-- Error Alert -->
-		{#if payrollStore.error}
-			<ErrorAlert title={'Error'} message={payrollStore.error} class="mb-4 sm:mb-6" />
-		{/if}
-
-		<!-- Month Selection (shown when Process Payroll is clicked) -->
-		{#if showMonthSelection && !showPayrollTable}
-			<div class="mb-4 rounded-lg bg-white p-4 shadow sm:mb-6 sm:p-6">
-				<h3 class="mb-4 text-base font-medium text-gray-900 sm:text-lg">Select Payroll Period</h3>
-				<div class="flex flex-col gap-4">
-					<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-						<FormField
-							bind:value={selectedMonth}
-							type="select"
-							label="Month"
-							placeholder="Select Month"
-							required={true}
-							options={monthOptions}
-						/>
-
-						<FormField
-							bind:value={selectedYear}
-							type="select"
-							label="Year"
-							required={true}
-							options={yearOptions}
-						/>
-					</div>
-
-					<!-- Selected Period Display -->
-					{#if selectedMonth && selectedYear}
-						<div class="rounded-md border border-blue-200 bg-blue-50 p-3">
-							<div class="flex items-center gap-2">
-								<CalendarIcon class="h-4 w-4 text-blue-500" />
-								<span class="text-sm font-medium text-blue-800">
-									Selected Period: {formatSelectedPeriod}
-								</span>
-							</div>
-						</div>
-					{/if}
-
-					<!-- Action Buttons -->
-					<div class="flex justify-end gap-2">
-						<Button variant="gray" onclick={cancelMonthSelection}>Cancel</Button>
-						<Button
-							variant="green"
-							disabled={!selectedMonth || !selectedYear}
-							onclick={processPayroll}
-						>
-							Generate Payroll
-						</Button>
-					</div>
-				</div>
-			</div>
-		{/if}
-
-		<!-- Search Bar and Controls -->
-		{#if !showAddForm && !showPayrollTable && !showMonthSelection && payrollStore.employees.length > 0}
-			<div class="mb-4 space-y-4 sm:mb-6">
-				<SearchInput bind:value={searchQuery} placeholder="Search employees..." />
-
-				<!-- Show Salaries Toggle -->
-				<div class="flex items-center gap-2">
-					<input
-						id="show-salaries"
-						bind:checked={showSalaries}
-						type="checkbox"
-						class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-					/>
-					<label for="show-salaries" class="text-sm font-medium text-gray-700">
-						Show Salaries
-					</label>
-				</div>
-			</div>
-		{/if}
-
-		<!-- Loading Spinner -->
-		{#if payrollStore.loading && !showAddForm}
-			<LoadingSpinner />
-			<!-- Employee List -->
-		{:else if !showPayrollTable}
-			<div class="space-y-4">
-				<!-- Desktop Table -->
-				<div class="hidden overflow-hidden bg-white shadow sm:rounded-md lg:block">
-					<div class="border-b border-gray-200 px-4 py-5 sm:px-6">
-						<h3 class="text-lg leading-6 font-medium text-gray-900">
-							Employees ({filteredEmployees.length})
-						</h3>
-					</div>
-					<Table.Root>
-						<SortableTableHeader
-							columns={employeeColumns}
-							{sortConfig}
-							onsortchange={handleSortChange}
-						/>
-						<Table.Body>
-							{#each filteredEmployees as employee (employee.id)}
-								<Table.Row>
-									<Table.Cell
-										class="max-w-xs min-w-0 text-sm font-medium whitespace-normal text-gray-900"
-									>
-										<div class="break-words">{employee.name}</div>
-									</Table.Cell>
-									<Table.Cell>
-										{#if showSalaries}
-											<span>RM {formatCurrency(employee.basic_salary)}</span>
-										{:else}
-											<span class="text-gray-400">••••••</span>
-										{/if}
-									</Table.Cell>
-									<Table.Cell>
-										{#if showSalaries}
-											<span>RM {formatCurrency(employee.epf_employer)}</span>
-										{:else}
-											<span class="text-gray-400">••••••</span>
-										{/if}
-									</Table.Cell>
-									<Table.Cell>
-										{#if employee.lindung_24_jam}
-											<span
-												class="inline-flex items-center rounded bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800"
-											>
-												Opted in
-											</span>
-										{:else}
-											<span class="text-xs text-gray-400">—</span>
-										{/if}
-									</Table.Cell>
-									<Table.Cell class="font-medium">
-										<ActionButtonGroup
-											actions={getEmployeeActions()}
-											size="sm"
-											loading={payrollStore.loading}
-											onactionclick={(actionKey) => handleActionClick(actionKey, employee)}
-										/>
-									</Table.Cell>
-								</Table.Row>
-							{/each}
-						</Table.Body>
-					</Table.Root>
-				</div>
-
-				<!-- Mobile Cards -->
-				<div class="space-y-3 md:hidden">
-					{#each filteredEmployees as employee (employee.id)}
-						<div class="rounded-lg bg-white p-4 shadow">
-							<div class="mb-2 flex items-start justify-between">
-								<h3 class="text-sm font-medium text-gray-900">{employee.name}</h3>
-							</div>
-							<div class="mb-3 space-y-1 text-sm text-gray-600">
-								<div>
-									<span class="font-medium">Salary:</span>
-									{#if showSalaries}
-										<span class="ml-1">RM {formatCurrency(employee.basic_salary)}</span>
-									{:else}
-										<span class="ml-1 text-gray-400">••••••</span>
-									{/if}
-								</div>
-								<div>
-									<span class="font-medium">EPF Employer:</span>
-									{#if showSalaries}
-										<span class="ml-1">RM {formatCurrency(employee.epf_employer)}</span>
-									{:else}
-										<span class="ml-1 text-gray-400">••••••</span>
-									{/if}
-								</div>
-								<div>
-									<span class="font-medium">Lindung 24 Jam:</span>
-									<span class="ml-1">{employee.lindung_24_jam ? 'Opted in' : '—'}</span>
-								</div>
-							</div>
-
-							<!-- Actions -->
-							<div class="border-t border-gray-100 pt-2">
-								<ActionButtonGroup
-									class="w-full"
-									actions={getEmployeeActions()}
-									size="sm"
-									loading={payrollStore.loading}
-									onactionclick={(actionKey) => handleActionClick(actionKey, employee)}
-								/>
-							</div>
-						</div>
-					{/each}
-				</div>
-
-				<!-- Empty State -->
-				{#if filteredEmployees.length === 0 && payrollStore.employees.length === 0}
-					<EmptyState
-						title="No employees found"
-						description="Add your first employee to get started with payroll management."
-					/>
-					<!-- No Search Results -->
-				{:else if filteredEmployees.length === 0 && searchQuery}
-					<EmptyState title="No employees found" description="Try adjusting your search terms." />
-				{/if}
-			</div>
-			<!-- Payroll Processing Table -->
-		{:else if showPayrollTable}
-			<div class="space-y-4">
-				<div class="rounded-lg bg-white p-4 shadow sm:p-6">
-					<div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between">
-						<h3 class="mb-4 text-lg font-medium text-gray-900 sm:mb-0">
-							Payroll for {formatMonth(combinedMonthYear)}
-						</h3>
-						<div class="flex flex-col gap-2 sm:flex-row">
-							<Button variant="gray" onclick={backToEmployeeList}>Back to Employee List</Button>
-							<Button variant="green" onclick={generateExcel}>Generate Excel</Button>
-							{#if recordSaved}
-								<button
-									onclick={downloadAllPayslips}
-									class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700"
-								>
-									Download All Payslips
-								</button>
+						{@render pair(row.epfEmployer, row.epfEmployee)}
+						{@render pair(row.socsoEmployer, row.socsoEmployee)}
+						{@render pair(row.eisEmployer, row.eisEmployee)}
+						<Table.Cell class="py-2 text-end tabular-nums">
+							{#if row.lindung24 > 0}
+								{formatAmount(row.lindung24)}
+							{:else}
+								<span class="text-muted-foreground">—</span>
 							{/if}
-							<Button variant="blue" onclick={openSaveModal}>
-								{existingRun ? 'Update Saved Record' : 'Save Record'}
-							</Button>
-						</div>
-					</div>
-
-					<!-- Payslips stay locked until the figures are frozen into a record -->
-					{#if !recordSaved}
-						<div
-							class="mb-4 flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 p-3"
-						>
-							<WarningTriangleIcon class="h-4 w-4 flex-shrink-0 text-amber-500" />
-							<span class="text-sm text-amber-800">
-								Enter PCB and CP38, then {existingRun ? 'update' : 'save'} the record to download payslips.
-							</span>
-						</div>
-					{/if}
-
-					<!-- Saved confirmation -->
-					{#if savedNotice}
-						<div
-							class="mb-4 flex items-center gap-2 rounded-md border border-green-200 bg-green-50 p-3"
-						>
-							<CheckCircleIcon class="h-4 w-4 text-green-600" />
-							<span class="text-sm text-green-800">{savedNotice}</span>
-							<a
-								href="/payroll-history"
-								class="ml-auto text-sm font-medium text-green-700 underline hover:text-green-900"
-							>
-								View Payroll History
-							</a>
-						</div>
-					{/if}
-
-					<!-- Desktop Table -->
-					<div class="hidden md:block">
-						<Table.Root>
-							<Table.Header>
-								<Table.Row class="hover:bg-transparent">
-									<Table.Head class="px-2 whitespace-normal">Employee</Table.Head>
-									<Table.Head class="px-2 text-right whitespace-normal">Basic Salary</Table.Head>
-									<Table.Head class="px-2 text-right whitespace-normal">EPF Employer</Table.Head>
-									<Table.Head class="px-2 text-right whitespace-normal">EPF Employee</Table.Head>
-									<Table.Head class="px-2 text-right whitespace-normal">SOCSO Employer</Table.Head>
-									<Table.Head class="px-2 text-right whitespace-normal">SOCSO Employee</Table.Head>
-									<Table.Head class="px-2 text-right whitespace-normal">EIS Employer</Table.Head>
-									<Table.Head class="px-2 text-right whitespace-normal">EIS Employee</Table.Head>
-									{#if lindung24Applies}
-										<Table.Head class="px-2 text-right whitespace-normal">Lindung 24 Jam</Table.Head
-										>
-									{/if}
-									<Table.Head class="px-2 text-right whitespace-normal">PCB</Table.Head>
-									<Table.Head class="px-2 text-right whitespace-normal">CP38</Table.Head>
-									<Table.Head class="px-2 text-right whitespace-normal">Net Salary</Table.Head>
-									{#if recordSaved}
-										<Table.Head class="px-2 text-center whitespace-normal">Payslip</Table.Head>
-									{/if}
-								</Table.Row>
-							</Table.Header>
-							<Table.Body>
-								{#each payrollData as payroll (payroll.employeeId)}
-									<Table.Row class="hover:bg-transparent">
-										<Table.Cell class="px-2 font-medium">
-											{payroll.employeeName}
-										</Table.Cell>
-										<Table.Cell class="px-2 text-right">
-											RM {formatCurrency(payroll.basicSalary)}
-										</Table.Cell>
-										<Table.Cell class="px-2 text-right text-gray-600">
-											RM {formatCurrency(payroll.epfEmployer)}
-										</Table.Cell>
-										<Table.Cell class="px-2 text-right text-gray-600">
-											RM {formatCurrency(payroll.epfEmployee)}
-										</Table.Cell>
-										<Table.Cell class="px-2 text-right text-gray-600">
-											RM {formatCurrency(payroll.socsoEmployer)}
-										</Table.Cell>
-										<Table.Cell class="px-2 text-right text-gray-600">
-											RM {formatCurrency(payroll.socsoEmployee)}
-										</Table.Cell>
-										<Table.Cell class="px-2 text-right text-gray-600">
-											RM {formatCurrency(payroll.eisEmployer)}
-										</Table.Cell>
-										<Table.Cell class="px-2 text-right text-gray-600">
-											RM {formatCurrency(payroll.eisEmployee)}
-										</Table.Cell>
-										{#if lindung24Applies}
-											<Table.Cell class="px-2 text-right text-gray-600">
-												{#if payroll.lindung24 > 0}
-													<span>RM {formatCurrency(payroll.lindung24)}</span>
-												{:else}
-													<span class="text-gray-400">—</span>
-												{/if}
-											</Table.Cell>
-										{/if}
-										<Table.Cell class="px-2 text-right">
-											<input
-												bind:value={payroll.pcb}
-												type="number"
-												min="0"
-												step="0.01"
-												class="w-20 rounded-md border border-gray-300 px-2 py-1 text-right text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-												placeholder="0.00"
-												data-pcb-input
-												{@attach selectOnFocus()}
-											/>
-										</Table.Cell>
-										<Table.Cell class="px-2 text-right">
-											<input
-												bind:value={payroll.cp38}
-												type="number"
-												min="0"
-												step="0.01"
-												class="w-20 rounded-md border border-gray-300 px-2 py-1 text-right text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-												placeholder="0.00"
-												{@attach selectOnFocus()}
-											/>
-										</Table.Cell>
-										<Table.Cell class="px-2 text-right font-medium">
-											RM {formatCurrency(payrollStore.calculateNetSalary(payroll))}
-										</Table.Cell>
-										{#if recordSaved}
-											<Table.Cell class="px-2 text-center">
-												<button
-													onclick={() => downloadPayslip(payroll)}
-													class="text-sm font-medium text-indigo-600 underline hover:text-indigo-900"
-												>
-													PDF
-												</button>
-											</Table.Cell>
-										{/if}
-									</Table.Row>
-								{/each}
-							</Table.Body>
-							<!-- Totals Row -->
-							<tfoot class="bg-gray-100">
-								<tr class="border-t-2 border-gray-300">
-									<td class="px-2 py-4 text-sm font-bold whitespace-nowrap text-gray-700">TOTAL</td>
-									<td
-										class="px-2 py-4 text-right text-sm font-bold whitespace-nowrap text-gray-700"
-									>
-										RM {formatCurrency(payrollTotals.basicSalary)}
-									</td>
-									<td
-										class="px-2 py-4 text-right text-sm font-bold whitespace-nowrap text-gray-700"
-										colspan="2"
-									>
-										RM {formatCurrency(totalEpf)}
-									</td>
-									<td
-										class="px-2 py-4 text-right text-sm font-bold whitespace-nowrap text-gray-700"
-										colspan="2"
-									>
-										RM {formatCurrency(totalSocso)}
-									</td>
-									<td
-										class="px-2 py-4 text-right text-sm font-bold whitespace-nowrap text-gray-700"
-										colspan="2"
-									>
-										RM {formatCurrency(totalEis)}
-									</td>
-									{#if lindung24Applies}
-										<td
-											class="px-2 py-4 text-right text-sm font-bold whitespace-nowrap text-gray-700"
-										>
-											RM {formatCurrency(payrollTotals.lindung24)}
-										</td>
-									{/if}
-									<td
-										class="px-2 py-4 text-right text-sm font-bold whitespace-nowrap text-gray-700"
-									>
-										RM {formatCurrency(payrollTotals.pcb)}
-									</td>
-									<td
-										class="px-2 py-4 text-right text-sm font-bold whitespace-nowrap text-gray-700"
-									>
-										RM {formatCurrency(payrollTotals.cp38)}
-									</td>
-									<td
-										class="px-2 py-4 text-right text-sm font-bold whitespace-nowrap text-gray-700"
-									>
-										RM {formatCurrency(payrollTotals.netSalary)}
-									</td>
-									{#if recordSaved}
-										<!-- spacer under the Payslip column, which is only rendered once saved -->
-										<td></td>
-									{/if}
-								</tr>
-							</tfoot>
-						</Table.Root>
-					</div>
-
-					<!-- Mobile Cards for Payroll -->
-					<div class="space-y-4 md:hidden">
-						{#each payrollData as payroll (payroll.employeeId)}
-							<div class="rounded-lg border border-gray-200 p-4">
-								<h4 class="mb-3 font-medium text-gray-900">{payroll.employeeName}</h4>
-								<div class="space-y-3">
-									<div>
-										<span class="text-sm text-gray-600">Basic Salary:</span>
-										<span class="ml-2 font-medium">RM {formatCurrency(payroll.basicSalary)}</span>
-									</div>
-
-									<!-- Contributions Grid -->
-									<div
-										class="grid gap-2 text-xs {lindung24Applies ? 'grid-rows-4' : 'grid-rows-3'}"
-									>
-										<div class="rounded bg-gray-50 p-2">
-											<div class="mb-1 font-medium text-gray-700">EPF</div>
-											<div>Employer: RM {formatCurrency(payroll.epfEmployer)}</div>
-											<div>Employee: RM {formatCurrency(payroll.epfEmployee)}</div>
-										</div>
-										<div class="rounded bg-gray-50 p-2">
-											<div class="mb-1 font-medium text-gray-700">SOCSO</div>
-											<div>Employer: RM {formatCurrency(payroll.socsoEmployer)}</div>
-											<div>Employee: RM {formatCurrency(payroll.socsoEmployee)}</div>
-										</div>
-										<div class="rounded bg-gray-50 p-2">
-											<div class="mb-1 font-medium text-gray-700">EIS</div>
-											<div>Employer: RM {formatCurrency(payroll.eisEmployer)}</div>
-											<div>Employee: RM {formatCurrency(payroll.eisEmployee)}</div>
-										</div>
-										{#if lindung24Applies}
-											<div class="rounded bg-gray-50 p-2">
-												<div class="mb-1 font-medium text-gray-700">Lindung 24 Jam</div>
-												{#if payroll.lindung24 > 0}
-													<div>
-														Employee: RM {formatCurrency(payroll.lindung24)}
-													</div>
-												{:else}
-													<div class="text-gray-400">Not opted in</div>
-												{/if}
-											</div>
-										{/if}
-									</div>
-
-									<!-- Manual Inputs -->
-									<div class="grid grid-cols-2 gap-3">
-										<div>
-											<label
-												for="pcb-{payroll.employeeId}"
-												class="mb-1 block text-xs font-medium text-gray-700">PCB (RM)</label
-											>
-											<input
-												id="pcb-{payroll.employeeId}"
-												bind:value={payroll.pcb}
-												type="number"
-												min="0"
-												step="0.01"
-												class="w-full rounded-md border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-												placeholder="0.00"
-												data-pcb-input
-												{@attach selectOnFocus()}
-											/>
-										</div>
-										<div>
-											<label
-												for="cp38-{payroll.employeeId}"
-												class="mb-1 block text-xs font-medium text-gray-700">CP38 (RM)</label
-											>
-											<input
-												id="cp38-{payroll.employeeId}"
-												bind:value={payroll.cp38}
-												type="number"
-												min="0"
-												step="0.01"
-												class="w-full rounded-md border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-												placeholder="0.00"
-												{@attach selectOnFocus()}
-											/>
-										</div>
-									</div>
-
-									<div class="border-t border-gray-200 pt-2">
-										<span class="text-sm text-gray-600">Net Salary:</span>
-										<span class="ml-2 text-lg font-medium">
-											RM {formatCurrency(payrollStore.calculateNetSalary(payroll))}
-										</span>
-									</div>
-
-									{#if recordSaved}
-										<button
-											onclick={() => downloadPayslip(payroll)}
-											class="w-full rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700"
-										>
-											Download Payslip (PDF)
-										</button>
-									{/if}
-								</div>
-							</div>
-						{/each}
-					</div>
-
-					<!-- Mobile Totals Summary -->
-					<div class="md:hidden">
-						<div class="rounded-lg border-2 border-blue-200 bg-blue-50 p-4">
-							<h4 class="mb-3 text-center font-bold text-blue-900">PAYROLL TOTALS</h4>
-							<div class="space-y-3">
-								<div class="grid grid-cols-2 gap-3 text-sm">
-									<div class="rounded border bg-white p-2">
-										<div class="font-medium text-gray-700">Basic Salary</div>
-										<div class="font-bold text-gray-900">
-											RM {formatCurrency(payrollTotals.basicSalary)}
-										</div>
-									</div>
-									<div class="rounded border bg-white p-2">
-										<div class="font-medium text-blue-700">Net Salary</div>
-										<div class="font-bold text-blue-900">
-											RM {formatCurrency(payrollTotals.netSalary)}
-										</div>
-									</div>
-								</div>
-
-								<div class="grid grid-cols-3 gap-3 text-xs">
-									<div class="rounded border bg-white p-2 text-center">
-										<div class="mb-1 font-medium text-gray-700">EPF Total</div>
-										<div class="font-bold text-gray-900">RM {formatCurrency(totalEpf)}</div>
-									</div>
-									<div class="rounded border bg-white p-2 text-center">
-										<div class="mb-1 font-medium text-gray-700">SOCSO Total</div>
-										<div class="font-bold text-gray-900">RM {formatCurrency(totalSocso)}</div>
-									</div>
-									<div class="rounded border bg-white p-2 text-center">
-										<div class="mb-1 font-medium text-gray-700">EIS Total</div>
-										<div class="font-bold text-gray-900">RM {formatCurrency(totalEis)}</div>
-									</div>
-								</div>
-
-								{#if lindung24Applies}
-									<div class="rounded border bg-white p-2 text-center text-xs">
-										<div class="mb-1 font-medium text-gray-700">Lindung 24 Jam Total</div>
-										<div class="font-bold text-gray-900">
-											RM {formatCurrency(payrollTotals.lindung24)}
-										</div>
-									</div>
-								{/if}
-
-								<div class="grid grid-cols-2 gap-2 text-xs">
-									<div class="rounded border bg-white p-2 text-center">
-										<div class="font-medium text-gray-700">PCB</div>
-										<div class="font-bold">RM {formatCurrency(payrollTotals.pcb)}</div>
-									</div>
-									<div class="rounded border bg-white p-2 text-center">
-										<div class="font-medium text-gray-700">CP38</div>
-										<div class="font-bold">RM {formatCurrency(payrollTotals.cp38)}</div>
-									</div>
-								</div>
-							</div>
-						</div>
-					</div>
-				</div>
-			</div>
-		{/if}
-
-		<!-- Save Payroll Record Modal -->
-		<ActionModal
-			bind:open={showSaveModal}
-			title={existingRun ? 'Update Saved Payroll Record' : 'Save Payroll Record'}
-			variant="blue"
-			confirmText={existingRun ? 'Overwrite Record' : 'Save Record'}
-			loading={saveLoading}
-			onconfirm={confirmSavePayroll}
-			oncancel={cancelSaveModal}
-			onclose={cancelSaveModal}
-		>
-			<div class="space-y-4">
-				{#if existingRun}
-					<div class="rounded-md border border-amber-200 bg-amber-50 p-3">
-						<div class="mb-2 flex items-center gap-2">
-							<WarningTriangleIcon class="h-4 w-4 text-amber-500" />
-							<span class="text-sm font-medium text-amber-800">
-								{formatSelectedPeriod} has already been saved
-							</span>
-						</div>
-						<p class="text-sm text-amber-700">
-							Saving again replaces the stored figures for this month with the ones shown below. The
-							previous version cannot be recovered.
-						</p>
-					</div>
-				{:else}
-					<div class="rounded-md border border-blue-200 bg-blue-50 p-3">
-						<div class="mb-2 flex items-center gap-2">
-							<InfoCircleIcon class="h-4 w-4 text-blue-500" />
-							<span class="text-sm font-medium text-blue-800">Freeze this month's payroll</span>
-						</div>
-						<p class="text-sm text-blue-700">
-							The figures below are copied into a permanent record. Later changes to an employee's
-							salary or Lindung 24 Jam opt-in will not affect it.
-						</p>
-					</div>
-				{/if}
-
-				<div class="rounded-md border border-gray-200 bg-gray-50 p-3">
-					<h4 class="mb-2 text-sm font-medium text-gray-900">Record Summary:</h4>
-					<div class="space-y-1 text-sm text-gray-600">
-						<div><span class="font-medium">Period:</span> {formatSelectedPeriod}</div>
-						<div><span class="font-medium">Employees:</span> {payrollData.length}</div>
-						<div>
-							<span class="font-medium">Total Basic Salary:</span> RM
-							{formatCurrency(payrollTotals.basicSalary)}
-						</div>
-						<div>
-							<span class="font-medium">Total Net Salary:</span> RM
-							{formatCurrency(payrollTotals.netSalary)}
-						</div>
-					</div>
-				</div>
-			</div>
-		</ActionModal>
-
-		<!-- Edit Employee Modal -->
-		<ActionModal
-			bind:open={showEditModal}
-			title={`Edit Employee: ${editEmployee?.name || ''}`}
-			variant="green"
-			confirmText="Update Employee"
-			loading={payrollStore.loading}
-			disabled={!asText(editEmployee?.name).trim() ||
-				!asNumber(editEmployee?.basic_salary) ||
-				asNumber(editEmployee?.basic_salary) <= 0 ||
-				!asNumber(editEmployee?.epf_employer) ||
-				asNumber(editEmployee?.epf_employer) < 0}
-			onconfirm={confirmEditEmployee}
-			oncancel={cancelEditEmployee}
-			onclose={cancelEditEmployee}
-		>
-			<div class="space-y-4">
-				<!-- Information Box -->
-				<div class="rounded-md border border-blue-200 bg-blue-50 p-3">
-					<div class="mb-2 flex items-center gap-2">
-						<InfoCircleIcon class="h-4 w-4 text-blue-500" />
-						<span class="text-sm font-medium text-blue-800">Update Employee Information</span>
-					</div>
-					<p class="text-sm text-blue-700">
-						Modify the employee's basic information and EPF employer contribution. Changes will be
-						applied immediately and reflected in all payroll calculations.
-					</p>
-				</div>
-
-				<!-- Edit Form Fields -->
-				{#if editEmployee}
-					<div class="space-y-4">
-						<FormField
-							bind:value={editEmployee.name}
-							type="text"
-							label="Employee Name"
-							placeholder="Enter employee name"
-							required={true}
-						/>
-
-						<FormField
-							bind:value={editEmployee.basic_salary}
-							type="number"
-							label="Basic Salary (RM)"
-							placeholder="0.00"
-							required={true}
-							min={0}
-							step="0.01"
-							selectOnFocus
-						/>
-
-						<div>
-							<FormField
-								bind:value={editEmployee.epf_employer}
+						</Table.Cell>
+						<Table.Cell class="py-2 text-end">
+							<Input
 								type="number"
-								label="EPF Employer Contribution (RM)"
-								placeholder="0.00"
-								required={true}
-								min={0}
+								inputmode="decimal"
+								min="0"
 								step="0.01"
-								disabled={useDefaultEpfEdit}
-								selectOnFocus
+								value={row.pcb === 0 ? '' : String(row.pcb)}
+								placeholder="0.00"
+								aria-label={`PCB for ${row.employeeName}`}
+								class="ms-auto h-8 w-24 text-end tabular-nums"
+								data-pcb-input={i === 0 ? '' : undefined}
+								onchange={(e) => setFigure(row, 'pcb', e.currentTarget.value)}
+								{@attach selectOnFocus()}
 							/>
-							<div class="mt-2 flex items-center gap-2">
-								<input
-									id="use-default-epf-edit"
-									bind:checked={useDefaultEpfEdit}
-									type="checkbox"
-									class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-								/>
-								<label for="use-default-epf-edit" class="text-sm text-gray-600">
-									Use Default EPF Employer Contribution
-								</label>
-							</div>
-						</div>
+						</Table.Cell>
+						<Table.Cell class="py-2 text-end">
+							<Input
+								type="number"
+								inputmode="decimal"
+								min="0"
+								step="0.01"
+								value={row.cp38 === 0 ? '' : String(row.cp38)}
+								placeholder="0.00"
+								aria-label={`CP38 for ${row.employeeName}`}
+								class="ms-auto h-8 w-24 text-end tabular-nums"
+								onchange={(e) => setFigure(row, 'cp38', e.currentTarget.value)}
+								{@attach selectOnFocus()}
+							/>
+						</Table.Cell>
+						<Table.Cell class="py-2 text-end font-semibold tabular-nums">
+							{formatAmount(net(row))}
+						</Table.Cell>
+					</Table.Row>
+				{/each}
+			</Table.Body>
+			<Table.Footer>
+				<Table.Row class="font-bold">
+					<Table.Cell>Total</Table.Cell>
+					<Table.Cell class="text-end tabular-nums">{formatAmount(totals.basic)}</Table.Cell>
+					{@render pair(totals.epfEmployer, totals.epfEmployee)}
+					{@render pair(totals.socsoEmployer, totals.socsoEmployee)}
+					{@render pair(totals.eisEmployer, totals.eisEmployee)}
+					<Table.Cell class="text-end tabular-nums">{formatAmount(totals.lindung)}</Table.Cell>
+					<Table.Cell class="text-end tabular-nums">{formatAmount(totals.pcb)}</Table.Cell>
+					<Table.Cell class="text-end tabular-nums">{formatAmount(totals.cp38)}</Table.Cell>
+					<Table.Cell class="text-end tabular-nums">{formatAmount(totals.net)}</Table.Cell>
+				</Table.Row>
+			</Table.Footer>
+		</Table.Root>
+	{/if}
 
-						<div>
-							<div class="flex items-center gap-2">
-								<input
-									id="lindung-24-jam-edit"
-									bind:checked={editEmployee.lindung_24_jam}
-									type="checkbox"
-									class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-								/>
-								<label for="lindung-24-jam-edit" class="text-sm text-gray-600">
-									Opted in to Lindung 24 Jam (SKBBK)
-								</label>
-							</div>
-							<p class="mt-1 text-xs text-gray-500">
-								Employee-only contribution, auto-calculated from the basic salary.
-								{#if editEmployee.lindung_24_jam && asNumber(editEmployee.basic_salary) > 0}
-									<span>
-										Current deduction: RM
-										{formatCurrency(
-											payrollStore.calculateLindung24(asNumber(editEmployee.basic_salary)),
-										)}
-									</span>
-								{/if}
-							</p>
-						</div>
-					</div>
+	{#snippet stat(label: string, value: number, sub: string)}
+		<Card.Root size="sm">
+			<Card.Content class="flex flex-col gap-0.5">
+				<span class="text-muted-foreground text-xs font-medium tracking-wide uppercase"
+					>{label}</span
+				>
+				<span class="text-[22px] font-semibold tabular-nums">{formatRM(value)}</span>
+				<span class="text-muted-foreground text-xs">{sub}</span>
+			</Card.Content>
+		</Card.Root>
+	{/snippet}
+
+	{#snippet pairHead(label: string)}
+		<Table.Head class="text-end">
+			{label}
+			<span class="text-muted-foreground block text-[11px] font-normal normal-case">
+				Employer / employee
+			</span>
+		</Table.Head>
+	{/snippet}
+
+	{#snippet pair(employer: number, employee: number)}
+		<Table.Cell class="py-2 text-end whitespace-nowrap tabular-nums">
+			{formatAmount(employer)} <span class="text-muted-foreground">/</span>
+			{formatAmount(employee)}
+		</Table.Cell>
+	{/snippet}
+
+	<!-- Save record -->
+	<ActionModal
+		bind:open={showSave}
+		title={existingRun ? `Overwrite ${periodLabel}?` : `Save ${periodLabel}?`}
+		description={existingRun
+			? `This month was saved on ${formatDate(existingRun.updated_at)}. Saving again replaces the stored figures; the previous version cannot be recovered.`
+			: 'The figures on screen are frozen into a record and payslips unlock.'}
+		loading={payrollRecordsStore.loading}
+		confirmText={existingRun ? 'Overwrite Record' : 'Save Record'}
+		onconfirm={confirmSave}
+		oncancel={() => (showSave = false)}
+		onclose={() => (showSave = false)}
+	>
+		<dl class="divide-y rounded-md border text-sm">
+			<div class="flex justify-between gap-3 px-3 py-2">
+				<dt class="text-muted-foreground">Employees</dt>
+				<dd class="font-medium tabular-nums">{payrollData.length}</dd>
+			</div>
+			<div class="flex justify-between gap-3 px-3 py-2">
+				<dt class="text-muted-foreground">Total basic salary</dt>
+				<dd class="font-medium tabular-nums">{formatRM(totals.basic)}</dd>
+			</div>
+			<div class="flex justify-between gap-3 px-3 py-2">
+				<dt class="text-muted-foreground">Total net pay</dt>
+				<dd class="font-semibold tabular-nums">{formatRM(totals.net)}</dd>
+			</div>
+		</dl>
+	</ActionModal>
+{:else}
+	<!-- ===== Employee list ===== -->
+	<PageHeader title="Payroll">
+		<div class="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+			<InputGroup.Root class="w-full sm:w-72">
+				<InputGroup.Addon>
+					<SearchIcon />
+				</InputGroup.Addon>
+				<InputGroup.Input
+					bind:ref={searchInput}
+					bind:value={searchQuery}
+					type="search"
+					placeholder="Search by employee name"
+					aria-label="Search by employee name"
+				/>
+				{#if searchQuery}
+					<InputGroup.Addon align="inline-end">
+						<InputGroup.Button
+							size="icon-xs"
+							aria-label="Clear search"
+							onclick={() => (searchQuery = '')}
+						>
+							<XIcon />
+						</InputGroup.Button>
+					</InputGroup.Addon>
 				{/if}
+			</InputGroup.Root>
+			<div class="flex items-center gap-2">
+				<Switch id="show-salaries" bind:checked={showSalaries} />
+				<Label for="show-salaries">Show Salaries</Label>
 			</div>
-		</ActionModal>
+		</div>
+		<Button variant="outline" onclick={openAdd}>
+			<PlusIcon data-icon="inline-start" />
+			Add Employee…
+		</Button>
+		<Button onclick={openRun} disabled={employees.length === 0}>
+			<WalletIcon data-icon="inline-start" />
+			Run Payroll…
+		</Button>
+	</PageHeader>
 
-		<!-- Delete Confirmation Modal -->
-		<ActionModal
-			bind:open={showDeleteModal}
-			title={`Delete Employee: ${deleteEmployee?.name || ''}`}
-			variant="red"
-			confirmText="Delete Employee"
-			loading={deleteLoading}
-			disabled={!deleteConfirmation}
-			onconfirm={confirmDeleteEmployee}
-			oncancel={cancelDeleteEmployee}
-			onclose={cancelDeleteEmployee}
+	{#if latestRun}
+		<Alert.Root
+			class="bg-success-soft border-success/40 flex flex-wrap items-center gap-x-3 gap-y-2"
 		>
-			<div class="space-y-4">
-				<!-- Confirmation Message -->
-				<div class="rounded-md border border-red-200 bg-red-50 p-3">
-					<div class="mb-2 flex items-center gap-2">
-						<WarningTriangleIcon class="h-4 w-4 text-red-500" />
-						<span class="text-sm font-medium text-red-800">
-							Warning: This action cannot be undone
-						</span>
-					</div>
-					<p class="text-sm text-red-700">
-						You are about to permanently delete this employee record. This will remove all
-						associated payroll data.
-					</p>
-				</div>
+			<CircleCheckIcon class="text-success" />
+			<Alert.Description class="text-foreground">
+				<span class="font-medium">
+					{formatPeriod({ month: latestRun.month, year: latestRun.year })} payroll saved
+				</span>
+				on {formatDate(latestRun.updated_at)}. Payslips are in Payroll History.
+			</Alert.Description>
+			<Button variant="ghost" size="sm" href="/payroll-history" class="ms-auto">
+				Open Payroll History
+				<ChevronRightIcon data-icon="inline-end" />
+			</Button>
+		</Alert.Root>
+	{/if}
 
-				<!-- Employee Details -->
-				<div class="rounded-md border border-gray-200 bg-gray-50 p-3">
-					<h4 class="mb-2 text-sm font-medium text-gray-900">Employee Details:</h4>
-					<div class="space-y-1 text-sm text-gray-600">
-						<div><span class="font-medium">Name:</span> {deleteEmployee?.name}</div>
-						<div>
-							<span class="font-medium">Basic Salary:</span> RM
-							{formatCurrency(deleteEmployee?.basic_salary || 0)}
-						</div>
-						<div>
-							<span class="font-medium">EPF Employer:</span> RM
-							{formatCurrency(deleteEmployee?.epf_employer || 0)}
-						</div>
-						<div>
-							<span class="font-medium">Lindung 24 Jam:</span>
-							{deleteEmployee?.lindung_24_jam ? 'Opted in' : '—'}
-						</div>
-					</div>
-				</div>
+	{#if initialLoading}
+		<Table.Root>
+			<Table.Header>
+				<Table.Row>
+					<Table.Head>Employee</Table.Head>
+					<Table.Head class="text-end">Basic salary</Table.Head>
+					<Table.Head class="text-end">EPF employer</Table.Head>
+					<Table.Head>Lindung 24 Jam</Table.Head>
+					<Table.Head><span class="sr-only">Actions</span></Table.Head>
+				</Table.Row>
+			</Table.Header>
+			<Table.Body>
+				{#each { length: 5 } as _, i (i)}
+					<Table.Row>
+						<Table.Cell class="py-3"><Skeleton class="h-4 w-44" /></Table.Cell>
+						<Table.Cell><Skeleton class="ms-auto h-4 w-16" /></Table.Cell>
+						<Table.Cell><Skeleton class="ms-auto h-4 w-16" /></Table.Cell>
+						<Table.Cell><Skeleton class="h-5 w-16 rounded-full" /></Table.Cell>
+						<Table.Cell><Skeleton class="ms-auto size-7" /></Table.Cell>
+					</Table.Row>
+				{/each}
+			</Table.Body>
+		</Table.Root>
+	{:else if sortedEmployees.length === 0}
+		<Empty.Root class="my-auto">
+			<Empty.Header>
+				<Empty.Media variant="icon">
+					<UsersIcon />
+				</Empty.Media>
+				<Empty.Title>{searchQuery ? 'No employees match' : 'No employees yet'}</Empty.Title>
+				<Empty.Description>
+					{searchQuery
+						? 'Try another name or clear the search.'
+						: 'Add the first employee to run a payroll.'}
+				</Empty.Description>
+			</Empty.Header>
+			<Empty.Content>
+				{#if searchQuery}
+					<Button variant="outline" onclick={() => (searchQuery = '')}>Clear Search</Button>
+				{:else}
+					<Button onclick={openAdd}>
+						<PlusIcon data-icon="inline-start" />
+						Add Employee…
+					</Button>
+				{/if}
+			</Empty.Content>
+		</Empty.Root>
+	{:else}
+		<Table.Root>
+			<Table.Header>
+				<Table.Row>
+					<SortHeader key="name" {sort} onsort={toggleSort}>Employee</SortHeader>
+					<SortHeader key="basic_salary" {sort} onsort={toggleSort} align="end">
+						Basic salary
+					</SortHeader>
+					<SortHeader key="epf_employer" {sort} onsort={toggleSort} align="end">
+						EPF employer
+					</SortHeader>
+					<SortHeader key="lindung_24_jam" {sort} onsort={toggleSort}>Lindung 24 Jam</SortHeader>
+					<Table.Head><span class="sr-only">Actions</span></Table.Head>
+				</Table.Row>
+			</Table.Header>
+			<Table.Body>
+				{#each sortedEmployees as employee (employee.id)}
+					<Table.Row>
+						<Table.Cell class="max-w-md min-w-48 py-2.5 whitespace-normal">
+							<div class="font-medium break-words">{employee.name}</div>
+							<div class="text-muted-foreground mt-0.5 text-xs">
+								Since {formatDate(employee._creationTime)}
+							</div>
+						</Table.Cell>
+						<Table.Cell
+							class={cn('py-2.5 text-end tabular-nums', !showSalaries && 'text-muted-foreground')}
+						>
+							{money(employee.basic_salary)}
+						</Table.Cell>
+						<Table.Cell
+							class={cn('py-2.5 text-end tabular-nums', !showSalaries && 'text-muted-foreground')}
+						>
+							{money(employee.epf_employer)}
+						</Table.Cell>
+						<Table.Cell class="py-2.5">
+							{#if employee.lindung_24_jam}
+								<ToneBadge tone="success">Opted in</ToneBadge>
+							{:else}
+								<span class="text-muted-foreground">—</span>
+							{/if}
+						</Table.Cell>
+						<Table.Cell class="py-2.5">
+							<div class="flex justify-end">
+								<Tooltip.Root>
+									<Tooltip.Trigger>
+										{#snippet child({ props })}
+											<Button
+												{...props}
+												variant="ghost"
+												size="icon-sm"
+												aria-label="Edit Employee…"
+												onclick={() => openEdit(employee)}
+											>
+												<PencilIcon />
+											</Button>
+										{/snippet}
+									</Tooltip.Trigger>
+									<Tooltip.Content>Edit employee</Tooltip.Content>
+								</Tooltip.Root>
+							</div>
+						</Table.Cell>
+					</Table.Row>
+				{/each}
+			</Table.Body>
+		</Table.Root>
+		<div class="text-muted-foreground text-sm">
+			{#if searchQuery}
+				Showing {sortedEmployees.length} of {plural(employees.length, 'employee')}
+			{:else}
+				{plural(employees.length, 'employee')}
+			{/if}
+		</div>
+	{/if}
 
-				<!-- Confirmation Checkbox -->
-				<div class="flex items-center gap-2">
-					<input
-						id="delete-confirmation"
-						bind:checked={deleteConfirmation}
-						type="checkbox"
-						class="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
-					/>
-					<label for="delete-confirmation" class="text-sm text-gray-700">
-						I understand that this action is permanent and cannot be undone
-					</label>
-				</div>
+	<!-- Run payroll -->
+	<ActionModal
+		bind:open={showRun}
+		title="Run Payroll"
+		description="Figures are calculated from today's employee records."
+		disabled={!runPeriod}
+		confirmText="Open Payroll"
+		onconfirm={confirmRun}
+		oncancel={() => (showRun = false)}
+		onclose={() => (showRun = false)}
+	>
+		<Field.Group>
+			<div class="grid grid-cols-2 gap-3">
+				<Field.Field>
+					<Field.Label for="run-month">Month</Field.Label>
+					<Select.Root type="single" bind:value={runMonth}>
+						<Select.Trigger id="run-month" class="w-full">
+							{runMonth ? MONTHS[Number(runMonth) - 1] : 'Month'}
+						</Select.Trigger>
+						<Select.Content>
+							<Select.Group>
+								{#each MONTHS as name, i (name)}
+									<Select.Item value={String(i + 1)} label={name} />
+								{/each}
+							</Select.Group>
+						</Select.Content>
+					</Select.Root>
+				</Field.Field>
+				<Field.Field>
+					<Field.Label for="run-year">Year</Field.Label>
+					<Select.Root type="single" bind:value={runYear}>
+						<Select.Trigger id="run-year" class="w-full">{runYear || 'Year'}</Select.Trigger>
+						<Select.Content>
+							<Select.Group>
+								{#each yearOptions as year (year)}
+									<Select.Item value={String(year)} label={String(year)} />
+								{/each}
+							</Select.Group>
+						</Select.Content>
+					</Select.Root>
+				</Field.Field>
 			</div>
-		</ActionModal>
-	</div>
-</div>
+			{#if runExisting && runPeriod}
+				<p class="text-warning text-xs font-medium">
+					{formatPeriod(runPeriod)} was already saved on {formatDate(runExisting.updated_at)}.
+					Running it again lets you overwrite that record.
+				</p>
+			{/if}
+		</Field.Group>
+	</ActionModal>
+
+	<!-- Add / edit employee -->
+	<ActionModal
+		bind:open={showEmployeeDialog}
+		title={editing ? `Edit Employee · ${editing.name}` : 'Add Employee'}
+		loading={payrollStore.loading}
+		disabled={!isFormValid || !isFormChanged}
+		confirmText={editing ? 'Save' : 'Add Employee'}
+		onconfirm={confirmEmployee}
+		oncancel={closeEmployeeDialog}
+		onclose={closeEmployeeDialog}
+	>
+		{#snippet leading()}
+			{#if editing}
+				<Button variant="destructive" onclick={openDelete}>Delete Employee…</Button>
+			{/if}
+		{/snippet}
+		<form
+			onsubmit={(e) => {
+				e.preventDefault()
+				confirmEmployee()
+			}}
+		>
+			<Field.Group>
+				<Field.Field>
+					<Field.Label for="employee-name">Name</Field.Label>
+					<Input
+						id="employee-name"
+						bind:ref={nameInput}
+						bind:value={form.name}
+						placeholder="e.g. Chong Mei Ling"
+						autocomplete="off"
+					/>
+				</Field.Field>
+				<div class="grid grid-cols-2 gap-3">
+					<Field.Field>
+						<Field.Label for="employee-salary">Basic salary (RM)</Field.Label>
+						<Input
+							id="employee-salary"
+							bind:value={form.basic_salary}
+							type="number"
+							inputmode="decimal"
+							min="0"
+							step="0.01"
+							placeholder="0.00"
+							{@attach selectOnFocus()}
+						/>
+					</Field.Field>
+					<Field.Field data-disabled={form.useDefaultEpf || undefined}>
+						<Field.Label for="employee-epf">EPF employer (RM)</Field.Label>
+						<Input
+							id="employee-epf"
+							value={form.useDefaultEpf ? formatAmount(defaultEpf) : form.epf_employer}
+							oninput={(e) => (form.epf_employer = e.currentTarget.value)}
+							type="number"
+							inputmode="decimal"
+							min="0"
+							step="0.01"
+							placeholder="0.00"
+							disabled={form.useDefaultEpf}
+							{@attach selectOnFocus()}
+						/>
+						{#if form.useDefaultEpf}
+							<Field.Description>Auto at the statutory rate. Untick to override.</Field.Description>
+						{/if}
+					</Field.Field>
+				</div>
+				<Field.Field orientation="horizontal">
+					<Checkbox id="employee-default-epf" bind:checked={form.useDefaultEpf} />
+					<Field.Label for="employee-default-epf" class="font-normal">
+						Use default EPF employer contribution
+					</Field.Label>
+				</Field.Field>
+				<Field.Field orientation="horizontal">
+					<Checkbox id="employee-lindung" bind:checked={form.lindung_24_jam} />
+					<Field.Content>
+						<Field.Label for="employee-lindung" class="font-normal">
+							Opted in to Lindung 24 Jam (SKBBK)
+						</Field.Label>
+						<Field.Description>
+							Employee-only deduction, calculated from the basic salary.
+							{#if formSalary > 0}
+								{form.lindung_24_jam ? 'Current deduction' : 'Would be'} {formatRM(lindungPreview)}.
+							{/if}
+						</Field.Description>
+					</Field.Content>
+				</Field.Field>
+				{#if editing}
+					<p class="text-muted-foreground text-xs">
+						Changes apply to the next payroll run. Saved records are not affected.
+					</p>
+				{/if}
+			</Field.Group>
+			<button type="submit" class="hidden" aria-hidden="true" tabindex="-1"></button>
+		</form>
+	</ActionModal>
+
+	<!-- Delete employee -->
+	<ActionModal
+		bind:open={showDelete}
+		title={`Delete “${deleting?.name ?? ''}”?`}
+		description="Saved payroll records keep the frozen figures. Future runs will not include this employee. This cannot be undone."
+		loading={payrollStore.loading}
+		confirmText="Delete"
+		onconfirm={confirmDelete}
+		oncancel={closeDelete}
+		onclose={closeDelete}
+	/>
+{/if}
