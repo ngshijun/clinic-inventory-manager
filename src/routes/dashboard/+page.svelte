@@ -1,7 +1,13 @@
 <script lang="ts">
+	import type { Component } from 'svelte'
+	import { replaceState } from '$app/navigation'
+	import { page } from '$app/state'
+	import ArchiveIcon from '@lucide/svelte/icons/archive'
+	import BoxIcon from '@lucide/svelte/icons/box'
 	import CalendarIcon from '@lucide/svelte/icons/calendar'
 	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right'
 	import ClockIcon from '@lucide/svelte/icons/clock'
+	import PackageIcon from '@lucide/svelte/icons/package'
 	import MarkOrderedDialog from '$lib/components/app/MarkOrderedDialog.svelte'
 	import OrderStatusMenu from '$lib/components/app/OrderStatusMenu.svelte'
 	import PageHeader from '$lib/components/app/PageHeader.svelte'
@@ -13,6 +19,7 @@
 	import * as Card from '$lib/components/ui/card'
 	import { Skeleton } from '$lib/components/ui/skeleton'
 	import * as Table from '$lib/components/ui/table'
+	import * as Tabs from '$lib/components/ui/tabs'
 	import { useErrorToast } from '$lib/composables/errorToast.svelte'
 	import { createLoadMore } from '$lib/composables/loadMore.svelte'
 	import { inventoryStore } from '$lib/stores/inventory.svelte'
@@ -81,6 +88,22 @@
 	)
 	const staleList = createLoadMore(() => stale, QUEUE_PAGE)
 
+	// ---------- Which queue is open ----------
+	type Queue = 'expiring' | 'reorder' | 'stale'
+	const isQueue = (value: string | null): value is Queue =>
+		value === 'expiring' || value === 'reorder' || value === 'stale'
+
+	// The open queue lives in the URL, so a reload or a shared link restores it
+	const initialQueue = page.url.searchParams.get('queue')
+	let queue = $state<Queue>(isQueue(initialQueue) ? initialQueue : 'expiring')
+
+	$effect(() => {
+		const url = new URL(page.url)
+		if (queue !== 'expiring') url.searchParams.set('queue', queue)
+		else url.searchParams.delete('queue')
+		if (url.search !== page.url.search) replaceState(url, {})
+	})
+
 	// ---------- Dialogs ----------
 	let orderDialog = $state<MarkOrderedDialog | null>(null)
 	let stockOutDialog = $state<StockOutDialog | null>(null)
@@ -89,280 +112,351 @@
 <PageHeader title="Dashboard" />
 
 {#if initialLoading}
-	<div class="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
-		{#each { length: 5 } as _, i (i)}
-			<Card.Root size="sm">
-				<Card.Content class="flex flex-col gap-2">
-					<Skeleton class="h-3 w-24" />
-					<Skeleton class="h-7 w-12" />
+	<Card.Root size="sm" class="gap-0 rounded-2xl py-0" aria-busy="true">
+		<div class="grid grid-cols-2 lg:grid-cols-5">
+			{#each { length: 5 } as _, i (i)}
+				<div
+					class="border-border flex flex-col gap-2 px-4 py-3.5 last:col-span-2 even:border-s lg:last:col-span-1 lg:[&:not(:first-child)]:border-s [&:nth-child(n+3)]:border-t lg:[&:nth-child(n+3)]:border-t-0"
+				>
+					<Skeleton class="h-3.5 w-24" />
+					<Skeleton class="h-6 w-12" />
 					<Skeleton class="h-3 w-28" />
-				</Card.Content>
-			</Card.Root>
-		{/each}
-	</div>
+				</div>
+			{/each}
+		</div>
+	</Card.Root>
+	<Skeleton class="h-9 w-full rounded-full sm:w-[28rem]" />
 	<Skeleton class="h-40 rounded-md" />
 {:else}
-	<!-- Headline strip -->
-	<div class="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
-		{@render stat(
-			'Tracked items',
-			tracked.length,
-			`${untrackedCount} not tracked`,
-			null,
-			'/inventory',
-		)}
-		{@render stat(
-			'Out of stock',
-			outOfStock.length,
-			`${outOnOrder} on order`,
-			outOfStock.length > 0 ? 'danger' : null,
-			'/inventory?filter=out',
-		)}
-		{@render stat(
-			'Low stock',
-			lowStock.length,
-			'At or below reorder level',
-			lowStock.length > 0 ? 'warning' : null,
-			'/inventory?filter=low',
-		)}
-		{@render stat(
-			'Expiring soon',
-			expiring.length,
-			`${expiredCount} already expired`,
-			expiring.length > 0 ? 'warning' : null,
-			'#expiring',
-		)}
-		{@render stat('Stale items', stale.length, `No movement in ${STALE_DAYS} days`, null, '#stale')}
-	</div>
-
-	<!-- Expiring batches -->
-	<section id="expiring" class="flex scroll-mt-20 flex-col gap-3">
-		{@render heading(
-			'Expiring batches',
-			`next ${EXPIRY_WARNING_DAYS} days, soonest first`,
-			'Open Inventory',
-			'/inventory',
-		)}
-		{#if expiring.length === 0}
-			<p class="text-muted-foreground text-sm">
-				No batches expire in the next {EXPIRY_WARNING_DAYS} days.
-			</p>
-		{:else}
-			<Table.Root>
-				<Table.Header>
-					<Table.Row>
-						<Table.Head>Item</Table.Head>
-						<Table.Head>Batch</Table.Head>
-						<Table.Head>Expires</Table.Head>
-						<Table.Head class="text-end">Quantity</Table.Head>
-						<Table.Head><span class="sr-only">Actions</span></Table.Head>
-					</Table.Row>
-				</Table.Header>
-				<Table.Body>
-					{#each expiringList.visible as { batch, item, daysLeft } (batch.id)}
-						{@const badge = expiryBadge(batch.expiry_date)}
-						<Table.Row
-							class={cn(
-								daysLeft < 0
-									? 'shadow-[inset_2px_0_0_var(--destructive)]'
-									: 'shadow-[inset_2px_0_0_var(--warning)]',
-							)}
-						>
-							<Table.Cell class="max-w-md min-w-48 py-2.5 whitespace-normal">
-								<div class="font-medium break-words">{item.item_name}</div>
-							</Table.Cell>
-							<Table.Cell class="text-muted-foreground py-2.5 tabular-nums">
-								Received {formatDate(batch._creationTime)}
-							</Table.Cell>
-							<Table.Cell class="py-2.5">
-								{#if badge}
-									<ToneBadge tone={badge.tone}>{badge.text}</ToneBadge>
-								{/if}
-								<div class="text-muted-foreground mt-1 text-xs tabular-nums">
-									{formatDate(batch.expiry_date)}
-								</div>
-							</Table.Cell>
-							<Table.Cell class="py-2.5 text-end font-medium tabular-nums">
-								{withUnit(batch.quantity, item.unit)}
-							</Table.Cell>
-							<Table.Cell class="py-2.5">
-								<div class="flex justify-end">
-									<Button variant="outline" size="sm" onclick={() => stockOutDialog?.open(item)}>
-										Stock Out…
-									</Button>
-								</div>
-							</Table.Cell>
-						</Table.Row>
-					{/each}
-				</Table.Body>
-			</Table.Root>
-			{@render footer(
-				expiringList.shown,
-				plural(expiringList.total, 'batch', 'batches'),
-				expiringList,
+	<!-- Headline strip: one box, five segments, each a link into what it counts -->
+	<Card.Root size="sm" class="gap-0 rounded-2xl py-0">
+		<div class="grid grid-cols-2 lg:grid-cols-5">
+			{@render stat(
+				PackageIcon,
+				'Tracked items',
+				tracked.length,
+				`${untrackedCount} not tracked`,
+				null,
+				'/inventory',
 			)}
-		{/if}
-	</section>
+			{@render stat(
+				BoxIcon,
+				'Out of stock',
+				outOfStock.length,
+				`${outOnOrder} on order`,
+				outOfStock.length > 0 ? 'danger' : null,
+				'reorder',
+			)}
+			{@render stat(
+				BoxIcon,
+				'Low stock',
+				lowStock.length,
+				'At or below reorder level',
+				lowStock.length > 0 ? 'warning' : null,
+				'reorder',
+			)}
+			{@render stat(
+				ClockIcon,
+				'Expiring soon',
+				expiring.length,
+				`${expiredCount} already expired`,
+				expiring.length > 0 ? 'warning' : null,
+				'expiring',
+			)}
+			{@render stat(
+				ArchiveIcon,
+				'Stale items',
+				stale.length,
+				`No movement in ${STALE_DAYS} days`,
+				null,
+				'stale',
+			)}
+		</div>
+	</Card.Root>
 
-	<!-- Needs reordering -->
-	<section class="flex flex-col gap-3">
-		{@render heading(
-			'Needs reordering',
-			'out of stock first, then low',
-			'Open Price List',
-			'/price-list',
-		)}
-		{#if reorder.length === 0}
-			<p class="text-muted-foreground text-sm">Every tracked item is above its reorder level.</p>
-		{:else}
-			<Table.Root>
-				<Table.Header>
-					<Table.Row>
-						<Table.Head>Item</Table.Head>
-						<Table.Head>Status</Table.Head>
-						<Table.Head>On hand</Table.Head>
-						<Table.Head>Order status</Table.Head>
-						<Table.Head><span class="sr-only">Actions</span></Table.Head>
-					</Table.Row>
-				</Table.Header>
-				<Table.Body>
-					{#each reorderList.visible as item (item.id)}
-						{@const out = item.quantity === 0}
+	<!-- One worklist at a time; the tabs keep every count in view -->
+	<Tabs.Root
+		value={queue}
+		onValueChange={(value) => {
+			if (isQueue(value)) queue = value
+		}}
+		class="gap-3"
+	>
+		<Tabs.List class="grid w-full grid-cols-3 sm:w-fit">
+			{@render tab('expiring', ClockIcon, 'Expiring Batches', expiring.length, 'warning')}
+			{@render tab('reorder', BoxIcon, 'Needs Reordering', reorder.length, 'danger')}
+			{@render tab('stale', ArchiveIcon, 'Stale Items', stale.length, null)}
+		</Tabs.List>
+
+		<!-- Expiring batches -->
+		<Tabs.Content value="expiring" class="flex flex-col gap-3">
+			{@render paneSub(
+				`Batches that expire in the next ${EXPIRY_WARNING_DAYS} days, soonest first.`,
+				'Open Inventory',
+				'/inventory',
+			)}
+			{#if expiring.length === 0}
+				<p class="text-muted-foreground text-sm">
+					No batches expire in the next {EXPIRY_WARNING_DAYS} days.
+				</p>
+			{:else}
+				<Table.Root>
+					<Table.Header>
 						<Table.Row>
-							<Table.Cell class="max-w-md min-w-48 py-2.5 whitespace-normal">
-								<div class="font-medium break-words">{item.item_name}</div>
-							</Table.Cell>
-							<Table.Cell class="py-2.5">
-								<StatusDot tone={out ? 'danger' : 'warning'}>
-									{out ? 'Out of stock' : 'Low stock'}
-								</StatusDot>
-							</Table.Cell>
-							<Table.Cell class="py-2.5">
-								<span class={cn('tabular-nums', out && 'text-destructive')}>
-									{item.quantity} of {item.reorder_level}
-									{item.unit}
-								</span>
-							</Table.Cell>
-							<Table.Cell class="py-2.5">
-								{#if item.order_date}
-									<ToneBadge tone="info">
-										{#if item.back_order}
-											<ClockIcon />
-											Back-ordered {formatDayMonth(item.order_date)}
-										{:else}
-											<CalendarIcon />
-											Ordered {formatDayMonth(item.order_date)}
-										{/if}
-									</ToneBadge>
-								{:else if item.non_order_reason}
-									<ReasonBadge reason={item.non_order_reason} size="md" />
-								{:else}
-									<span class="text-muted-foreground">—</span>
-								{/if}
-							</Table.Cell>
-							<Table.Cell class="py-2.5">
-								<div class="flex justify-end">
-									<OrderStatusMenu
-										{item}
-										size="sm"
-										onMarkOrdered={(target) => orderDialog?.open(target)}
-									/>
-								</div>
-							</Table.Cell>
+							<Table.Head>Item</Table.Head>
+							<Table.Head>Batch</Table.Head>
+							<Table.Head>Expires</Table.Head>
+							<Table.Head class="text-end">Quantity</Table.Head>
+							<Table.Head><span class="sr-only">Actions</span></Table.Head>
 						</Table.Row>
-					{/each}
-				</Table.Body>
-			</Table.Root>
-			{@render footer(reorderList.shown, plural(reorderList.total, 'item'), reorderList)}
-		{/if}
-	</section>
-
-	<!-- Stale items -->
-	<section id="stale" class="flex scroll-mt-20 flex-col gap-3">
-		{@render heading('Stale items', 'no movement for over a month, oldest first', null, null)}
-		{#if stale.length === 0}
-			<p class="text-muted-foreground text-sm">
-				Every tracked item with stock has moved in the last {STALE_DAYS} days.
-			</p>
-		{:else}
-			<Table.Root>
-				<Table.Header>
-					<Table.Row>
-						<Table.Head>Item</Table.Head>
-						<Table.Head>On hand</Table.Head>
-						<Table.Head>Last movement</Table.Head>
-					</Table.Row>
-				</Table.Header>
-				<Table.Body>
-					{#each staleList.visible as item (item.id)}
-						<Table.Row>
-							<Table.Cell class="max-w-md min-w-48 py-2.5 whitespace-normal">
-								<div class="font-medium break-words">{item.item_name}</div>
-							</Table.Cell>
-							<Table.Cell class="py-2.5 tabular-nums"
-								>{withUnit(item.quantity, item.unit)}</Table.Cell
+					</Table.Header>
+					<Table.Body>
+						{#each expiringList.visible as { batch, item, daysLeft } (batch.id)}
+							{@const badge = expiryBadge(batch.expiry_date)}
+							<Table.Row
+								class={cn(
+									daysLeft < 0
+										? 'shadow-[inset_2px_0_0_var(--destructive)]'
+										: 'shadow-[inset_2px_0_0_var(--warning)]',
+								)}
 							>
-							<Table.Cell class="py-2.5 tabular-nums">
-								{formatDate(item.updated_at)}
-								<span class="text-muted-foreground ms-1 text-xs">
-									{formatDuration(daysSince(item.updated_at))} ago
-								</span>
-							</Table.Cell>
+								<Table.Cell class="max-w-md min-w-48 py-2.5 whitespace-normal">
+									<div class="font-medium break-words">{item.item_name}</div>
+								</Table.Cell>
+								<Table.Cell class="text-muted-foreground py-2.5 tabular-nums">
+									Received {formatDate(batch._creationTime)}
+								</Table.Cell>
+								<Table.Cell class="py-2.5">
+									{#if badge}
+										<ToneBadge tone={badge.tone}>{badge.text}</ToneBadge>
+									{/if}
+									<div class="text-muted-foreground mt-1 text-xs tabular-nums">
+										{formatDate(batch.expiry_date)}
+									</div>
+								</Table.Cell>
+								<Table.Cell class="py-2.5 text-end font-medium tabular-nums">
+									{withUnit(batch.quantity, item.unit)}
+								</Table.Cell>
+								<Table.Cell class="py-2.5">
+									<div class="flex justify-end">
+										<Button variant="outline" size="sm" onclick={() => stockOutDialog?.open(item)}>
+											Stock Out…
+										</Button>
+									</div>
+								</Table.Cell>
+							</Table.Row>
+						{/each}
+					</Table.Body>
+				</Table.Root>
+				{@render footer(
+					expiringList.shown,
+					plural(expiringList.total, 'batch', 'batches'),
+					expiringList,
+				)}
+			{/if}
+		</Tabs.Content>
+
+		<!-- Needs reordering -->
+		<Tabs.Content value="reorder" class="flex flex-col gap-3">
+			{@render paneSub('Out of stock first, then low.', 'Open Price List', '/price-list')}
+			{#if reorder.length === 0}
+				<p class="text-muted-foreground text-sm">Every tracked item is above its reorder level.</p>
+			{:else}
+				<Table.Root>
+					<Table.Header>
+						<Table.Row>
+							<Table.Head>Item</Table.Head>
+							<Table.Head>Status</Table.Head>
+							<Table.Head>On hand</Table.Head>
+							<Table.Head>Order status</Table.Head>
+							<Table.Head><span class="sr-only">Actions</span></Table.Head>
 						</Table.Row>
-					{/each}
-				</Table.Body>
-			</Table.Root>
-			{@render footer(staleList.shown, plural(staleList.total, 'item'), staleList)}
-		{/if}
-	</section>
+					</Table.Header>
+					<Table.Body>
+						{#each reorderList.visible as item (item.id)}
+							{@const out = item.quantity === 0}
+							<Table.Row>
+								<Table.Cell class="max-w-md min-w-48 py-2.5 whitespace-normal">
+									<div class="font-medium break-words">{item.item_name}</div>
+								</Table.Cell>
+								<Table.Cell class="py-2.5">
+									<StatusDot tone={out ? 'danger' : 'warning'}>
+										{out ? 'Out of stock' : 'Low stock'}
+									</StatusDot>
+								</Table.Cell>
+								<Table.Cell class="py-2.5">
+									<span class={cn('tabular-nums', out && 'text-destructive')}>
+										{item.quantity} of {item.reorder_level}
+										{item.unit}
+									</span>
+								</Table.Cell>
+								<Table.Cell class="py-2.5">
+									{#if item.order_date}
+										<ToneBadge tone="info">
+											{#if item.back_order}
+												<ClockIcon />
+												Back-ordered {formatDayMonth(item.order_date)}
+											{:else}
+												<CalendarIcon />
+												Ordered {formatDayMonth(item.order_date)}
+											{/if}
+										</ToneBadge>
+									{:else if item.non_order_reason}
+										<ReasonBadge reason={item.non_order_reason} size="md" />
+									{:else}
+										<span class="text-muted-foreground">—</span>
+									{/if}
+								</Table.Cell>
+								<Table.Cell class="py-2.5">
+									<div class="flex justify-end">
+										<OrderStatusMenu
+											{item}
+											size="sm"
+											onMarkOrdered={(target) => orderDialog?.open(target)}
+										/>
+									</div>
+								</Table.Cell>
+							</Table.Row>
+						{/each}
+					</Table.Body>
+				</Table.Root>
+				{@render footer(reorderList.shown, plural(reorderList.total, 'item'), reorderList)}
+			{/if}
+		</Tabs.Content>
+
+		<!-- Stale items -->
+		<Tabs.Content value="stale" class="flex flex-col gap-3">
+			{@render paneSub('No movement for over a month, oldest first.', null, null)}
+			{#if stale.length === 0}
+				<p class="text-muted-foreground text-sm">
+					Every tracked item with stock has moved in the last {STALE_DAYS} days.
+				</p>
+			{:else}
+				<Table.Root>
+					<Table.Header>
+						<Table.Row>
+							<Table.Head>Item</Table.Head>
+							<Table.Head>On hand</Table.Head>
+							<Table.Head>Last movement</Table.Head>
+						</Table.Row>
+					</Table.Header>
+					<Table.Body>
+						{#each staleList.visible as item (item.id)}
+							<Table.Row>
+								<Table.Cell class="max-w-md min-w-48 py-2.5 whitespace-normal">
+									<div class="font-medium break-words">{item.item_name}</div>
+								</Table.Cell>
+								<Table.Cell class="py-2.5 tabular-nums">
+									{withUnit(item.quantity, item.unit)}
+								</Table.Cell>
+								<Table.Cell class="py-2.5 tabular-nums">
+									{formatDate(item.updated_at)}
+									<span class="text-muted-foreground ms-1 text-xs">
+										{formatDuration(daysSince(item.updated_at))} ago
+									</span>
+								</Table.Cell>
+							</Table.Row>
+						{/each}
+					</Table.Body>
+				</Table.Root>
+				{@render footer(staleList.shown, plural(staleList.total, 'item'), staleList)}
+			{/if}
+		</Tabs.Content>
+	</Tabs.Root>
 {/if}
 
+<!--
+	A strip segment. `target` is either a page (href) or the queue to open.
+	The glyph, number and label tint only while the count is above zero; a
+	zero is a muted zero in its fixed place, never a message.
+-->
 {#snippet stat(
+	Icon: Component<{ class?: string }>,
 	label: string,
 	value: number,
 	sub: string,
 	tone: 'warning' | 'danger' | null,
-	href: string,
+	target: Queue | `/${string}`,
 )}
-	<Card.Root
-		size="sm"
-		class={cn(
-			'hover:ring-border-strong transition-shadow',
-			tone === 'warning' && 'bg-warning-soft ring-warning/30',
-			tone === 'danger' && 'bg-destructive/10 ring-destructive/30',
-		)}
-	>
-		<a
-			{href}
-			class="flex flex-col gap-0.5 px-(--card-spacing) outline-none focus-visible:underline"
-		>
+	{@const live = value > 0 ? tone : null}
+	{@const cell =
+		'border-border hover:bg-muted/50 focus-visible:bg-muted/50 flex min-w-0 flex-col gap-1.5 px-4 py-3.5 text-start outline-none [&:nth-child(n+3)]:border-t lg:[&:nth-child(n+3)]:border-t-0 even:border-s lg:[&:not(:first-child)]:border-s last:col-span-2 lg:last:col-span-1'}
+	{#snippet body()}
+		<span class="text-muted-foreground flex items-center gap-2 text-xs font-medium">
 			<span
-				class="text-muted-foreground inline-flex items-center gap-1 text-xs font-medium tracking-wide uppercase"
+				class={cn(
+					'bg-muted text-foreground/70 flex size-5 shrink-0 items-center justify-center rounded-md',
+					live === 'warning' && 'bg-warning-soft text-warning',
+					live === 'danger' && 'bg-destructive/10 text-destructive',
+				)}
 			>
-				{label}
-				<ChevronRightIcon class="size-3.5" />
+				<Icon class="size-3" />
 			</span>
 			<span
 				class={cn(
-					'text-2xl font-semibold tabular-nums',
-					tone === 'warning' && 'text-warning',
-					tone === 'danger' && 'text-destructive',
-					tone === null && value === 0 && 'text-muted-foreground',
+					'truncate',
+					live === 'warning' && 'text-warning',
+					live === 'danger' && 'text-destructive',
 				)}
 			>
-				{value}
+				{label}
 			</span>
-			<span class="text-muted-foreground text-xs">{sub}</span>
+			<ChevronRightIcon class="ms-auto size-3.5 shrink-0" />
+		</span>
+		<span
+			class={cn(
+				'text-[26px] leading-none font-semibold tabular-nums',
+				live === 'warning' && 'text-warning',
+				live === 'danger' && 'text-destructive',
+				value === 0 && 'text-muted-foreground',
+			)}
+		>
+			{value}
+		</span>
+		<span class="text-muted-foreground truncate text-xs">{sub}</span>
+	{/snippet}
+	{#if isQueue(target)}
+		<button type="button" class={cell} onclick={() => (queue = target)}>
+			{@render body()}
+		</button>
+	{:else}
+		<a href={target} class={cell}>
+			{@render body()}
 		</a>
-	</Card.Root>
+	{/if}
 {/snippet}
 
-{#snippet heading(title: string, sub: string, linkLabel: string | null, href: string | null)}
-	<div class="border-border-strong flex items-baseline justify-between gap-3 border-b-2 pb-2">
-		<h2 class="text-[15px] font-bold">
-			{title}
-			<span class="text-muted-foreground ms-1.5 text-[13px] font-medium">{sub}</span>
-		</h2>
+<!-- A queue tab: the same glyph as its strip segment, its label, and its count -->
+{#snippet tab(
+	value: Queue,
+	Icon: Component<{ class?: string }>,
+	label: string,
+	count: number,
+	tone: 'warning' | 'danger' | null,
+)}
+	<Tabs.Trigger {value} class="min-w-0">
+		<Icon
+			class={cn(
+				'size-4',
+				count > 0 && tone === 'warning' && 'text-warning',
+				count > 0 && tone === 'danger' && 'text-destructive',
+			)}
+		/>
+		<span class="truncate">{label}</span>
+		<span
+			class="bg-muted-foreground/15 text-foreground/80 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-semibold tabular-nums"
+		>
+			{count}
+		</span>
+	</Tabs.Trigger>
+{/snippet}
+
+<!-- One line under the tabs: what the list is, and the page that owns it -->
+{#snippet paneSub(text: string, linkLabel: string | null, href: string | null)}
+	<div
+		class="text-muted-foreground flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-sm"
+	>
+		<span>{text}</span>
 		{#if linkLabel && href}
 			<Button variant="ghost" size="sm" {href} class="-me-2">
 				{linkLabel}

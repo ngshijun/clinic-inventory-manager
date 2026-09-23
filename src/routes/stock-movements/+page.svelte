@@ -341,6 +341,7 @@
 			{/if}
 		</InputGroup.Root>
 		<ToggleGroup.Root
+			class="grid auto-cols-fr grid-flow-col"
 			type="single"
 			variant="outline"
 			value={typeFilter}

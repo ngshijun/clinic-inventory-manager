@@ -620,6 +620,7 @@
 			{/if}
 		</InputGroup.Root>
 		<ToggleGroup.Root
+			class="grid auto-cols-fr grid-flow-col"
 			type="single"
 			variant="outline"
 			value={filter}
@@ -833,7 +834,7 @@
 					<Table.Cell class="py-2.5">
 						<div class="flex justify-end gap-1">
 							<Button
-								variant="outline"
+								variant="ghost"
 								size="icon-sm"
 								aria-label="Stock In…"
 								title="Stock In…"
@@ -842,7 +843,7 @@
 								<ArrowDownToLineIcon />
 							</Button>
 							<Button
-								variant="outline"
+								variant="ghost"
 								size="icon-sm"
 								aria-label="Stock Out…"
 								title="Stock Out…"
