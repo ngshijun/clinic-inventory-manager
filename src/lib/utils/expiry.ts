@@ -30,3 +30,26 @@ export const expiryBadge = (expiryDate: string | null | undefined): ExpiryBadge 
 	}
 	return null
 }
+
+/**
+ * The same state as expiryBadge, as a short phrase that sits after the date
+ * on one line ("12 Oct 2026 · in 18 days"); null while the date is fine.
+ */
+export const expiryNote = (expiryDate: string | null | undefined): ExpiryBadge | null => {
+	if (!expiryDate) return null
+	const status = getExpiryStatus(expiryDate)
+	const days = daysUntilExpiry(expiryDate)
+	if (status === 'expired') {
+		return {
+			tone: 'danger',
+			text: days === -1 ? 'expired yesterday' : `expired ${formatDuration(-days)} ago`,
+		}
+	}
+	if (status === 'expiring') {
+		return {
+			tone: 'warning',
+			text: days === 0 ? 'today' : days === 1 ? 'tomorrow' : `in ${formatDuration(days)}`,
+		}
+	}
+	return null
+}

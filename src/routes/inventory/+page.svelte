@@ -26,7 +26,6 @@
 	import PageHeader from '$lib/components/app/PageHeader.svelte'
 	import ReasonBadge from '$lib/components/app/ReasonBadge.svelte'
 	import SortHeader from '$lib/components/app/SortHeader.svelte'
-	import StatusDot from '$lib/components/app/StatusDot.svelte'
 	import StockOutDialog from '$lib/components/app/StockOutDialog.svelte'
 	import type { SortState } from '$lib/components/app/sort'
 	import ToneBadge, { type Tone } from '$lib/components/app/ToneBadge.svelte'
@@ -50,12 +49,12 @@
 	import type { InventoryItem, NewInventoryItem } from '$lib/types/inventory'
 	import { getExpiryStatus, todayIsoDate, type StockBatch } from '$lib/types/stockBatches'
 	import { formatDate, formatDayMonth } from '$lib/utils/date'
-	import { expiryBadge } from '$lib/utils/expiry'
+	import { expiryNote } from '$lib/utils/expiry'
 	import { cn } from '$lib/utils'
 
 	// ---------- Toolbar state ----------
 	type Filter = 'all' | 'low' | 'out' | 'ordered' | 'untracked'
-	type SortKey = 'item_name' | 'quantity' | 'reorder_level' | 'nearest_expiry' | 'status'
+	type SortKey = 'item_name' | 'quantity' | 'reorder_level' | 'nearest_expiry'
 
 	const FILTERS: Array<{ value: Filter; label: string }> = [
 		{ value: 'all', label: 'All' },
@@ -76,11 +75,13 @@
 	let fileInput = $state<HTMLInputElement | null>(null)
 
 	// ---------- Stock status ----------
-	const stockStatus = (item: InventoryItem): { tone: Tone; text: string; rank: number } => {
-		if (item.not_track) return { tone: 'neutral', text: 'Not tracked', rank: 3 }
-		if (item.quantity === 0) return { tone: 'danger', text: 'Out of stock', rank: 0 }
-		if (item.quantity <= item.reorder_level) return { tone: 'warning', text: 'Low stock', rank: 1 }
-		return { tone: 'success', text: 'In stock', rank: 2 }
+	// In stock is the default and gets no mark; the other three are a badge
+	// after the name, as HealthOS marks only an inactive patient.
+	const stockStatus = (item: InventoryItem): { tone: Tone; text: string } | null => {
+		if (item.not_track) return { tone: 'neutral', text: 'Not tracked' }
+		if (item.quantity === 0) return { tone: 'danger', text: 'Out of stock' }
+		if (item.quantity <= item.reorder_level) return { tone: 'warning', text: 'Low stock' }
+		return null
 	}
 
 	const matchesFilter = (item: InventoryItem): boolean => {
@@ -102,9 +103,6 @@
 	const getNearestExpiry = (item: InventoryItem): string | null =>
 		stockBatchesStore.nearestExpiryByItem.get(item.id) ?? null
 
-	const batchCount = (item: InventoryItem): number =>
-		stockBatchesStore.batchesByItem.get(item.id)?.length ?? 0
-
 	const plural = (count: number, noun: string, many = `${noun}s`): string =>
 		`${count} ${count === 1 ? noun : many}`
 
@@ -116,7 +114,6 @@
 
 		const dir = sort.direction === 'asc' ? 1 : -1
 		const valueOf = (item: InventoryItem): string | number | null => {
-			if (key === 'status') return stockStatus(item).rank
 			if (key === 'nearest_expiry') return getNearestExpiry(item)
 			return item[key as 'item_name' | 'quantity' | 'reorder_level']
 		}
@@ -721,19 +718,19 @@
 				<Table.Head>On hand</Table.Head>
 				<Table.Head>Reorder level</Table.Head>
 				<Table.Head>Nearest expiry</Table.Head>
-				<Table.Head>Status</Table.Head>
+				<Table.Head>Order</Table.Head>
 				<Table.Head><span class="sr-only">Actions</span></Table.Head>
 			</Table.Row>
 		</Table.Header>
 		<Table.Body>
 			{#each { length: 8 } as _, i (i)}
 				<Table.Row>
-					<Table.Cell class="py-3"><Skeleton class="h-4 w-48" /></Table.Cell>
+					<Table.Cell><Skeleton class="h-4 w-48" /></Table.Cell>
 					<Table.Cell><Skeleton class="h-4 w-20" /></Table.Cell>
 					<Table.Cell><Skeleton class="h-4 w-16" /></Table.Cell>
 					<Table.Cell><Skeleton class="h-4 w-24" /></Table.Cell>
-					<Table.Cell><Skeleton class="h-5 w-16 rounded-full" /></Table.Cell>
-					<Table.Cell><Skeleton class="ms-auto h-7 w-24" /></Table.Cell>
+					<Table.Cell><Skeleton class="h-5 w-24 rounded-full" /></Table.Cell>
+					<Table.Cell><Skeleton class="ms-auto h-8 w-24" /></Table.Cell>
 				</Table.Row>
 			{/each}
 		</Table.Body>
@@ -778,15 +775,14 @@
 				<SortHeader key="quantity" {sort} onsort={toggleSort}>On hand</SortHeader>
 				<SortHeader key="reorder_level" {sort} onsort={toggleSort}>Reorder level</SortHeader>
 				<SortHeader key="nearest_expiry" {sort} onsort={toggleSort}>Nearest expiry</SortHeader>
-				<SortHeader key="status" {sort} onsort={toggleSort}>Status</SortHeader>
+				<Table.Head>Order</Table.Head>
 				<Table.Head><span class="sr-only">Actions</span></Table.Head>
 			</Table.Row>
 		</Table.Header>
 		{#each list.visible as item (item.id)}
 			{@const status = stockStatus(item)}
 			{@const nearest = getNearestExpiry(item)}
-			{@const badge = expiryBadge(nearest)}
-			{@const batches = batchCount(item)}
+			{@const note = expiryNote(nearest)}
 			{@const open = expandedIds.has(item.id)}
 			<Table.Body
 				class={cn(
@@ -794,14 +790,8 @@
 						'[&_td]:bg-card outline-border-strong rounded-xl shadow-[0_8px_24px_-16px_rgba(21,32,40,0.35)] outline -outline-offset-1 [&>tr:first-child>td:first-child]:rounded-tl-xl [&>tr:first-child>td:last-child]:rounded-tr-xl [&>tr:last-child>td]:border-b-0 [&>tr:last-child>td:first-child]:rounded-bl-xl [&>tr:last-child>td:last-child]:rounded-br-xl',
 				)}
 			>
-				<!-- Status is a stripe on the leading edge; it steps aside while the item is open. -->
-				<Table.Row
-					class={cn(
-						!open && status.tone === 'danger' && 'shadow-[inset_3px_0_0_var(--destructive)]',
-						!open && status.tone === 'warning' && 'shadow-[inset_3px_0_0_var(--warning)]',
-					)}
-				>
-					<Table.Cell class="w-9 py-2.5 ps-1 pe-0">
+				<Table.Row>
+					<Table.Cell class="w-9 ps-1 pe-0">
 						<Button
 							variant="ghost"
 							size="icon-sm"
@@ -815,10 +805,42 @@
 							<ChevronRightIcon />
 						</Button>
 					</Table.Cell>
-					<Table.Cell class="max-w-md min-w-56 py-2.5 whitespace-normal">
-						<div class="font-medium break-words">{item.item_name}</div>
+					<Table.Cell class="font-medium">
+						<span class="inline-flex items-center gap-2">
+							{item.item_name}
+							{#if status}
+								<ToneBadge tone={status.tone}>{status.text}</ToneBadge>
+							{/if}
+						</span>
+					</Table.Cell>
+					<Table.Cell class="tabular-nums">{item.quantity} {item.unit}</Table.Cell>
+					<Table.Cell class="tabular-nums">
+						{#if item.reorder_level < 0 || item.not_track}
+							<span class="text-muted-foreground">—</span>
+						{:else}
+							{item.reorder_level} {item.unit}
+						{/if}
+					</Table.Cell>
+					<Table.Cell class="tabular-nums">
+						{#if nearest}
+							{formatDate(nearest)}
+							{#if note}
+								<span
+									class={cn(
+										'ms-1 text-xs',
+										note.tone === 'danger' ? 'text-destructive' : 'text-warning',
+									)}
+								>
+									{note.text}
+								</span>
+							{/if}
+						{:else}
+							<span class="text-muted-foreground">—</span>
+						{/if}
+					</Table.Cell>
+					<Table.Cell>
 						{#if item.order_date}
-							<ToneBadge tone="info" class="mt-1">
+							<ToneBadge tone="info">
 								{#if item.back_order}
 									<ClockIcon />
 									Back-ordered {formatDayMonth(item.order_date)}
@@ -828,39 +850,12 @@
 								{/if}
 							</ToneBadge>
 						{:else if item.non_order_reason}
-							<ReasonBadge reason={item.non_order_reason} class="mt-1" />
-						{:else if batches > 0}
-							<div class="text-muted-foreground mt-0.5 text-xs">
-								{plural(batches, 'batch', 'batches')}{open && batches > 1
-									? ' · Stock Out takes the earliest expiry first'
-									: ''}
-							</div>
-						{:else if !item.not_track}
-							<div class="text-muted-foreground mt-0.5 text-xs">No stock</div>
-						{/if}
-					</Table.Cell>
-					<Table.Cell class="py-2.5 tabular-nums">{item.quantity} {item.unit}</Table.Cell>
-					<Table.Cell class="py-2.5 tabular-nums">
-						{#if item.reorder_level < 0 || item.not_track}
-							<span class="text-muted-foreground">—</span>
-						{:else}
-							{item.reorder_level} {item.unit}
-						{/if}
-					</Table.Cell>
-					<Table.Cell class="py-2.5 tabular-nums">
-						{#if nearest}
-							<div>{formatDate(nearest)}</div>
-							{#if badge}
-								<ToneBadge tone={badge.tone} class="mt-1">{badge.text}</ToneBadge>
-							{/if}
+							<ReasonBadge reason={item.non_order_reason} size="md" />
 						{:else}
 							<span class="text-muted-foreground">—</span>
 						{/if}
 					</Table.Cell>
-					<Table.Cell class="py-2.5">
-						<StatusDot tone={status.tone}>{status.text}</StatusDot>
-					</Table.Cell>
-					<Table.Cell class="py-2.5">
+					<Table.Cell>
 						<div class="flex justify-end gap-1">
 							<Button
 								variant="ghost"
@@ -912,13 +907,10 @@
 					{@const itemBatches = stockBatchesStore.getBatchesForItem(item.id)}
 					{#if itemBatches.length === 0}
 						<Table.Row>
-							<Table.Cell class="py-2"></Table.Cell>
-							<Table.Cell colspan={6} class="py-2.5 whitespace-normal">
-								<div class="flex flex-wrap items-center justify-between gap-3">
-									<div>
-										<div class="text-sm font-medium">No stock on hand</div>
-										<div class="text-muted-foreground text-xs">Stock In adds the first batch.</div>
-									</div>
+							<Table.Cell></Table.Cell>
+							<Table.Cell colspan={6}>
+								<div class="flex items-center justify-between gap-3">
+									<span class="text-muted-foreground">No stock on hand</span>
 									<Button variant="outline" size="sm" onclick={() => openStockIn(item)}>
 										<ArrowDownToLineIcon data-icon="inline-start" />
 										Stock In…
@@ -930,23 +922,23 @@
 						<!-- One lighter row per batch, in stock-out (FEFO) order, using the item's own columns. -->
 						{#each itemBatches as batch, index (batch.id)}
 							{@const editing = editingBatchId === batch.id}
-							{@const batchBadge = expiryBadge(batch.expiry_date)}
+							{@const batchNote = expiryNote(batch.expiry_date)}
 							<Table.Row class={cn('text-foreground/85', editing && '[&>td]:bg-muted/60!')}>
-								<Table.Cell class="py-2"></Table.Cell>
-								<Table.Cell class="py-2 whitespace-normal">
-									<div class="flex items-center gap-2 text-sm">
+								<Table.Cell></Table.Cell>
+								<Table.Cell>
+									<span class="inline-flex items-center gap-2">
 										<span
 											class="bg-muted text-muted-foreground flex size-5 shrink-0 items-center justify-center rounded-md text-[11px] font-semibold tabular-nums"
 										>
 											{index + 1}
 										</span>
 										<span class="text-foreground font-medium">Batch {index + 1}</span>
-									</div>
-									<div class="text-muted-foreground mt-0.5 ps-7 text-xs">
-										Received {formatDate(batch._creationTime)}
-									</div>
+										<span class="text-muted-foreground text-xs">
+											received {formatDate(batch._creationTime)}
+										</span>
+									</span>
 								</Table.Cell>
-								<Table.Cell class="py-2 tabular-nums">
+								<Table.Cell class="tabular-nums">
 									{#if editing}
 										<Input
 											id="batch-quantity"
@@ -963,8 +955,8 @@
 										<span class="text-foreground font-medium">{batch.quantity} {item.unit}</span>
 									{/if}
 								</Table.Cell>
-								<Table.Cell class="py-2"></Table.Cell>
-								<Table.Cell class="py-2 tabular-nums">
+								<Table.Cell></Table.Cell>
+								<Table.Cell class="tabular-nums">
 									{#if editing}
 										<Input
 											type="date"
@@ -974,16 +966,23 @@
 											onkeydown={onBatchKeydown}
 										/>
 									{:else if batch.expiry_date}
-										<div>{formatDate(batch.expiry_date)}</div>
-										{#if batchBadge}
-											<ToneBadge tone={batchBadge.tone} class="mt-1">{batchBadge.text}</ToneBadge>
+										{formatDate(batch.expiry_date)}
+										{#if batchNote}
+											<span
+												class={cn(
+													'ms-1 text-xs',
+													batchNote.tone === 'danger' ? 'text-destructive' : 'text-warning',
+												)}
+											>
+												{batchNote.text}
+											</span>
 										{/if}
 									{:else}
 										<span class="text-muted-foreground">No expiry</span>
 									{/if}
 								</Table.Cell>
-								<Table.Cell class="py-2"></Table.Cell>
-								<Table.Cell class="py-2">
+								<Table.Cell></Table.Cell>
+								<Table.Cell>
 									<div class="flex justify-end gap-1">
 										{#if editing}
 											<Button

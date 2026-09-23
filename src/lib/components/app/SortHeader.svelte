@@ -37,7 +37,7 @@
 	<button
 		type="button"
 		class={cn(
-			'text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 flex h-10 w-full items-center gap-1 px-2 text-xs font-semibold tracking-wide uppercase outline-none focus-visible:ring-3 focus-visible:ring-inset',
+			'text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 flex h-10 w-full items-center gap-1 px-3 text-xs font-semibold tracking-wide uppercase outline-none focus-visible:ring-3 focus-visible:ring-inset',
 			align === 'end' && 'justify-end',
 			active && 'text-foreground',
 		)}
