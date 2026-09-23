@@ -44,7 +44,7 @@
 	import { cn } from '$lib/utils'
 
 	// ---------- Toolbar state ----------
-	type SortKey = 'item_name' | 'quantity' | 'status'
+	type SortKey = 'item_name' | 'created_at' | 'quantity' | 'status'
 
 	let searchQuery = $state('')
 	let searchInput = $state<HTMLInputElement | null>(null)
@@ -69,12 +69,9 @@
 	const plural = (count: number, noun: string): string =>
 		`${count} ${count === 1 ? noun : `${noun}s`}`
 
-	/** "Requested today, 14:05" or "Requested 22 Sep, 16:20" */
-	const requestedLabel = (request: StockRequest): string => {
-		const day =
-			localDateKey(request.created_at) === todayKey ? 'today' : formatDayMonth(request.created_at)
-		return `Requested ${day}, ${formatTime(request.created_at)}`
-	}
+	/** "Today" or "22 Sep"; the time follows in the cell */
+	const requestedDay = (request: StockRequest): string =>
+		localDateKey(request.created_at) === todayKey ? 'Today' : formatDayMonth(request.created_at)
 
 	const sortedRequests = $derived.by((): StockRequest[] => {
 		const rows = requests.filter(
@@ -88,6 +85,7 @@
 				return dir * a.item_name.toLowerCase().localeCompare(b.item_name.toLowerCase())
 			}
 			if (key === 'quantity') return dir * (a.quantity - b.quantity)
+			if (key === 'created_at') return dir * a.created_at.localeCompare(b.created_at)
 			return dir * (STATUS_RANK[a.status] - STATUS_RANK[b.status])
 		})
 	})
@@ -308,8 +306,9 @@
 		<Table.Body>
 			{#each { length: 6 } as _, i (i)}
 				<Table.Row>
-					<Table.Cell class="py-3"><Skeleton class="size-4 rounded-[4px]" /></Table.Cell>
+					<Table.Cell><Skeleton class="size-4 rounded-[4px]" /></Table.Cell>
 					<Table.Cell><Skeleton class="h-4 w-44" /></Table.Cell>
+					<Table.Cell><Skeleton class="h-4 w-24" /></Table.Cell>
 					<Table.Cell><Skeleton class="h-4 w-16" /></Table.Cell>
 					<Table.Cell><Skeleton class="h-4 w-16" /></Table.Cell>
 					<Table.Cell><Skeleton class="h-4 w-40" /></Table.Cell>
@@ -366,9 +365,10 @@
 					/>
 				</Table.Head>
 				<SortHeader key="item_name" {sort} onsort={toggleSort}>Item</SortHeader>
+				<SortHeader key="created_at" {sort} onsort={toggleSort}>Requested</SortHeader>
 				<SortHeader key="quantity" {sort} onsort={toggleSort}>Quantity</SortHeader>
 				<Table.Head>On hand</Table.Head>
-				<Table.Head class="w-[30%]">Remark</Table.Head>
+				<Table.Head class="w-[26%]">Remark</Table.Head>
 				<SortHeader key="status" {sort} onsort={toggleSort}>Status</SortHeader>
 				<Table.Head><span class="sr-only">Actions</span></Table.Head>
 			</Table.Row>
@@ -383,7 +383,7 @@
 					data-state={checked ? 'selected' : undefined}
 					class={cn(short && 'shadow-[inset_2px_0_0_var(--destructive)]')}
 				>
-					<Table.Cell class="py-2.5 pe-0">
+					<Table.Cell class="pe-0">
 						{#if pending}
 							<Checkbox
 								{checked}
@@ -392,14 +392,15 @@
 							/>
 						{/if}
 					</Table.Cell>
-					<Table.Cell class="max-w-md min-w-48 py-2.5 whitespace-normal">
-						<div class="font-medium break-words">{request.item_name}</div>
-						<div class="text-muted-foreground mt-0.5 text-xs">{requestedLabel(request)}</div>
+					<Table.Cell class="font-medium">{request.item_name}</Table.Cell>
+					<Table.Cell class="tabular-nums">
+						{requestedDay(request)}
+						<span class="text-muted-foreground ms-1 text-xs">{formatTime(request.created_at)}</span>
 					</Table.Cell>
-					<Table.Cell class={cn('py-2.5 tabular-nums', pending && 'font-semibold')}>
+					<Table.Cell class={cn('tabular-nums', pending && 'font-semibold')}>
 						{withUnit(request.quantity, request.unit)}
 					</Table.Cell>
-					<Table.Cell class="py-2.5 tabular-nums">
+					<Table.Cell class="tabular-nums">
 						{#if short}
 							<ToneBadge tone="danger">
 								<TriangleAlertIcon />
@@ -411,17 +412,18 @@
 							</span>
 						{/if}
 					</Table.Cell>
-					<Table.Cell class="py-2.5 whitespace-normal">
+					<!-- One line: the full remark is the title and opens in Edit Request. -->
+					<Table.Cell class="max-w-0">
 						{#if request.remark}
-							<div class="text-foreground/80 break-words whitespace-pre-wrap">{request.remark}</div>
+							<div class="text-foreground/80 truncate" title={request.remark}>{request.remark}</div>
 						{:else}
 							<span class="text-muted-foreground">No remark</span>
 						{/if}
 					</Table.Cell>
-					<Table.Cell class="py-2.5">
+					<Table.Cell>
 						<ToneBadge tone={STATUS_TONE[request.status]}>{request.status}</ToneBadge>
 					</Table.Cell>
-					<Table.Cell class="py-2.5">
+					<Table.Cell>
 						<div class="flex items-center justify-end gap-1">
 							{#if pending}
 								<Tooltip.Root>
