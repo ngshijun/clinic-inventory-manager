@@ -537,7 +537,7 @@
 <ActionModal
 	bind:open={showDelete}
 	title={`Delete the ${deleting ? periodLabel(deleting) : ''} Record?`}
-	description="Every employee's frozen figures for that month are removed, and the payslips with them. This cannot be undone."
+	description="That month's saved payroll and its payslips are deleted. This cannot be undone."
 	loading={payrollRecordsStore.loading}
 	confirmText="Delete"
 	onconfirm={confirmDelete}

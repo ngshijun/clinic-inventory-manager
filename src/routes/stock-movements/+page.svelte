@@ -436,7 +436,6 @@
 									aria-label="Maximum quantity"
 								/>
 							</div>
-							<Field.Description>Min and max, in the item's unit.</Field.Description>
 						</Field.Field>
 						<Field.Field>
 							<Field.Label for="filter-remark">Remark contains</Field.Label>
@@ -455,10 +454,6 @@
 								placeholder="Any item"
 							/>
 						</Field.Field>
-						<p class="text-muted-foreground text-xs">
-							Quantity, remark and item filters apply page by page, so the total is shown only when
-							they are empty.
-						</p>
 					</Field.Group>
 					<div class="mt-4 flex items-center justify-between gap-2">
 						<Button type="button" variant="ghost" size="sm" onclick={clearFilterDraft}>Clear</Button

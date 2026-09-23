@@ -60,12 +60,7 @@
 
 			<div class="flex flex-1 items-center justify-center py-8 lg:py-0">
 				<form onsubmit={handleLogin} class="flex w-full max-w-sm flex-col gap-5" novalidate>
-					<div class="flex flex-col gap-1.5 text-center">
-						<h1 class="text-2xl font-extrabold tracking-tight">Sign in</h1>
-						<p class="text-muted-foreground text-sm text-balance">
-							Enter the clinic password to continue.
-						</p>
-					</div>
+					<h1 class="text-center text-2xl font-extrabold tracking-tight">Sign in</h1>
 
 					{#if error}
 						<Alert.Root variant="destructive" class="border-destructive/40">

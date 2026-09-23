@@ -593,8 +593,8 @@
 		bind:open={showSave}
 		title={existingRun ? `Overwrite ${periodLabel}?` : `Save ${periodLabel}?`}
 		description={existingRun
-			? `Saved on ${formatDate(existingRun.updated_at)}. Saving again replaces those figures.`
-			: 'Freezes the figures on screen and unlocks the payslips.'}
+			? `Saved on ${formatDate(existingRun.updated_at)}. Saving again replaces that month's payroll.`
+			: "Saves this month's payroll and makes the payslips ready to download."}
 		loading={payrollRecordsStore.loading}
 		confirmText={existingRun ? 'Overwrite Record' : 'Save Record'}
 		onconfirm={confirmSave}
