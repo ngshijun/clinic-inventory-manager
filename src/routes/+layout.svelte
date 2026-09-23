@@ -14,7 +14,6 @@
 	import WifiOffIcon from '@lucide/svelte/icons/wifi-off'
 	import * as Sidebar from '$lib/components/ui/sidebar'
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb'
-	import * as Alert from '$lib/components/ui/alert'
 	import { Toaster } from '$lib/components/ui/sonner'
 	import AppSidebar from '$lib/components/app/AppSidebar.svelte'
 	import { breadcrumbs } from '$lib/components/app/breadcrumbs.svelte'
@@ -108,19 +107,17 @@
 						{/each}
 					</Breadcrumb.List>
 				</Breadcrumb.Root>
+				{#if connection.isOffline}
+					<!-- A quiet status, the way Gmail and Slack show a dropped socket: no alert, no prose. -->
+					<span
+						role="status"
+						class="text-muted-foreground ms-auto inline-flex items-center gap-1.5 text-xs"
+					>
+						<WifiOffIcon class="size-3.5" />
+						Reconnecting…
+					</span>
+				{/if}
 			</header>
-
-			{#if !connection.isConnected}
-				<div class="px-4 pb-2 sm:px-6">
-					<Alert.Root>
-						<WifiOffIcon />
-						<Alert.Title>Offline</Alert.Title>
-						<Alert.Description>
-							Reconnecting. Changes made now are sent once the connection is back.
-						</Alert.Description>
-					</Alert.Root>
-				</div>
-			{/if}
 
 			<!-- A size container, so a page can size itself to the visible region with cqh. -->
 			<div
