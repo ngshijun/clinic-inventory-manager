@@ -34,8 +34,11 @@
 		stockBatchesStore.initializeStore()
 		stockMovementsStore.initializeStore()
 		stockRequestsStore.initializeStore()
-		payrollStore.initializeStore()
-		payrollRecordsStore.initializeStore()
+		// Payroll queries reject any other role, so a requester never subscribes to them.
+		if (authStore.user?.role === 'manager') {
+			payrollStore.initializeStore()
+			payrollRecordsStore.initializeStore()
+		}
 	}
 
 	function cleanupStores() {
@@ -54,9 +57,10 @@
 	}
 
 	// The stores are initialised on every transition into the authenticated
-	// state, including the first one when the session is restored from localStorage.
+	// state, including the first one when the session is restored from localStorage,
+	// and again if the server corrects the restored role (each store initialises once).
 	$effect(() => {
-		if (authStore.isAuthenticated) initStores()
+		if (authStore.isAuthenticated && authStore.user) initStores()
 	})
 
 	/*
