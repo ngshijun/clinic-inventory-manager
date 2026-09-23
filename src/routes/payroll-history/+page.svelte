@@ -1,17 +1,30 @@
 <script lang="ts">
-	import ActionButtonGroup, {
-		type ActionButtonGroupAction,
-	} from '$lib/components/app/ActionButtonGroup.svelte'
+	import { untrack } from 'svelte'
+	import { goto } from '$app/navigation'
+	import { page } from '$app/state'
+	import { toast } from 'svelte-sonner'
+	import EllipsisIcon from '@lucide/svelte/icons/ellipsis'
+	import FileTextIcon from '@lucide/svelte/icons/file-text'
+	import HistoryIcon from '@lucide/svelte/icons/history'
+	import LockIcon from '@lucide/svelte/icons/lock'
+	import Trash2Icon from '@lucide/svelte/icons/trash-2'
+	import UsersIcon from '@lucide/svelte/icons/users'
 	import ActionModal from '$lib/components/app/ActionModal.svelte'
-	import EmptyState from '$lib/components/app/EmptyState.svelte'
-	import ErrorAlert from '$lib/components/app/ErrorAlert.svelte'
-	import LoadingSpinner from '$lib/components/app/LoadingSpinner.svelte'
-	import CalendarIcon from '$lib/components/icons/CalendarIcon.svelte'
-	import WarningTriangleIcon from '$lib/components/icons/WarningTriangleIcon.svelte'
-	import { Button } from '$lib/components/ui/button/index.js'
-	import * as Table from '$lib/components/ui/table/index.js'
+	import PageHeader from '$lib/components/app/PageHeader.svelte'
+	import { Button } from '$lib/components/ui/button'
+	import * as Card from '$lib/components/ui/card'
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu'
+	import * as Empty from '$lib/components/ui/empty'
+	import { Label } from '$lib/components/ui/label'
+	import { Skeleton } from '$lib/components/ui/skeleton'
+	import { Switch } from '$lib/components/ui/switch'
+	import * as Table from '$lib/components/ui/table'
+	import * as ToggleGroup from '$lib/components/ui/toggle-group'
+	import * as Tooltip from '$lib/components/ui/tooltip'
+	import { useErrorToast } from '$lib/composables/errorToast.svelte'
 	import {
 		allPayslipsFilename,
+		formatPeriod,
 		generatePayslipPdf,
 		payslipFilename,
 		type PayslipEmployee,
@@ -22,104 +35,97 @@
 		type PayrollRun,
 		type PayrollRunItem,
 	} from '$lib/stores/payrollRecords.svelte'
+	import { formatDateTime } from '$lib/utils/date'
+	import { formatAmount, formatRM } from '$lib/utils/money'
+	import { cn } from '$lib/utils'
 
+	useErrorToast(() => payrollRecordsStore.error)
+
+	const runs = $derived(payrollRecordsStore.runs)
+	const initialLoading = $derived(payrollRecordsStore.loading && runs.length === 0)
+
+	const plural = (count: number, noun: string): string =>
+		`${count} ${count === 1 ? noun : `${noun}s`}`
+
+	const MASK = '••••••'
 	let showSalaries = $state(false)
-	let selectedRunId = $state<string | null>(null)
+	const rm = (amount: number): string => (showSalaries ? formatRM(amount) : MASK)
+	const amount = (value: number): string => (showSalaries ? formatAmount(value) : MASK)
 
-	// Delete modal variables
-	let showDeleteModal = $state(false)
-	let deleteRun = $state<PayrollRun | null>(null)
-	let deleteLoading = $state(false)
-	let deleteConfirmation = $state(false)
+	const periodOf = (run: PayrollRun): { month: number; year: number } => ({
+		month: run.month,
+		year: run.year,
+	})
+	const periodLabel = (run: PayrollRun): string => formatPeriod(periodOf(run))
+	/** A record saved again after it was first created */
+	const wasOverwritten = (run: PayrollRun): boolean => run.finalized_at - run._creationTime > 60_000
 
-	// Numeric columns rendered in the detail table, in display order
-	type AmountKey = Extract<
-		keyof PayrollRunItem,
-		| 'basic_salary'
-		| 'epf_employer'
-		| 'epf_employee'
-		| 'socso_employer'
-		| 'socso_employee'
-		| 'eis_employer'
-		| 'eis_employee'
-		| 'lindung_24_jam'
-		| 'pcb'
-		| 'cp38'
-		| 'net_salary'
-	>
-
-	const allAmountColumns: Array<{ key: AmountKey; label: string }> = [
-		{ key: 'basic_salary', label: 'Basic Salary' },
-		{ key: 'epf_employer', label: 'EPF Employer' },
-		{ key: 'epf_employee', label: 'EPF Employee' },
-		{ key: 'socso_employer', label: 'SOCSO Employer' },
-		{ key: 'socso_employee', label: 'SOCSO Employee' },
-		{ key: 'eis_employer', label: 'EIS Employer' },
-		{ key: 'eis_employee', label: 'EIS Employee' },
-		{ key: 'lindung_24_jam', label: 'Lindung 24 Jam' },
-		{ key: 'pcb', label: 'PCB' },
-		{ key: 'cp38', label: 'CP38' },
-		{ key: 'net_salary', label: 'Net Salary' },
-	]
-
-	const selectedRun = $derived(
-		payrollRecordsStore.runs.find((run) => run.id === selectedRunId) || null,
+	// ---------- Record detail: ?run=<id> ----------
+	const selectedRun = $derived.by((): PayrollRun | null => {
+		const id = page.url.searchParams.get('run')
+		return id ? (runs.find((run) => run.id === id) ?? null) : null
+	})
+	const items = $derived(selectedRun ? payrollRecordsStore.getItems(selectedRun.id) : [])
+	const itemsLoaded = $derived(
+		selectedRun !== null && selectedRun.id in payrollRecordsStore.itemsByRun,
 	)
 
-	// Periods before June 2026 predate Lindung 24 Jam, so the column is meaningless there
-	const amountColumns = $derived(
-		selectedRun && !payrollStore.isLindung24Applicable(selectedRun.year, selectedRun.month)
-			? allAmountColumns.filter((column) => column.key !== 'lindung_24_jam')
-			: allAmountColumns,
+	// ---------- Year segments ----------
+	const years = $derived([...new Set(runs.map((run) => run.year))].sort((a, b) => b - a))
+	let chosenYear = $state<number | null>(null)
+	const year = $derived(chosenYear !== null && years.includes(chosenYear) ? chosenYear : years[0])
+	const yearRuns = $derived(
+		runs.filter((run) => run.year === year).sort((a, b) => b.month - a.month),
 	)
 
-	const selectedItems = $derived(selectedRunId ? payrollRecordsStore.getItems(selectedRunId) : [])
-
-	const totals = $derived.by(() => {
-		const result = Object.fromEntries(amountColumns.map((column) => [column.key, 0])) as Record<
-			AmountKey,
-			number
-		>
-
-		selectedItems.forEach((item) => {
-			amountColumns.forEach((column) => {
-				result[column.key] += item[column.key]
-			})
+	// Each listed month needs its items for the three figures; they stay live once loaded
+	$effect(() => {
+		const wanted = selectedRun ? [selectedRun, ...yearRuns] : yearRuns
+		const loaded = payrollRecordsStore.itemsByRun
+		const missing = wanted.filter((run) => !(run.id in loaded))
+		untrack(() => {
+			for (const run of missing) void payrollRecordsStore.fetchRunItems(run.id)
 		})
-
-		return result
 	})
 
-	const monthNames = [
-		'January',
-		'February',
-		'March',
-		'April',
-		'May',
-		'June',
-		'July',
-		'August',
-		'September',
-		'October',
-		'November',
-		'December',
-	]
+	// ---------- Figures ----------
+	const round = (value: number): number => Math.round(value * 100) / 100
+	const sumOf = (rows: PayrollRunItem[], pick: (row: PayrollRunItem) => number): number =>
+		round(rows.reduce((total, row) => total + pick(row), 0))
 
-	const formatPeriodLabel = (run: Pick<PayrollRun, 'month' | 'year'>): string =>
-		`${monthNames[run.month - 1]} ${run.year}`
+	const summary = (rows: PayrollRunItem[]) => ({
+		basic: sumOf(rows, (r) => r.basic_salary),
+		epfEmployer: sumOf(rows, (r) => r.epf_employer),
+		epfEmployee: sumOf(rows, (r) => r.epf_employee),
+		socsoEmployer: sumOf(rows, (r) => r.socso_employer),
+		socsoEmployee: sumOf(rows, (r) => r.socso_employee),
+		eisEmployer: sumOf(rows, (r) => r.eis_employer),
+		eisEmployee: sumOf(rows, (r) => r.eis_employee),
+		lindung: sumOf(rows, (r) => r.lindung_24_jam),
+		pcb: sumOf(rows, (r) => r.pcb),
+		cp38: sumOf(rows, (r) => r.cp38),
+		net: sumOf(rows, (r) => r.net_salary),
+	})
 
-	const formatTimestamp = (timestamp: string | number): string =>
-		new Date(timestamp).toLocaleString('en-GB', {
-			day: '2-digit',
-			month: 'short',
-			year: 'numeric',
-			hour: '2-digit',
-			minute: '2-digit',
-		})
+	const totals = $derived(summary(items))
+	const employerTotal = $derived(
+		round(totals.epfEmployer + totals.socsoEmployer + totals.eisEmployer),
+	)
+	const deductionsTotal = $derived(
+		round(
+			totals.epfEmployee +
+				totals.socsoEmployee +
+				totals.eisEmployee +
+				totals.lindung +
+				totals.pcb +
+				totals.cp38,
+		),
+	)
+	const lindungApplies = $derived(
+		selectedRun ? payrollStore.isLindung24Applicable(selectedRun.year, selectedRun.month) : false,
+	)
 
-	const formatCurrency = (amount: number): string =>
-		amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
-
+	// ---------- Payslips ----------
 	const toPayslipEmployee = (item: PayrollRunItem): PayslipEmployee => ({
 		name: item.employee_name,
 		basicSalary: item.basic_salary,
@@ -135,385 +141,404 @@
 		netSalary: item.net_salary,
 	})
 
-	const openRun = async (run: PayrollRun) => {
-		selectedRunId = run.id
-		// Items are loaded on demand, and dropped from the cache when they change
-		if (!payrollRecordsStore.getItems(run.id).length) {
-			await payrollRecordsStore.fetchRunItems(run.id)
-		}
-	}
-
-	const backToList = () => {
-		selectedRunId = null
-	}
-
-	const downloadPayslip = (item: PayrollRunItem) => {
-		if (!selectedRun) return
-		const period = { month: selectedRun.month, year: selectedRun.year }
+	const downloadPayslip = (run: PayrollRun, item: PayrollRunItem): void => {
+		const period = periodOf(run)
 		generatePayslipPdf(
 			[toPayslipEmployee(item)],
 			period,
 			payslipFilename(item.employee_name, period),
 		)
+		toast.success(`Payslip for ${item.employee_name} downloaded`)
 	}
 
-	const downloadAllPayslips = () => {
-		if (!selectedRun || !selectedItems.length) return
-		const period = { month: selectedRun.month, year: selectedRun.year }
-		generatePayslipPdf(selectedItems.map(toPayslipEmployee), period, allPayslipsFilename(period))
-	}
-
-	// Action button configurations
-	const getRunActions = (): Array<ActionButtonGroupAction> => [
-		{
-			key: 'view',
-			label: 'View Record',
-			variant: 'blue',
-		},
-		{
-			key: 'delete',
-			label: 'Delete',
-			variant: 'red',
-		},
-	]
-
-	const handleActionClick = (actionKey: string, run: PayrollRun) => {
-		switch (actionKey) {
-			case 'view':
-				openRun(run)
-				break
-			case 'delete':
-				openDeleteModal(run)
-				break
+	const downloadAllPayslips = async (run: PayrollRun): Promise<void> => {
+		const rows = await payrollRecordsStore.fetchRunItems(run.id)
+		if (rows.length === 0) {
+			toast.error(`${periodLabel(run)} has no employees, so there are no payslips.`)
+			return
 		}
+		const period = periodOf(run)
+		generatePayslipPdf(rows.map(toPayslipEmployee), period, allPayslipsFilename(period))
+		toast.success(`${periodLabel(run)} payslips downloaded`)
 	}
 
-	const openDeleteModal = (run: PayrollRun) => {
-		deleteRun = { ...run }
-		showDeleteModal = true
-		deleteConfirmation = false
+	// ---------- Delete ----------
+	let showDelete = $state(false)
+	let deleting = $state<PayrollRun | null>(null)
+
+	const openDelete = (run: PayrollRun): void => {
+		deleting = run
+		showDelete = true
 	}
 
-	const confirmDeleteRun = async () => {
-		if (!deleteRun) return
+	const closeDelete = (): void => {
+		showDelete = false
+		deleting = null
+	}
 
-		deleteLoading = true
-		try {
-			const deletedId = deleteRun.id
-			const success = await payrollRecordsStore.deletePayrollRun(deletedId)
-			if (success && selectedRunId === deletedId) selectedRunId = null
-			cancelDeleteRun()
-		} finally {
-			deleteLoading = false
+	const confirmDelete = async (): Promise<void> => {
+		if (!deleting) return
+		const target = deleting
+		if (await payrollRecordsStore.deletePayrollRun(target.id)) {
+			toast.success(`Deleted the ${periodLabel(target)} record`)
+			closeDelete()
+			if (selectedRun?.id === target.id) await goto('/payroll-history')
 		}
-	}
-
-	const cancelDeleteRun = () => {
-		showDeleteModal = false
-		deleteRun = null
-		deleteConfirmation = false
-		deleteLoading = false
 	}
 </script>
 
-<div class="px-2 py-3 sm:px-0 sm:py-6">
-	<div class="rounded-lg border-4 border-dashed border-gray-200 p-3 sm:p-6">
-		<!-- Header -->
-		<div class="mb-4 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between">
-			<h2 class="text-xl font-bold text-gray-900 sm:text-2xl">
-				{selectedRun ? `Payroll Record: ${formatPeriodLabel(selectedRun)}` : 'Payroll History'}
-			</h2>
-			{#if selectedRun}
-				<div class="flex flex-col gap-2 sm:flex-row">
-					<Button variant="gray" class="w-full sm:w-auto" onclick={backToList}>
-						Back to History
+{#if selectedRun}
+	{@const run = selectedRun}
+	<!-- ===== Record detail ===== -->
+	<PageHeader
+		title={periodLabel(run)}
+		crumbs={[{ label: 'Payroll History', href: '/payroll-history' }]}
+	>
+		<div class="text-muted-foreground flex min-w-0 flex-1 items-center gap-1.5 text-sm">
+			<LockIcon class="size-3.5 shrink-0" />
+			<span>
+				Saved {formatDateTime(run.finalized_at)} · frozen, not affected by later employee changes
+			</span>
+		</div>
+		<div class="flex items-center gap-2">
+			<Switch id="show-salaries-detail" bind:checked={showSalaries} />
+			<Label for="show-salaries-detail">Show Salaries</Label>
+		</div>
+		<DropdownMenu.Root>
+			<DropdownMenu.Trigger>
+				{#snippet child({ props })}
+					<Button {...props} variant="ghost" size="icon" aria-label="More">
+						<EllipsisIcon />
 					</Button>
-					<button
-						onclick={downloadAllPayslips}
-						disabled={!selectedItems.length}
-						class="w-full rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700 disabled:opacity-50 sm:w-auto"
-					>
-						Download All Payslips
-					</button>
-				</div>
-			{/if}
+				{/snippet}
+			</DropdownMenu.Trigger>
+			<DropdownMenu.Content align="end">
+				<DropdownMenu.Group>
+					<DropdownMenu.Item variant="destructive" onclick={() => openDelete(run)}>
+						<Trash2Icon />
+						Delete Record…
+					</DropdownMenu.Item>
+				</DropdownMenu.Group>
+			</DropdownMenu.Content>
+		</DropdownMenu.Root>
+		<Button onclick={() => downloadAllPayslips(run)} disabled={items.length === 0}>
+			<FileTextIcon data-icon="inline-start" />
+			Download All Payslips
+		</Button>
+	</PageHeader>
+
+	{#if !itemsLoaded}
+		<div class="grid grid-cols-2 gap-3 xl:grid-cols-4">
+			{#each { length: 4 } as _, i (i)}
+				<Card.Root size="sm">
+					<Card.Content class="flex flex-col gap-2">
+						<Skeleton class="h-3 w-28" />
+						<Skeleton class="h-7 w-32" />
+						<Skeleton class="h-3 w-24" />
+					</Card.Content>
+				</Card.Root>
+			{/each}
+		</div>
+		<Skeleton class="h-48 rounded-md" />
+	{:else if items.length === 0}
+		<Empty.Root class="my-auto">
+			<Empty.Header>
+				<Empty.Media variant="icon">
+					<UsersIcon />
+				</Empty.Media>
+				<Empty.Title>No employees in this record</Empty.Title>
+				<Empty.Description>
+					{periodLabel(run)} was saved with nobody on the payroll.
+				</Empty.Description>
+			</Empty.Header>
+			<Empty.Content>
+				<Button variant="outline" href="/payroll-history">Back to Payroll History</Button>
+			</Empty.Content>
+		</Empty.Root>
+	{:else}
+		<div class="grid grid-cols-2 gap-3 xl:grid-cols-4">
+			{@render stat('Basic salary', totals.basic, plural(items.length, 'employee'))}
+			{@render stat('Employer contributions', employerTotal, 'EPF, SOCSO and EIS')}
+			{@render stat(
+				'Employee deductions',
+				deductionsTotal,
+				lindungApplies ? 'With Lindung 24 Jam, PCB and CP38' : 'With PCB and CP38',
+			)}
+			{@render stat('Net pay', totals.net, 'Paid out')}
 		</div>
 
-		<!-- Error Alert -->
-		{#if payrollRecordsStore.error}
-			<div class="mb-4 sm:mb-6">
-				<ErrorAlert title="Error" message={payrollRecordsStore.error} />
-			</div>
-		{/if}
-
-		<!-- Show Salaries Toggle -->
-		{#if payrollRecordsStore.runs.length > 0}
-			<div class="mb-4 flex items-center gap-2 sm:mb-6">
-				<input
-					id="show-salaries-history"
-					bind:checked={showSalaries}
-					type="checkbox"
-					class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-				/>
-				<label for="show-salaries-history" class="text-sm font-medium text-gray-700">
-					Show Salaries
-				</label>
-			</div>
-		{/if}
-
-		<!-- Loading Spinner -->
-		{#if payrollRecordsStore.loading}
-			<LoadingSpinner />
-			<!-- Saved Periods List -->
-		{:else if !selectedRun}
-			<div class="space-y-4">
-				<!-- Desktop Table -->
-				<div class="hidden overflow-hidden bg-white shadow sm:rounded-md lg:block">
-					<div class="border-b border-gray-200 px-4 py-5 sm:px-6">
-						<h3 class="text-lg leading-6 font-medium text-gray-900">
-							Saved Periods ({payrollRecordsStore.runs.length})
-						</h3>
-					</div>
-					<Table.Root>
-						<Table.Header>
-							<Table.Row>
-								<Table.Head
-									class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
-								>
-									Period
-								</Table.Head>
-								<Table.Head
-									class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
-								>
-									Saved On
-								</Table.Head>
-								<Table.Head
-									class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
-								>
-									Actions
-								</Table.Head>
-							</Table.Row>
-						</Table.Header>
-						<Table.Body>
-							{#each payrollRecordsStore.runs as run (run.id)}
-								<Table.Row class="hover:bg-gray-50">
-									<Table.Cell class="px-6 py-4 text-sm font-medium whitespace-nowrap text-gray-900">
-										{formatPeriodLabel(run)}
-									</Table.Cell>
-									<Table.Cell class="px-6 py-4 text-sm whitespace-nowrap text-gray-600">
-										{formatTimestamp(run.finalized_at)}
-									</Table.Cell>
-									<Table.Cell class="px-6 py-4 text-sm font-medium whitespace-nowrap">
-										<ActionButtonGroup
-											actions={getRunActions()}
-											size="sm"
-											loading={payrollRecordsStore.loading}
-											onactionclick={(actionKey) => handleActionClick(actionKey, run)}
-										/>
-									</Table.Cell>
-								</Table.Row>
-							{/each}
-						</Table.Body>
-					</Table.Root>
-				</div>
-
-				<!-- Mobile Cards -->
-				<div class="space-y-3 lg:hidden">
-					{#each payrollRecordsStore.runs as run (run.id)}
-						<div class="rounded-lg bg-white p-4 shadow">
-							<h3 class="mb-1 text-sm font-medium text-gray-900">{formatPeriodLabel(run)}</h3>
-							<div class="mb-3 text-sm text-gray-600">
-								<span class="font-medium">Saved On:</span>
-								<span class="ml-1">{formatTimestamp(run.finalized_at)}</span>
+		<Table.Root class="text-[13px]">
+			<Table.Header>
+				<Table.Row>
+					<Table.Head>Employee</Table.Head>
+					<Table.Head class="text-end">Basic</Table.Head>
+					{@render pairHead('EPF')}
+					{@render pairHead('SOCSO')}
+					{@render pairHead('EIS')}
+					<Table.Head class="text-end">Lindung</Table.Head>
+					<Table.Head class="text-end">PCB</Table.Head>
+					<Table.Head class="text-end">CP38</Table.Head>
+					<Table.Head class="text-end">Net</Table.Head>
+					<Table.Head><span class="sr-only">Payslip</span></Table.Head>
+				</Table.Row>
+			</Table.Header>
+			<Table.Body>
+				{#each items as item (item.id)}
+					<Table.Row>
+						<Table.Cell class="py-2 font-medium whitespace-normal">{item.employee_name}</Table.Cell>
+						<Table.Cell class="py-2 text-end tabular-nums">{amount(item.basic_salary)}</Table.Cell>
+						{@render pair(item.epf_employer, item.epf_employee)}
+						{@render pair(item.socso_employer, item.socso_employee)}
+						{@render pair(item.eis_employer, item.eis_employee)}
+						<Table.Cell class="py-2 text-end tabular-nums">
+							{#if item.lindung_24_jam > 0}
+								{amount(item.lindung_24_jam)}
+							{:else}
+								<span class="text-muted-foreground">—</span>
+							{/if}
+						</Table.Cell>
+						<Table.Cell class="py-2 text-end tabular-nums">{amount(item.pcb)}</Table.Cell>
+						<Table.Cell class="py-2 text-end tabular-nums">{amount(item.cp38)}</Table.Cell>
+						<Table.Cell class="py-2 text-end font-semibold tabular-nums">
+							{amount(item.net_salary)}
+						</Table.Cell>
+						<Table.Cell class="py-2">
+							<div class="flex justify-end">
+								<Tooltip.Root>
+									<Tooltip.Trigger>
+										{#snippet child({ props })}
+											<Button
+												{...props}
+												variant="ghost"
+												size="icon-sm"
+												aria-label={`Download payslip for ${item.employee_name}`}
+												onclick={() => downloadPayslip(run, item)}
+											>
+												<FileTextIcon />
+											</Button>
+										{/snippet}
+									</Tooltip.Trigger>
+									<Tooltip.Content>Download payslip</Tooltip.Content>
+								</Tooltip.Root>
 							</div>
-							<div class="border-t border-gray-100 pt-2">
-								<ActionButtonGroup
-									class="w-full"
-									actions={getRunActions()}
-									size="sm"
-									loading={payrollRecordsStore.loading}
-									onactionclick={(actionKey) => handleActionClick(actionKey, run)}
-								/>
-							</div>
-						</div>
+						</Table.Cell>
+					</Table.Row>
+				{/each}
+			</Table.Body>
+			<Table.Footer>
+				<Table.Row class="font-bold">
+					<Table.Cell>Total</Table.Cell>
+					<Table.Cell class="text-end tabular-nums">{amount(totals.basic)}</Table.Cell>
+					{@render pair(totals.epfEmployer, totals.epfEmployee)}
+					{@render pair(totals.socsoEmployer, totals.socsoEmployee)}
+					{@render pair(totals.eisEmployer, totals.eisEmployee)}
+					<Table.Cell class="text-end tabular-nums">{amount(totals.lindung)}</Table.Cell>
+					<Table.Cell class="text-end tabular-nums">{amount(totals.pcb)}</Table.Cell>
+					<Table.Cell class="text-end tabular-nums">{amount(totals.cp38)}</Table.Cell>
+					<Table.Cell class="text-end tabular-nums">{amount(totals.net)}</Table.Cell>
+					<Table.Cell></Table.Cell>
+				</Table.Row>
+			</Table.Footer>
+		</Table.Root>
+	{/if}
+
+	{#snippet stat(label: string, value: number, sub: string)}
+		<Card.Root size="sm">
+			<Card.Content class="flex flex-col gap-0.5">
+				<span class="text-muted-foreground text-xs font-medium tracking-wide uppercase"
+					>{label}</span
+				>
+				<span
+					class={cn(
+						'text-[22px] font-semibold tabular-nums',
+						!showSalaries && 'text-muted-foreground',
+					)}
+				>
+					{rm(value)}
+				</span>
+				<span class="text-muted-foreground text-xs">{sub}</span>
+			</Card.Content>
+		</Card.Root>
+	{/snippet}
+
+	{#snippet pairHead(label: string)}
+		<Table.Head class="text-end">
+			{label}
+			<span class="text-muted-foreground block text-[11px] font-normal normal-case">
+				Employer / employee
+			</span>
+		</Table.Head>
+	{/snippet}
+
+	{#snippet pair(employer: number, employee: number)}
+		<Table.Cell class="py-2 text-end whitespace-nowrap tabular-nums">
+			{amount(employer)} <span class="text-muted-foreground">/</span>
+			{amount(employee)}
+		</Table.Cell>
+	{/snippet}
+{:else}
+	<!-- ===== Saved periods ===== -->
+	<PageHeader title="Payroll History">
+		<div class="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+			{#if years.length > 1}
+				<ToggleGroup.Root
+					type="single"
+					variant="outline"
+					size="sm"
+					value={String(year)}
+					onValueChange={(value) => (chosenYear = value ? Number(value) : null)}
+					aria-label="Year"
+				>
+					{#each years as option (option)}
+						<ToggleGroup.Item value={String(option)}>{option}</ToggleGroup.Item>
 					{/each}
-				</div>
-
-				<!-- Empty State -->
-				{#if payrollRecordsStore.runs.length === 0}
-					<EmptyState
-						title="No payroll records yet"
-						description="Process a payroll on the Payroll page and save it to keep a permanent record of that month."
-					/>
-				{/if}
+				</ToggleGroup.Root>
+			{/if}
+			<div class="flex items-center gap-2">
+				<Switch id="show-salaries" bind:checked={showSalaries} />
+				<Label for="show-salaries">Show Salaries</Label>
 			</div>
-			<!-- Selected Record Detail -->
-		{:else}
-			<div class="space-y-4">
-				<div class="rounded-lg bg-white p-4 shadow sm:p-6">
-					<div class="mb-4 rounded-md border border-blue-200 bg-blue-50 p-3">
-						<div class="flex items-center gap-2">
-							<CalendarIcon class="h-4 w-4 text-blue-500" />
-							<span class="text-sm font-medium text-blue-800">
-								Saved on {formatTimestamp(selectedRun.finalized_at)} — these figures are frozen and are
-								not affected by later employee changes.
-							</span>
-						</div>
-					</div>
+		</div>
+	</PageHeader>
 
-					<!-- Desktop Table -->
-					<div class="hidden md:block">
-						<Table.Root>
-							<Table.Header>
-								<tr>
-									<th
-										class="px-2 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
-									>
-										Employee
-									</th>
-									{#each amountColumns as column (column.key)}
-										<th
-											class="px-2 py-3 text-right text-xs font-medium tracking-wider text-gray-500 uppercase"
-										>
-											{column.label}
-										</th>
-									{/each}
-									<th
-										class="px-2 py-3 text-center text-xs font-medium tracking-wider text-gray-500 uppercase"
-									>
-										Payslip
-									</th>
-								</tr>
-							</Table.Header>
-							<Table.Body>
-								{#each selectedItems as item (item.id)}
-									<tr>
-										<td class="px-2 py-4 text-sm font-medium whitespace-nowrap text-gray-900">
-											{item.employee_name}
-										</td>
-										{#each amountColumns as column (column.key)}
-											<td
-												class="px-2 py-4 text-right text-sm whitespace-nowrap {column.key ===
-												'net_salary'
-													? 'font-medium text-gray-900'
-													: 'text-gray-600'}"
-											>
-												{#if showSalaries}
-													<span>RM {formatCurrency(item[column.key])}</span>
-												{:else}
-													<span class="text-gray-400">••••••</span>
-												{/if}
-											</td>
-										{/each}
-										<td class="px-2 py-4 text-center whitespace-nowrap">
-											<button
-												onclick={() => downloadPayslip(item)}
-												class="text-sm font-medium text-indigo-600 underline hover:text-indigo-900"
-											>
-												PDF
-											</button>
-										</td>
-									</tr>
-								{/each}
-							</Table.Body>
-							<tfoot class="bg-gray-100">
-								<tr class="border-t-2 border-gray-300">
-									<td class="px-2 py-4 text-sm font-bold whitespace-nowrap text-gray-700">TOTAL</td>
-									{#each amountColumns as column (column.key)}
-										<td
-											class="px-2 py-4 text-right text-sm font-bold whitespace-nowrap text-gray-700"
-										>
-											{#if showSalaries}
-												<span>RM {formatCurrency(totals[column.key])}</span>
-											{:else}
-												<span class="text-gray-400">••••••</span>
-											{/if}
-										</td>
-									{/each}
-									<td></td>
-								</tr>
-							</tfoot>
-						</Table.Root>
-					</div>
-
-					<!-- Mobile Cards -->
-					<div class="space-y-4 md:hidden">
-						{#each selectedItems as item (item.id)}
-							<div class="rounded-lg border border-gray-200 p-4">
-								<h4 class="mb-3 font-medium text-gray-900">{item.employee_name}</h4>
-								<div class="space-y-2 text-sm">
-									{#each amountColumns as column (column.key)}
-										<div class="flex justify-between">
-											<span class="text-gray-600">{column.label}:</span>
-											{#if showSalaries}
-												<span class="font-medium">
-													RM {formatCurrency(item[column.key])}
-												</span>
-											{:else}
-												<span class="text-gray-400">••••••</span>
-											{/if}
-										</div>
-									{/each}
-								</div>
-								<button
-									onclick={() => downloadPayslip(item)}
-									class="mt-3 w-full rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700"
-								>
-									Download Payslip (PDF)
-								</button>
+	{#if initialLoading}
+		<Table.Root>
+			<Table.Header>
+				<Table.Row>
+					<Table.Head>Period</Table.Head>
+					<Table.Head>Saved on</Table.Head>
+					<Table.Head class="text-end">Employees</Table.Head>
+					<Table.Head class="text-end">Total basic</Table.Head>
+					<Table.Head class="text-end">Total net</Table.Head>
+					<Table.Head><span class="sr-only">Actions</span></Table.Head>
+				</Table.Row>
+			</Table.Header>
+			<Table.Body>
+				{#each { length: 5 } as _, i (i)}
+					<Table.Row>
+						<Table.Cell class="py-3"><Skeleton class="h-4 w-32" /></Table.Cell>
+						<Table.Cell><Skeleton class="h-4 w-36" /></Table.Cell>
+						<Table.Cell><Skeleton class="ms-auto h-4 w-6" /></Table.Cell>
+						<Table.Cell><Skeleton class="ms-auto h-4 w-24" /></Table.Cell>
+						<Table.Cell><Skeleton class="ms-auto h-4 w-24" /></Table.Cell>
+						<Table.Cell><Skeleton class="ms-auto h-7 w-32" /></Table.Cell>
+					</Table.Row>
+				{/each}
+			</Table.Body>
+		</Table.Root>
+	{:else if runs.length === 0}
+		<Empty.Root class="my-auto">
+			<Empty.Header>
+				<Empty.Media variant="icon">
+					<HistoryIcon />
+				</Empty.Media>
+				<Empty.Title>No saved months yet</Empty.Title>
+				<Empty.Description>Save a payroll run and its frozen figures appear here.</Empty.Description
+				>
+			</Empty.Header>
+			<Empty.Content>
+				<Button variant="outline" href="/payroll">Go to Payroll</Button>
+			</Empty.Content>
+		</Empty.Root>
+	{:else}
+		<Table.Root>
+			<Table.Header>
+				<Table.Row>
+					<Table.Head>Period</Table.Head>
+					<Table.Head>Saved on</Table.Head>
+					<Table.Head class="text-end">Employees</Table.Head>
+					<Table.Head class="text-end">Total basic</Table.Head>
+					<Table.Head class="text-end">Total net</Table.Head>
+					<Table.Head><span class="sr-only">Actions</span></Table.Head>
+				</Table.Row>
+			</Table.Header>
+			<Table.Body>
+				{#each yearRuns as run (run.id)}
+					{@const loaded = run.id in payrollRecordsStore.itemsByRun}
+					{@const rows = payrollRecordsStore.getItems(run.id)}
+					{@const figures = summary(rows)}
+					<Table.Row>
+						<Table.Cell class="py-2.5 font-medium">{periodLabel(run)}</Table.Cell>
+						<Table.Cell class="py-2.5 tabular-nums">
+							{formatDateTime(run.finalized_at)}
+							{#if wasOverwritten(run)}
+								<div class="text-muted-foreground text-xs">Overwritten</div>
+							{/if}
+						</Table.Cell>
+						<Table.Cell class="py-2.5 text-end tabular-nums">
+							{#if loaded}
+								{rows.length}
+							{:else}
+								<Skeleton class="ms-auto h-4 w-6" />
+							{/if}
+						</Table.Cell>
+						<Table.Cell
+							class={cn('py-2.5 text-end tabular-nums', !showSalaries && 'text-muted-foreground')}
+						>
+							{#if loaded}
+								{rm(figures.basic)}
+							{:else}
+								<Skeleton class="ms-auto h-4 w-24" />
+							{/if}
+						</Table.Cell>
+						<Table.Cell
+							class={cn('py-2.5 text-end tabular-nums', !showSalaries && 'text-muted-foreground')}
+						>
+							{#if loaded}
+								{rm(figures.net)}
+							{:else}
+								<Skeleton class="ms-auto h-4 w-24" />
+							{/if}
+						</Table.Cell>
+						<Table.Cell class="py-2.5">
+							<div class="flex items-center justify-end gap-1">
+								<Button variant="outline" size="sm" href={`/payroll-history?run=${run.id}`}>
+									View Record
+								</Button>
+								<DropdownMenu.Root>
+									<DropdownMenu.Trigger>
+										{#snippet child({ props })}
+											<Button {...props} variant="ghost" size="icon-sm" aria-label="More">
+												<EllipsisIcon />
+											</Button>
+										{/snippet}
+									</DropdownMenu.Trigger>
+									<DropdownMenu.Content align="end">
+										<DropdownMenu.Group>
+											<DropdownMenu.Item onclick={() => downloadAllPayslips(run)}>
+												<FileTextIcon />
+												Download All Payslips
+											</DropdownMenu.Item>
+										</DropdownMenu.Group>
+										<DropdownMenu.Separator />
+										<DropdownMenu.Group>
+											<DropdownMenu.Item variant="destructive" onclick={() => openDelete(run)}>
+												<Trash2Icon />
+												Delete Record…
+											</DropdownMenu.Item>
+										</DropdownMenu.Group>
+									</DropdownMenu.Content>
+								</DropdownMenu.Root>
 							</div>
-						{/each}
+						</Table.Cell>
+					</Table.Row>
+				{/each}
+			</Table.Body>
+		</Table.Root>
+		<div class="text-muted-foreground text-sm">
+			{plural(yearRuns.length, 'saved month')} in {year}
+		</div>
+	{/if}
+{/if}
 
-						{#if selectedItems.length === 0}
-							<EmptyState
-								title="No employees in this record"
-								description="This saved period does not contain any employee rows."
-							/>
-						{/if}
-					</div>
-				</div>
-			</div>
-		{/if}
-
-		<!-- Delete Confirmation Modal -->
-		<ActionModal
-			bind:open={showDeleteModal}
-			title={`Delete Payroll Record: ${deleteRun ? formatPeriodLabel(deleteRun) : ''}`}
-			variant="red"
-			confirmText="Delete Record"
-			loading={deleteLoading}
-			disabled={!deleteConfirmation}
-			onconfirm={confirmDeleteRun}
-			oncancel={cancelDeleteRun}
-			onclose={cancelDeleteRun}
-		>
-			<div class="space-y-4">
-				<div class="rounded-md border border-red-200 bg-red-50 p-3">
-					<div class="mb-2 flex items-center gap-2">
-						<WarningTriangleIcon class="h-4 w-4 text-red-500" />
-						<span class="text-sm font-medium text-red-800">
-							Warning: This action cannot be undone
-						</span>
-					</div>
-					<p class="text-sm text-red-700">
-						You are about to permanently delete the saved payroll record for
-						{deleteRun ? formatPeriodLabel(deleteRun) : ''}, including every employee's frozen
-						figures for that month.
-					</p>
-				</div>
-
-				<div class="flex items-center gap-2">
-					<input
-						id="delete-record-confirmation"
-						bind:checked={deleteConfirmation}
-						type="checkbox"
-						class="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
-					/>
-					<label for="delete-record-confirmation" class="text-sm text-gray-700">
-						I understand that this action is permanent and cannot be undone
-					</label>
-				</div>
-			</div>
-		</ActionModal>
-	</div>
-</div>
+<!-- Delete record -->
+<ActionModal
+	bind:open={showDelete}
+	title={`Delete the ${deleting ? periodLabel(deleting) : ''} Record?`}
+	description="Every employee's frozen figures for that month are removed, and the payslips with them. This cannot be undone."
+	loading={payrollRecordsStore.loading}
+	confirmText="Delete"
+	onconfirm={confirmDelete}
+	oncancel={closeDelete}
+	onclose={closeDelete}
+/>
