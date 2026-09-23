@@ -108,7 +108,13 @@
 									{/snippet}
 								</Sidebar.MenuButton>
 								{#if item.href === '/stock-approvals' && pendingCount > 0}
-									<Sidebar.MenuBadge class="bg-sidebar-accent">{pendingCount}</Sidebar.MenuBadge>
+									<!-- Pending approvals: a solid pill so the count reads against the brand sidebar. -->
+									<Sidebar.MenuBadge
+										class="bg-sidebar-primary text-sidebar-primary-foreground peer-hover/menu-button:text-sidebar-primary-foreground peer-data-active/menu-button:text-sidebar-primary-foreground rounded-full font-semibold"
+										aria-label="{pendingCount} pending"
+									>
+										{pendingCount > 99 ? '99+' : pendingCount}
+									</Sidebar.MenuBadge>
 								{/if}
 							</Sidebar.MenuItem>
 						{/each}

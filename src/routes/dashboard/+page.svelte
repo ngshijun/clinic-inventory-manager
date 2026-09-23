@@ -1,9 +1,7 @@
 <script lang="ts">
-	import { BarChart } from 'layerchart'
 	import CalendarIcon from '@lucide/svelte/icons/calendar'
 	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right'
 	import ClockIcon from '@lucide/svelte/icons/clock'
-	import HourglassIcon from '@lucide/svelte/icons/hourglass'
 	import MarkOrderedDialog from '$lib/components/app/MarkOrderedDialog.svelte'
 	import OrderStatusMenu from '$lib/components/app/OrderStatusMenu.svelte'
 	import PageHeader from '$lib/components/app/PageHeader.svelte'
@@ -12,29 +10,18 @@
 	import ToneBadge from '$lib/components/app/ToneBadge.svelte'
 	import { Button } from '$lib/components/ui/button'
 	import * as Card from '$lib/components/ui/card'
-	import * as Chart from '$lib/components/ui/chart'
 	import { Progress } from '$lib/components/ui/progress'
 	import { Skeleton } from '$lib/components/ui/skeleton'
 	import * as Table from '$lib/components/ui/table'
 	import { useErrorToast } from '$lib/composables/errorToast.svelte'
 	import { createLoadMore } from '$lib/composables/loadMore.svelte'
-	import { useWeeklyMovements } from '$lib/composables/weeklyMovements.svelte'
 	import { inventoryStore } from '$lib/stores/inventory.svelte'
 	import { stockBatchesStore } from '$lib/stores/stockBatches.svelte'
-	import { stockRequestsStore } from '$lib/stores/stockRequests.svelte'
 	import type { InventoryItem } from '$lib/types/inventory'
 	import { EXPIRY_WARNING_DAYS, daysUntilExpiry, type StockBatch } from '$lib/types/stockBatches'
-	import type { StockRequest } from '$lib/types/stockRequests'
-	import {
-		daysSince,
-		formatDate,
-		formatDayMonth,
-		formatDuration,
-		formatTime,
-	} from '$lib/utils/date'
+	import { daysSince, formatDate, formatDayMonth, formatDuration } from '$lib/utils/date'
 	import { expiryBadge } from '$lib/utils/expiry'
-	import { isOlderPending, localDateKey, withUnit } from '$lib/utils/requests'
-	import { todayIsoDate } from '$lib/types/stockBatches'
+	import { withUnit } from '$lib/utils/requests'
 	import { cn } from '$lib/utils'
 
 	const STALE_DAYS = 30
@@ -42,7 +29,6 @@
 
 	useErrorToast(() => inventoryStore.error)
 	useErrorToast(() => stockBatchesStore.error)
-	useErrorToast(() => stockRequestsStore.error)
 
 	const items = $derived(inventoryStore.items)
 	const initialLoading = $derived(inventoryStore.loading && items.length === 0)
@@ -95,35 +81,6 @@
 	)
 	const staleList = createLoadMore(() => stale, QUEUE_PAGE)
 
-	// ---------- Movements this week ----------
-	const week = useWeeklyMovements()
-	const weekIn = $derived(week.days.reduce((sum, day) => sum + day.stockIn, 0))
-	const weekOut = $derived(week.days.reduce((sum, day) => sum + day.stockOut, 0))
-	const weekRange = $derived(
-		`${formatDayMonth(week.days[0].date)} to ${formatDate(week.days[6].date)}`,
-	)
-	const chartConfig = {
-		stockIn: { label: 'Stock in', color: 'var(--success)' },
-		stockOut: { label: 'Stock out', color: 'var(--destructive)' },
-	} satisfies Chart.ChartConfig
-
-	// ---------- Requests awaiting approval ----------
-	const pendingRequests = $derived(
-		stockRequestsStore.requests
-			.filter((request) => request.status === 'Pending')
-			.sort((a, b) => a._creationTime - b._creationTime),
-	)
-	const olderPendingCount = $derived(pendingRequests.filter(isOlderPending).length)
-	const PENDING_SHOWN = 5
-
-	const onHand = (request: StockRequest): number =>
-		inventoryStore.getItemById(request.item_id)?.quantity ?? 0
-
-	const requestedAt = (request: StockRequest): string =>
-		localDateKey(request.created_at) === todayIsoDate()
-			? `today ${formatTime(request.created_at)}`
-			: `${formatDayMonth(request.created_at)} ${formatTime(request.created_at)}`
-
 	// ---------- Dialogs ----------
 	let orderDialog = $state<MarkOrderedDialog | null>(null)
 	let stockOutDialog = $state<StockOutDialog | null>(null)
@@ -142,10 +99,6 @@
 				</Card.Content>
 			</Card.Root>
 		{/each}
-	</div>
-	<div class="grid gap-3 lg:grid-cols-2">
-		<Skeleton class="h-56 rounded-xl" />
-		<Skeleton class="h-56 rounded-xl" />
 	</div>
 	<Skeleton class="h-40 rounded-md" />
 {:else}
@@ -180,119 +133,6 @@
 			'#expiring',
 		)}
 		{@render stat('Stale items', stale.length, `No movement in ${STALE_DAYS} days`, null, '#stale')}
-	</div>
-
-	<!-- Widgets -->
-	<div class="grid gap-3 lg:grid-cols-2">
-		<Card.Root size="sm">
-			<Card.Header>
-				<Card.Title class="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-					<a href="/stock-movements" class="hover:text-foreground inline-flex items-center gap-1">
-						Movements this week
-						<ChevronRightIcon class="size-3.5" />
-					</a>
-				</Card.Title>
-				<Card.Description class="flex flex-wrap items-baseline gap-x-2">
-					<span class="text-foreground text-2xl font-semibold tabular-nums">
-						{weekIn + weekOut}
-					</span>
-					<span class="text-xs">
-						{weekRange} ·
-						<span class="text-success font-semibold">+{weekIn} in</span> ·
-						<span class="text-destructive font-semibold">−{weekOut} out</span>
-					</span>
-				</Card.Description>
-			</Card.Header>
-			<Card.Content>
-				<Chart.Container config={chartConfig} class="aspect-auto h-40 w-full">
-					<BarChart
-						data={week.days}
-						x="label"
-						axis="x"
-						seriesLayout="group"
-						bandPadding={0.3}
-						series={[
-							{
-								key: 'stockIn',
-								label: chartConfig.stockIn.label,
-								color: chartConfig.stockIn.color,
-							},
-							{
-								key: 'stockOut',
-								label: chartConfig.stockOut.label,
-								color: chartConfig.stockOut.color,
-							},
-						]}
-					>
-						{#snippet tooltip()}
-							<Chart.Tooltip />
-						{/snippet}
-					</BarChart>
-				</Chart.Container>
-			</Card.Content>
-		</Card.Root>
-
-		<Card.Root size="sm">
-			<Card.Header>
-				<Card.Title class="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-					<a href="/stock-approvals" class="hover:text-foreground inline-flex items-center gap-1">
-						Requests awaiting approval
-						<ChevronRightIcon class="size-3.5" />
-					</a>
-				</Card.Title>
-				<Card.Description class="flex flex-wrap items-baseline gap-x-2">
-					<span
-						class={cn(
-							'text-2xl font-semibold tabular-nums',
-							pendingRequests.length === 0 ? 'text-muted-foreground' : 'text-foreground',
-						)}
-					>
-						{pendingRequests.length}
-					</span>
-					<span class="text-xs">
-						{olderPendingCount > 0
-							? `${olderPendingCount} older than today`
-							: 'None older than today'}
-					</span>
-				</Card.Description>
-			</Card.Header>
-			<Card.Content>
-				{#if pendingRequests.length === 0}
-					<p class="text-muted-foreground text-sm">Nothing is waiting for approval.</p>
-				{:else}
-					<ul class="divide-y">
-						{#each pendingRequests.slice(0, PENDING_SHOWN) as request (request.id)}
-							{@const stock = onHand(request)}
-							{@const short = stock < request.quantity}
-							<li class="flex items-center gap-3 py-2">
-								<span
-									class="bg-warning-soft text-warning flex size-7 shrink-0 items-center justify-center rounded-full"
-								>
-									<HourglassIcon class="size-3.5" />
-								</span>
-								<span class="min-w-0 flex-1">
-									<span class="block truncate text-sm font-medium">{request.item_name}</span>
-									<span class="text-muted-foreground block text-xs">
-										{withUnit(request.quantity, request.unit)} · requested {requestedAt(request)}
-									</span>
-								</span>
-								{#if short}
-									<ToneBadge tone="danger">Only {withUnit(stock, request.unit)}</ToneBadge>
-								{:else}
-									<ToneBadge tone="warning">Pending</ToneBadge>
-								{/if}
-							</li>
-						{/each}
-					</ul>
-					{#if pendingRequests.length > PENDING_SHOWN}
-						<Button variant="ghost" size="sm" href="/stock-approvals" class="-ms-2 mt-1">
-							{pendingRequests.length - PENDING_SHOWN} more
-							<ChevronRightIcon data-icon="inline-end" />
-						</Button>
-					{/if}
-				{/if}
-			</Card.Content>
-		</Card.Root>
 	</div>
 
 	<!-- Expiring batches -->
