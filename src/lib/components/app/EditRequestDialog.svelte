@@ -4,12 +4,13 @@
 	import ActionModal from '$lib/components/app/ActionModal.svelte'
 	import DialogSubject from '$lib/components/app/DialogSubject.svelte'
 	import * as Field from '$lib/components/ui/field'
-	import { Input } from '$lib/components/ui/input'
+	import * as InputGroup from '$lib/components/ui/input-group'
 	import { Textarea } from '$lib/components/ui/textarea'
 	import { inventoryStore } from '$lib/stores/inventory.svelte'
 	import { stockRequestsStore } from '$lib/stores/stockRequests.svelte'
 	import type { StockRequest } from '$lib/types/stockRequests'
 	import { withUnit } from '$lib/utils/requests'
+	import { capsClass } from '$lib/utils/text'
 
 	/*
 	 * Edit Request, shared by Stock Approvals and Stock Requests. Opened with
@@ -80,16 +81,21 @@
 		<Field.Group>
 			<Field.Field data-invalid={overStock || undefined}>
 				<Field.Label for="edit-request-quantity">Quantity</Field.Label>
-				<Input
-					id="edit-request-quantity"
-					bind:value={quantity}
-					type="number"
-					min="1"
-					max={onHand}
-					step="1"
-					aria-invalid={overStock || undefined}
-					{@attach selectOnFocus()}
-				/>
+				<InputGroup.Root>
+					<InputGroup.Input
+						id="edit-request-quantity"
+						bind:value={quantity}
+						type="number"
+						min="1"
+						max={onHand}
+						step="1"
+						aria-invalid={overStock || undefined}
+						{@attach selectOnFocus()}
+					/>
+					<InputGroup.Addon align="inline-end">
+						<InputGroup.Text class={capsClass(unit)}>{unit}</InputGroup.Text>
+					</InputGroup.Addon>
+				</InputGroup.Root>
 				{#if overStock}
 					<Field.Error>Only {withUnit(onHand, unit)} on hand.</Field.Error>
 				{/if}

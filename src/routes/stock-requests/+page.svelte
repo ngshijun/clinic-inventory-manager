@@ -2,6 +2,7 @@
 	import { tick, untrack } from 'svelte'
 	import { toast } from 'svelte-sonner'
 	import CheckIcon from '@lucide/svelte/icons/check'
+	import ChevronsUpDownIcon from '@lucide/svelte/icons/chevrons-up-down'
 	import ClipboardListIcon from '@lucide/svelte/icons/clipboard-list'
 	import PencilIcon from '@lucide/svelte/icons/pencil'
 	import PlusIcon from '@lucide/svelte/icons/plus'
@@ -20,6 +21,7 @@
 	import * as Command from '$lib/components/ui/command'
 	import * as Empty from '$lib/components/ui/empty'
 	import * as Field from '$lib/components/ui/field'
+	import * as Popover from '$lib/components/ui/popover'
 	import { Input } from '$lib/components/ui/input'
 	import * as InputGroup from '$lib/components/ui/input-group'
 	import { Skeleton } from '$lib/components/ui/skeleton'
@@ -161,8 +163,11 @@
 		showNew = false
 	}
 
+	let itemPickerOpen = $state(false)
+
 	const pickItem = async (item: InventoryItem): Promise<void> => {
 		newItemId = item.id
+		itemPickerOpen = false
 		// The quantity field unlocks on the pick, so hand it focus once it has
 		await tick()
 		quantityInput?.focus()
@@ -431,56 +436,91 @@
 		<Field.Group>
 			<Field.Field>
 				<Field.Label for="new-request-item">Item</Field.Label>
-				<Command.Root class="rounded-2xl border" loop>
-					<Command.Input id="new-request-item" placeholder="Search items" autofocus />
-					<Command.List class="max-h-48">
-						<Command.Empty>No item found.</Command.Empty>
-						<Command.Group>
-							{#each itemOptions as item (item.id)}
-								<!-- The whole name shows, wrapping when it must; on hand trails as a compact figure. -->
-								<Command.Item
-									class="items-start rounded-lg"
-									value={item.item_name}
-									onSelect={() => pickItem(item)}
-								>
-									<CheckIcon class={cn('mt-0.5', newItemId !== item.id && 'text-transparent')} />
-									<span class={cn('min-w-0 flex-1', capsClass(item.item_name))}
-										>{item.item_name}</span
-									>
-									<Quantity
-										value={item.quantity}
-										unit={item.unit}
-										pack={false}
-										class="shrink-0 text-xs"
-										valueClass={cn('font-normal', item.quantity === 0 && 'text-destructive')}
-									/>
-								</Command.Item>
-							{/each}
-						</Command.Group>
-					</Command.List>
-				</Command.Root>
+				<!-- A combobox: the button names the pick, the list opens under it and closes on a choice. -->
+				<Popover.Root bind:open={itemPickerOpen}>
+					<Popover.Trigger>
+						{#snippet child({ props })}
+							<Button
+								{...props}
+								id="new-request-item"
+								variant="outline"
+								role="combobox"
+								aria-expanded={itemPickerOpen}
+								class={cn(
+									'w-full justify-between font-normal',
+									newItem === undefined && 'text-muted-foreground',
+								)}
+							>
+								<span class={cn('truncate', capsClass(newItem?.item_name))}>
+									{newItem?.item_name ?? 'Choose an item'}
+								</span>
+								<ChevronsUpDownIcon data-icon="inline-end" class="opacity-50" />
+							</Button>
+						{/snippet}
+					</Popover.Trigger>
+					<Popover.Content class="w-(--bits-popover-anchor-width) p-0" align="start">
+						<Command.Root class="rounded-3xl" loop>
+							<Command.Input placeholder="Type to find an item" />
+							<Command.List>
+								<Command.Empty>No item found.</Command.Empty>
+								<Command.Group>
+									{#each itemOptions as item (item.id)}
+										<!-- The whole name shows, wrapping when it must; on hand trails as a compact figure. -->
+										<Command.Item
+											class="items-start rounded-xl"
+											value={item.item_name}
+											onSelect={() => pickItem(item)}
+										>
+											<CheckIcon
+												class={cn('mt-0.5', newItemId !== item.id && 'text-transparent')}
+											/>
+											<span class={cn('min-w-0 flex-1', capsClass(item.item_name))}
+												>{item.item_name}</span
+											>
+											<Quantity
+												value={item.quantity}
+												unit={item.unit}
+												pack={false}
+												class="shrink-0 text-xs"
+												valueClass={cn('font-normal', item.quantity === 0 && 'text-destructive')}
+											/>
+										</Command.Item>
+									{/each}
+								</Command.Group>
+							</Command.List>
+						</Command.Root>
+					</Popover.Content>
+				</Popover.Root>
 			</Field.Field>
 			<Field.Field data-invalid={newOverStock || undefined} data-disabled={!newItem || undefined}>
 				<Field.Label for="new-request-quantity">Quantity</Field.Label>
-				<Input
-					id="new-request-quantity"
-					bind:ref={quantityInput}
-					bind:value={newQuantity}
-					type="number"
-					min="1"
-					max={newOnHand}
-					step="1"
-					placeholder="e.g. 3"
-					disabled={!newItem}
-					aria-invalid={newOverStock || undefined}
-					{@attach selectOnFocus()}
-				/>
+				<!-- The unit sits where the number is typed, pack size included, so "3" means 3 BOX (20 BTL). -->
+				<InputGroup.Root>
+					<InputGroup.Input
+						id="new-request-quantity"
+						bind:ref={quantityInput}
+						bind:value={newQuantity}
+						type="number"
+						min="1"
+						max={newOnHand}
+						step="1"
+						placeholder="e.g. 3"
+						disabled={!newItem}
+						aria-invalid={newOverStock || undefined}
+						{@attach selectOnFocus()}
+					/>
+					{#if newItem}
+						<InputGroup.Addon align="inline-end">
+							<InputGroup.Text class={capsClass(newUnit)}>{newUnit}</InputGroup.Text>
+						</InputGroup.Addon>
+					{/if}
+				</InputGroup.Root>
 				{#if newItem && newOverStock}
 					<Field.Error>Only {withUnit(newOnHand, newUnit)} on hand.</Field.Error>
 				{:else if newItem && newOnHand === 0}
 					<Field.Error>Nothing on hand.</Field.Error>
 				{:else if newItem}
-					<Field.Description>Up to {withUnit(newOnHand, newUnit)} on hand.</Field.Description>
+					<Field.Description>{withUnit(newOnHand, newUnit)} on hand.</Field.Description>
 				{/if}
 			</Field.Field>
 			<Field.Field>
