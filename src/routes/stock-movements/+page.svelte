@@ -41,6 +41,7 @@
 	import { formatDate, formatDateTime, formatDayMonth, formatTime } from '$lib/utils/date'
 	import { expiryNote } from '$lib/utils/expiry'
 	import { cn } from '$lib/utils'
+	import { capsClass } from '$lib/utils/text'
 
 	const SEARCH_DEBOUNCE_MS = 300
 	const PAGE_SIZE = 25
@@ -500,7 +501,7 @@
 														<CheckIcon
 															class={cn(filterDraft.itemId !== item.id && 'text-transparent')}
 														/>
-														{item.item_name}
+														<span class={capsClass(item.item_name)}>{item.item_name}</span>
 													</Command.Item>
 												{/each}
 											</Command.Group>
@@ -639,11 +640,14 @@
 						<span class="text-muted-foreground ms-1 text-xs">{formatTime(movement.created_at)}</span
 						>
 					</Table.Cell>
-					<Table.Cell class="font-medium">{movement.item_name}</Table.Cell>
+					<Table.Cell class={cn('font-medium', capsClass(movement.item_name))}
+						>{movement.item_name}</Table.Cell
+					>
 					<Table.Cell
 						class={cn(
 							'text-end font-semibold tabular-nums',
 							isIn ? 'text-success' : 'text-destructive',
+							capsClass(movement.unit),
 						)}
 					>
 						{changeLabel(movement)}

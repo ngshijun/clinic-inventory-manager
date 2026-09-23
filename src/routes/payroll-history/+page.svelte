@@ -39,6 +39,7 @@
 	import { formatDateTime } from '$lib/utils/date'
 	import { formatAmount, formatRM } from '$lib/utils/money'
 	import { cn } from '$lib/utils'
+	import { capsClass } from '$lib/utils/text'
 
 	useErrorToast(() => payrollRecordsStore.error)
 
@@ -286,7 +287,9 @@
 			<Table.Body>
 				{#each items as item (item.id)}
 					<Table.Row>
-						<Table.Cell class="font-medium">{item.employee_name}</Table.Cell>
+						<Table.Cell class={cn('font-medium', capsClass(item.employee_name))}
+							>{item.employee_name}</Table.Cell
+						>
 						<Table.Cell class="text-end tabular-nums">{amount(item.basic_salary)}</Table.Cell>
 						{@render pair(item.epf_employer, item.epf_employee)}
 						{@render pair(item.socso_employer, item.socso_employee)}

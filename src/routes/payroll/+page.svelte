@@ -48,6 +48,7 @@
 	import { formatDate } from '$lib/utils/date'
 	import { formatAmount, formatRM } from '$lib/utils/money'
 	import { cn } from '$lib/utils'
+	import { capsClass } from '$lib/utils/text'
 
 	const MONTHS = [
 		'January',
@@ -739,7 +740,9 @@
 			<Table.Body>
 				{#each sortedEmployees as employee (employee.id)}
 					<Table.Row>
-						<Table.Cell class="font-medium">{employee.name}</Table.Cell>
+						<Table.Cell class={cn('font-medium', capsClass(employee.name))}
+							>{employee.name}</Table.Cell
+						>
 						<Table.Cell
 							class={cn('text-end tabular-nums', !showSalaries && 'text-muted-foreground')}
 						>

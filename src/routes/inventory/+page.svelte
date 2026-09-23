@@ -51,6 +51,7 @@
 	import { formatDate, formatDayMonth } from '$lib/utils/date'
 	import { expiryNote } from '$lib/utils/expiry'
 	import { cn } from '$lib/utils'
+	import { capsClass } from '$lib/utils/text'
 
 	// ---------- Toolbar state ----------
 	type Filter = 'all' | 'low' | 'out' | 'ordered' | 'untracked'
@@ -805,7 +806,7 @@
 							<ChevronRightIcon />
 						</Button>
 					</Table.Cell>
-					<Table.Cell class="font-medium">
+					<Table.Cell class={cn('font-medium', capsClass(item.item_name))}>
 						<span class="inline-flex items-center gap-2">
 							{item.item_name}
 							{#if status}

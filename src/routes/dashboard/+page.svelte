@@ -31,6 +31,7 @@
 	import { expiryNote } from '$lib/utils/expiry'
 	import { withUnit } from '$lib/utils/requests'
 	import { cn } from '$lib/utils'
+	import { capsClass } from '$lib/utils/text'
 
 	const STALE_DAYS = 30
 	const QUEUE_PAGE = 8
@@ -226,7 +227,9 @@
 						{#each expiringList.visible as { batch, item, daysLeft } (batch.id)}
 							{@const note = expiryNote(batch.expiry_date)}
 							<Table.Row>
-								<Table.Cell class="font-medium">{item.item_name}</Table.Cell>
+								<Table.Cell class={cn('font-medium', capsClass(item.item_name))}
+									>{item.item_name}</Table.Cell
+								>
 								<Table.Cell class="text-muted-foreground tabular-nums">
 									Received {formatDate(batch._creationTime)}
 								</Table.Cell>
@@ -288,7 +291,9 @@
 						{#each reorderList.visible as item (item.id)}
 							{@const out = item.quantity === 0}
 							<Table.Row>
-								<Table.Cell class="font-medium">{item.item_name}</Table.Cell>
+								<Table.Cell class={cn('font-medium', capsClass(item.item_name))}
+									>{item.item_name}</Table.Cell
+								>
 								<Table.Cell>
 									<StatusDot tone={out ? 'danger' : 'warning'}>
 										{out ? 'Out of stock' : 'Low stock'}
@@ -354,7 +359,9 @@
 					<Table.Body>
 						{#each staleList.visible as item (item.id)}
 							<Table.Row>
-								<Table.Cell class="font-medium">{item.item_name}</Table.Cell>
+								<Table.Cell class={cn('font-medium', capsClass(item.item_name))}
+									>{item.item_name}</Table.Cell
+								>
 								<Table.Cell class="tabular-nums">
 									{withUnit(item.quantity, item.unit)}
 								</Table.Cell>

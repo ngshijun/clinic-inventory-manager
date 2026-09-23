@@ -32,6 +32,7 @@
 	import type { InventoryItem } from '$lib/types/inventory'
 	import { formatDate, formatDayMonth } from '$lib/utils/date'
 	import { cn } from '$lib/utils'
+	import { capsClass } from '$lib/utils/text'
 
 	// ---------- Toolbar state ----------
 	type Filter = 'all' | 'ordered' | 'reason' | 'none'
@@ -278,7 +279,9 @@
 			{#each list.visible as item (item.id)}
 				{@const tone = quantityTone(item)}
 				<Table.Row>
-					<Table.Cell class="font-medium">{item.item_name}</Table.Cell>
+					<Table.Cell class={cn('font-medium', capsClass(item.item_name))}
+						>{item.item_name}</Table.Cell
+					>
 					<Table.Cell
 						class={cn(
 							'tabular-nums',

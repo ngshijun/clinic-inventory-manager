@@ -45,6 +45,7 @@
 		type DayMode,
 	} from '$lib/utils/requests'
 	import { cn } from '$lib/utils'
+	import { capsClass } from '$lib/utils/text'
 
 	// ---------- Toolbar state ----------
 	type SortKey = 'item_name' | 'created_at' | 'quantity' | 'status'
@@ -323,7 +324,9 @@
 			{#each list.visible as request (request.id)}
 				{@const pending = request.status === 'Pending'}
 				<Table.Row>
-					<Table.Cell class="font-medium">{request.item_name}</Table.Cell>
+					<Table.Cell class={cn('font-medium', capsClass(request.item_name))}
+						>{request.item_name}</Table.Cell
+					>
 					<Table.Cell class="tabular-nums">
 						{requestedDay(request)}
 						<span class="text-muted-foreground ms-1 text-xs">{formatTime(request.created_at)}</span>
@@ -441,7 +444,7 @@
 									onSelect={() => pickItem(item)}
 								>
 									<CheckIcon class={cn(newItemId !== item.id && 'text-transparent')} />
-									<span class="truncate">{item.item_name}</span>
+									<span class={cn('truncate', capsClass(item.item_name))}>{item.item_name}</span>
 									<span
 										class={cn(
 											'ms-auto shrink-0 text-xs tabular-nums',

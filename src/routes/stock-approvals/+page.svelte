@@ -42,6 +42,7 @@
 		type DayMode,
 	} from '$lib/utils/requests'
 	import { cn } from '$lib/utils'
+	import { capsClass } from '$lib/utils/text'
 
 	// ---------- Toolbar state ----------
 	type SortKey = 'item_name' | 'created_at' | 'quantity' | 'status'
@@ -392,7 +393,9 @@
 							/>
 						{/if}
 					</Table.Cell>
-					<Table.Cell class="font-medium">{request.item_name}</Table.Cell>
+					<Table.Cell class={cn('font-medium', capsClass(request.item_name))}
+						>{request.item_name}</Table.Cell
+					>
 					<Table.Cell class="tabular-nums">
 						{requestedDay(request)}
 						<span class="text-muted-foreground ms-1 text-xs">{formatTime(request.created_at)}</span>

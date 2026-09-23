@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { Separator } from '$lib/components/ui/separator'
+	import { cn } from '$lib/utils'
+	import { capsClass } from '$lib/utils/text'
 
 	/*
 	 * The subject of a form dialog, so the title can name only the task
@@ -13,7 +15,7 @@
 </script>
 
 <div class="flex flex-col gap-1.5">
-	<p class="leading-snug font-semibold">{name}</p>
+	<p class={cn('leading-snug font-semibold', capsClass(name))}>{name}</p>
 	{#if facts.length > 0}
 		<dl class="text-muted-foreground flex flex-wrap items-baseline gap-x-2 text-sm">
 			{#each facts as fact, index (fact.label)}
