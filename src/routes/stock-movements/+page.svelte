@@ -543,7 +543,7 @@
 			<Empty.Description>
 				{isFiltered
 					? 'Try another search or clear the filters.'
-					: 'Every Stock In and Stock Out from Inventory is recorded here.'}
+					: 'Stock in or stock out an item in Inventory and it appears here.'}
 			</Empty.Description>
 		</Empty.Header>
 		<Empty.Content>

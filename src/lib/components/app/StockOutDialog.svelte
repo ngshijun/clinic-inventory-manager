@@ -83,7 +83,7 @@
 		const amount = Number(quantity)
 		await inventoryStore.stockOut(target.id, amount)
 		if (!inventoryStore.error) {
-			toast.success(`Stocked out ${plural(amount, target.unit)} of ${target.item_name}`)
+			toast.success(`Stocked out ${amount} ${target.unit} of ${target.item_name}`)
 			close()
 		}
 	}

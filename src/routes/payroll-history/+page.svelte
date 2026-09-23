@@ -182,7 +182,7 @@
 		if (!deleting) return
 		const target = deleting
 		if (await payrollRecordsStore.deletePayrollRun(target.id)) {
-			toast.success(`Deleted the ${periodLabel(target)} record`)
+			toast.success(`Deleted ${periodLabel(target)} payroll`)
 			closeDelete()
 			if (selectedRun?.id === target.id) await goto('/payroll-history')
 		}
@@ -435,8 +435,7 @@
 					<HistoryIcon />
 				</Empty.Media>
 				<Empty.Title>No saved months yet</Empty.Title>
-				<Empty.Description>Save a payroll run and its frozen figures appear here.</Empty.Description
-				>
+				<Empty.Description>Save a month in Payroll and it appears here.</Empty.Description>
 			</Empty.Header>
 			<Empty.Content>
 				<Button variant="outline" href="/payroll">Go to Payroll</Button>

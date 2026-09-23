@@ -291,7 +291,7 @@
 				{#if searchQuery}
 					Try another search or clear the filter.
 				{:else if dayMode === 'today'}
-					Ask for stock and the manager approves it from here.
+					Make a request and it shows here until the manager approves it.
 				{:else}
 					Pick another day, or go back to today.
 				{/if}

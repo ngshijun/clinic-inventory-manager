@@ -254,7 +254,7 @@
 			<Empty.Description>
 				{isFiltered
 					? 'Try another search or clear the filter.'
-					: 'Items added in Inventory appear here with their order status and remarks.'}
+					: 'Add items in Inventory and they appear here.'}
 			</Empty.Description>
 		</Empty.Header>
 		<Empty.Content>

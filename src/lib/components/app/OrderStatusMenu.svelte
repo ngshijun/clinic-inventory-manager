@@ -59,7 +59,9 @@
 		await inventoryStore.setNonOrderReason(item.id, reason)
 		if (!inventoryStore.error) {
 			toast.success(
-				reason ? `${item.item_name}: ${reason}` : `Cleared the reason of ${item.item_name}`,
+				reason
+					? `Marked ${item.item_name} as ${reason}`
+					: `Cleared the reason of ${item.item_name}`,
 			)
 		}
 	}

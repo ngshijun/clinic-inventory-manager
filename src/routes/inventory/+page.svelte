@@ -301,7 +301,7 @@
 			stockInExpiryDate || null,
 		)
 		if (!inventoryStore.error) {
-			toast.success(`Stocked in ${plural(Number(stockInQuantity), item.unit)} of ${item.item_name}`)
+			toast.success(`Stocked in ${stockInQuantity} ${item.unit} of ${item.item_name}`)
 			closeStockIn()
 		}
 	}

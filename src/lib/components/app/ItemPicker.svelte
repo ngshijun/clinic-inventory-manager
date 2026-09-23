@@ -180,7 +180,7 @@
 								unit={item.unit}
 								pack={false}
 								class="shrink-0 text-xs"
-								valueClass={cn('font-normal', item.quantity === 0 && 'text-destructive')}
+								valueClass={cn(item.quantity === 0 && 'text-destructive')}
 							/>
 						{/if}
 					</button>
