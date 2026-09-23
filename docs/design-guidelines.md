@@ -23,3 +23,9 @@ Sources: Lists and tables; HealthOS §7.
 - **Dates and times in cells**: `formatDate` ("23 Sep 2026") for a date, `formatDayMonth` ("20 Sep") inside a badge or beside a time so it never pushes the next column, `formatTime` as the small qualifier after the day. Figures are `tabular-nums`.
 - **Connection status is a quiet pill, not an alert.** A dropped Convex socket shows "Reconnecting…" in muted `text-xs` at the end of the top bar (`connection.isOffline`), and only after three seconds down so a blip never flashes it; the client reconnects and replays on its own. HealthOS shows nothing; this app commits stock counts, so a spinner with no explanation would be worse than a word. This is how Gmail, Slack and Linear do it: small, out of the content flow, and named for the recovery.
 - **Row hover** is kept (`hover:bg-muted/50` on `table-row.svelte`), unlike HealthOS: rows here carry inline buttons and an expandable batch list, so the tint tells a person which row the pointer is on.
+
+## 2. Pickers
+
+Sources: Pickers, Lists and tables; HealthOS §5 (patient picker).
+
+- **A picker row shows the whole name.** The one-line rule is for tables, where a row is a record among peers; in a picker the name is the thing being chosen, so it wraps rather than truncates (`min-w-0 flex-1`, `items-start` on the row, the check icon nudged to the first line). A quarter of item names run past 30 characters and the longest past 60, so a truncated row hid exactly the part that tells two strengths apart. The trailing fact is one compact figure (`Quantity` with `pack={false}`, `text-xs`, destructive when zero) and no word after it; what it means is clear from the field, and the Quantity field's description repeats the on-hand figure once an item is picked.

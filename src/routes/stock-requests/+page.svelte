@@ -437,21 +437,23 @@
 						<Command.Empty>No item found.</Command.Empty>
 						<Command.Group>
 							{#each itemOptions as item (item.id)}
+								<!-- The whole name shows, wrapping when it must; on hand trails as a compact figure. -->
 								<Command.Item
-									class="rounded-lg"
+									class="items-start rounded-lg"
 									value={item.item_name}
 									onSelect={() => pickItem(item)}
 								>
-									<CheckIcon class={cn(newItemId !== item.id && 'text-transparent')} />
-									<span class={cn('truncate', capsClass(item.item_name))}>{item.item_name}</span>
-									<span
-										class={cn(
-											'ms-auto shrink-0 text-xs tabular-nums',
-											item.quantity === 0 ? 'text-destructive' : 'text-muted-foreground',
-										)}
+									<CheckIcon class={cn('mt-0.5', newItemId !== item.id && 'text-transparent')} />
+									<span class={cn('min-w-0 flex-1', capsClass(item.item_name))}
+										>{item.item_name}</span
 									>
-										{withUnit(item.quantity, item.unit)} available
-									</span>
+									<Quantity
+										value={item.quantity}
+										unit={item.unit}
+										pack={false}
+										class="shrink-0 text-xs"
+										valueClass={cn('font-normal', item.quantity === 0 && 'text-destructive')}
+									/>
 								</Command.Item>
 							{/each}
 						</Command.Group>
