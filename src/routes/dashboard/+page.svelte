@@ -84,8 +84,10 @@
 				),
 			),
 	)
+	// Snoozed rows go first when shown: the person asked to see them, and the
+	// inbox behind them can run to a hundred rows
 	let showSnoozed = $state(false)
-	const toOrderRows = $derived(showSnoozed ? toOrder.concat(snoozed) : toOrder)
+	const toOrderRows = $derived(showSnoozed ? snoozed.concat(toOrder) : toOrder)
 	const toOrderList = createLoadMore(() => toOrderRows, QUEUE_PAGE)
 
 	// ---------- Waiting for delivery ----------

@@ -40,10 +40,6 @@ export const inventoryFields = {
 	unit: v.string(),
 	remark: v.string(),
 	order_status: v.optional(orderStatus),
-	// Replaced by order_status; dropped once migration:convertOrderStatus has run.
-	order_date: v.optional(v.string()),
-	non_order_reason: v.optional(v.string()),
-	back_order: v.optional(v.boolean()),
 	not_track: v.boolean(),
 	is_pinned: v.boolean(),
 	...commonFields,
