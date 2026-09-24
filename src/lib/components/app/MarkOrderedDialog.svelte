@@ -11,7 +11,7 @@
 	import type { InventoryItem, OrderedStatus } from '$lib/types/inventory'
 	import { todayIsoDate } from '$lib/types/stockBatches'
 	import { capsClass } from '$lib/utils/text'
-	import { LEAD_DAYS, addDays, suggestedOrderQuantity } from '../../../../convex/lib/orders'
+	import { LEAD_DAYS, addDays } from '../../../../convex/lib/orders'
 
 	/**
 	 * Marks an item as ordered, or changes an order already placed. The
@@ -22,14 +22,19 @@
 	let item = $state<InventoryItem | null>(null)
 	let existing = $state<OrderedStatus | null>(null)
 	let isOpen = $state(false)
-	let quantity = $state(1)
+	let quantity = $state<number | ''>('')
 	let orderedOn = $state('')
 	let expectedBy = $state('')
 	let backOrder = $state(false)
-	let openedWith = $state({ quantity: 1, orderedOn: '', expectedBy: '', backOrder: false })
+	let openedWith = $state({
+		quantity: '' as number | '',
+		orderedOn: '',
+		expectedBy: '',
+		backOrder: false,
+	})
 
 	const dirty = $derived(
-		Number(quantity) !== openedWith.quantity ||
+		quantity !== openedWith.quantity ||
 			orderedOn !== openedWith.orderedOn ||
 			expectedBy !== openedWith.expectedBy ||
 			backOrder !== openedWith.backOrder,
@@ -48,7 +53,7 @@
 	export function open(target: InventoryItem): void {
 		item = target
 		existing = target.order_status?.kind === 'ordered' ? target.order_status : null
-		quantity = existing?.quantity ?? suggestedOrderQuantity(target.quantity, target.reorder_level)
+		quantity = existing?.quantity ?? ''
 		orderedOn = existing?.ordered_on ?? todayIsoDate()
 		backOrder = existing !== null && !existing.expected_by
 		expectedBy = existing?.expected_by ?? addDays(orderedOn, LEAD_DAYS)
