@@ -103,7 +103,7 @@
 
 <ActionModal
 	bind:open={isOpen}
-	title={existing ? 'Change Order' : 'Mark as Ordered'}
+	title={existing ? 'Update Order' : 'Mark as Ordered'}
 	loading={inventoryStore.loading}
 	{dirty}
 	disabled={!isValid}
