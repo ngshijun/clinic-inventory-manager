@@ -184,50 +184,8 @@
 			{/each}
 		</div>
 	</Card.Root>
-	<Skeleton class="h-9 w-full rounded-full sm:w-[32rem]" />
 	<Skeleton class="h-40 rounded-md" />
 {:else}
-	<Card.Root size="sm" class="gap-0 rounded-2xl py-0">
-		<div class="grid grid-cols-2 lg:grid-cols-4">
-			{@render stat(
-				BoxIcon,
-				'To order',
-				toOrder.length,
-				toOrder.length === 0
-					? snoozed.length > 0
-						? `${plural(snoozed.length, 'item')} snoozed`
-						: 'Nothing waiting on you'
-					: `${toOrderOut} out of stock`,
-				toOrder.length > 0 ? 'danger' : null,
-				'toorder',
-			)}
-			{@render stat(
-				TruckIcon,
-				'Waiting for delivery',
-				waiting.length,
-				lateCount > 0 ? `${lateCount} late` : 'None late',
-				lateCount > 0 ? 'warning' : waiting.length > 0 ? 'info' : null,
-				'waiting',
-			)}
-			{@render stat(
-				ClockIcon,
-				'Expiring soon',
-				expiring.length,
-				`${expiredCount} already expired`,
-				expiring.length > 0 ? 'warning' : null,
-				'expiring',
-			)}
-			{@render stat(
-				ArchiveIcon,
-				'Not moving',
-				stale.length,
-				`No movement in ${NOT_MOVING_DAYS} days`,
-				null,
-				'notmoving',
-			)}
-		</div>
-	</Card.Root>
-
 	<Tabs.Root
 		value={queue}
 		onValueChange={(value) => {
@@ -235,31 +193,64 @@
 		}}
 		class="flex-1 gap-3"
 	>
-		<div class="flex flex-wrap items-center justify-between gap-2">
-			<Tabs.List class="grid w-full grid-cols-2 sm:w-fit sm:grid-cols-4">
-				{@render tab('toorder', BoxIcon, 'To Order', toOrder.length, 'danger')}
-				{@render tab(
+		<!-- The headline strip is the tab list: each segment is the tab for its queue -->
+		<Card.Root size="sm" class="gap-0 rounded-2xl py-0">
+			<Tabs.List
+				variant="line"
+				class="text-foreground grid h-auto w-full grid-cols-2 gap-0 rounded-none p-0 group-data-horizontal/tabs:h-auto lg:grid-cols-4"
+			>
+				{@render queueTab(
+					'toorder',
+					BoxIcon,
+					'To Order',
+					toOrder.length,
+					toOrder.length === 0
+						? snoozed.length > 0
+							? `${plural(snoozed.length, 'item')} snoozed`
+							: 'Nothing waiting on you'
+						: `${toOrderOut} out of stock`,
+					'danger',
+				)}
+				{@render queueTab(
 					'waiting',
 					TruckIcon,
 					'Waiting for Delivery',
 					waiting.length,
+					lateCount > 0 ? `${lateCount} late` : 'None late',
 					lateCount > 0 ? 'warning' : 'info',
 				)}
-				{@render tab('expiring', ClockIcon, 'Expiring Batches', expiring.length, 'warning')}
-				{@render tab('notmoving', ArchiveIcon, 'Not Moving', stale.length, null)}
+				{@render queueTab(
+					'expiring',
+					ClockIcon,
+					'Expiring Batches',
+					expiring.length,
+					`${expiredCount} already expired`,
+					'warning',
+				)}
+				{@render queueTab(
+					'notmoving',
+					ArchiveIcon,
+					'Not Moving',
+					stale.length,
+					`No movement in ${NOT_MOVING_DAYS} days`,
+					null,
+				)}
 			</Tabs.List>
-			{#if queue === 'toorder'}
-				<div class="flex items-center gap-2">
-					<Checkbox id="show-snoozed" bind:checked={showSnoozed} />
-					<Label for="show-snoozed" class="font-normal">Show snoozed ({snoozed.length})</Label>
-				</div>
-			{:else if queue === 'expiring'}
+		</Card.Root>
+
+		{#if queue === 'toorder'}
+			<div class="flex items-center justify-end gap-2">
+				<Checkbox id="show-snoozed" bind:checked={showSnoozed} />
+				<Label for="show-snoozed" class="font-normal">Show snoozed ({snoozed.length})</Label>
+			</div>
+		{:else if queue === 'expiring'}
+			<div class="flex justify-end">
 				<Button variant="ghost" size="sm" href="/inventory" class="-me-2">
 					Open Inventory
 					<ChevronRightIcon data-icon="inline-end" />
 				</Button>
-			{/if}
-		</div>
+			</div>
+		{/if}
 
 		<!-- To order -->
 		<Tabs.Content value="toorder" class="flex flex-col gap-3">
@@ -583,86 +574,67 @@
 {/if}
 
 <!--
-	A strip segment that opens its queue. The glyph, number and label tint
-	only while the count is above zero; a zero is a muted zero in its fixed
-	place, never a message.
+	A strip segment that is the tab for its queue: glyph, label, the count as
+	the big figure, one line of context. The glyph, number and label tint only
+	while the count is above zero; a zero is a muted zero in its fixed place,
+	never a message. The open tab carries a bar along its bottom edge and a
+	tint, and drops the chevron.
 -->
-{#snippet stat(
-	Icon: Component<{ class?: string }>,
-	label: string,
-	value: number,
-	sub: string,
-	tone: 'warning' | 'danger' | 'info' | null,
-	target: Queue,
-)}
-	{@const live = value > 0 ? tone : null}
-	<button
-		type="button"
-		class="border-border hover:bg-muted/50 focus-visible:bg-muted/50 flex min-w-0 flex-col gap-1.5 px-4 py-3.5 text-start outline-none even:border-s lg:[&:not(:first-child)]:border-s [&:nth-child(n+3)]:border-t lg:[&:nth-child(n+3)]:border-t-0"
-		onclick={() => (queue = target)}
-	>
-		<span class="text-muted-foreground flex items-center gap-2 text-xs font-medium">
-			<span
-				class={cn(
-					'bg-muted text-foreground/70 flex size-5 shrink-0 items-center justify-center rounded-md',
-					live === 'warning' && 'bg-warning-soft text-warning',
-					live === 'danger' && 'bg-destructive/10 text-destructive',
-					live === 'info' && 'bg-info-soft text-info',
-				)}
-			>
-				<Icon class="size-3" />
-			</span>
-			<span
-				class={cn(
-					'truncate',
-					live === 'warning' && 'text-warning',
-					live === 'danger' && 'text-destructive',
-					live === 'info' && 'text-info',
-				)}
-			>
-				{label}
-			</span>
-			<ChevronRightIcon class="ms-auto size-3.5 shrink-0" />
-		</span>
-		<span
-			class={cn(
-				'text-[26px] leading-none font-semibold tabular-nums',
-				live === 'warning' && 'text-warning',
-				live === 'danger' && 'text-destructive',
-				live === 'info' && 'text-info',
-				value === 0 && 'text-muted-foreground',
-			)}
-		>
-			{value}
-		</span>
-		<span class="text-muted-foreground truncate text-xs">{sub}</span>
-	</button>
-{/snippet}
-
-<!-- A queue tab: the same glyph as its strip segment, its label, and its count -->
-{#snippet tab(
+{#snippet queueTab(
 	value: Queue,
 	Icon: Component<{ class?: string }>,
 	label: string,
 	count: number,
+	sub: string,
 	tone: 'warning' | 'danger' | 'info' | null,
 )}
-	<Tabs.Trigger {value} class="min-w-0">
-		<Icon
-			class={cn(
-				'size-4',
-				count > 0 && tone === 'warning' && 'text-warning',
-				count > 0 && tone === 'danger' && 'text-destructive',
-				count > 0 && tone === 'info' && 'text-info',
-			)}
-		/>
-		<span class="truncate">{label}</span>
-		<span
-			class="bg-muted-foreground/15 text-foreground/80 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-semibold tabular-nums"
+	{@const live = count > 0 ? tone : null}
+	<div
+		class="border-border flex min-w-0 even:border-s lg:[&:not(:first-child)]:border-s [&:nth-child(n+3)]:border-t lg:[&:nth-child(n+3)]:border-t-0"
+	>
+		<Tabs.Trigger
+			{value}
+			class="group/tile hover:bg-muted/50 focus-visible:bg-muted/50 data-active:bg-muted/50 dark:data-active:bg-muted/50 group-data-[variant=line]/tabs-list:data-active:bg-muted/50 dark:group-data-[variant=line]/tabs-list:data-active:bg-muted/50 h-auto w-full min-w-0 flex-col items-start justify-start gap-1.5 rounded-none border-0 px-4 py-3.5 text-start whitespace-normal after:rounded-t-sm group-data-horizontal/tabs:after:inset-x-4 group-data-horizontal/tabs:after:bottom-0 group-data-horizontal/tabs:after:h-[3px] focus-visible:ring-0 focus-visible:outline-none"
 		>
-			{count}
-		</span>
-	</Tabs.Trigger>
+			<span
+				class="text-muted-foreground group-data-active/tile:text-foreground flex w-full items-center gap-2 text-xs font-medium"
+			>
+				<span
+					class={cn(
+						'bg-muted text-foreground/70 flex size-5 shrink-0 items-center justify-center rounded-md',
+						live === 'warning' && 'bg-warning-soft text-warning',
+						live === 'danger' && 'bg-destructive/10 text-destructive',
+						live === 'info' && 'bg-info-soft text-info',
+					)}
+				>
+					<Icon class="size-3" />
+				</span>
+				<span
+					class={cn(
+						'truncate',
+						live === 'warning' && 'text-warning',
+						live === 'danger' && 'text-destructive',
+						live === 'info' && 'text-info',
+					)}
+				>
+					{label}
+				</span>
+				<ChevronRightIcon class="ms-auto size-3.5 shrink-0 group-data-active/tile:hidden" />
+			</span>
+			<span
+				class={cn(
+					'text-foreground text-[26px] leading-none font-semibold tabular-nums',
+					live === 'warning' && 'text-warning',
+					live === 'danger' && 'text-destructive',
+					live === 'info' && 'text-info',
+					count === 0 && 'text-muted-foreground',
+				)}
+			>
+				{count}
+			</span>
+			<span class="text-muted-foreground w-full truncate text-xs">{sub}</span>
+		</Tabs.Trigger>
+	</div>
 {/snippet}
 
 <!-- An empty queue, centred in the space the list would fill: glyph, title, one sentence -->

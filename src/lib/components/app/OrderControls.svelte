@@ -10,7 +10,7 @@
 	import { isSnoozing } from '$lib/utils/orders'
 
 	/**
-	 * The purchaser's controls on a row. On order: Change Order… and Not
+	 * The purchaser's controls on a row. On order: Update Order… and Not
 	 * Ordered. Otherwise Mark Ordered… and a Not now menu holding the ways to
 	 * put the item aside. The dialogs belong to the page.
 	 */
@@ -52,7 +52,7 @@
 		disabled={inventoryStore.loading}
 		onclick={() => onMarkOrdered(item)}
 	>
-		Change Order…
+		Update Order…
 	</Button>
 	<Button
 		variant="outline"
