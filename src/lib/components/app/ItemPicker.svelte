@@ -21,7 +21,7 @@
 		items,
 		id = 'item-picker',
 		placeholder = 'Type to find an item',
-		showOnHand = false,
+		showInStock = false,
 		autofocus = false,
 		onSelect,
 	}: {
@@ -32,7 +32,7 @@
 		id?: string
 		placeholder?: string
 		/** Trail each match with its on-hand figure */
-		showOnHand?: boolean
+		showInStock?: boolean
 		autofocus?: boolean
 		onSelect?: (item: InventoryItem) => void
 	} = $props()
@@ -192,7 +192,7 @@
 						onclick={() => choose(item)}
 					>
 						<span class={cn('min-w-0 flex-1', capsClass(item.item_name))}>{item.item_name}</span>
-						{#if showOnHand}
+						{#if showInStock}
 							<Quantity
 								value={item.quantity}
 								unit={item.unit}

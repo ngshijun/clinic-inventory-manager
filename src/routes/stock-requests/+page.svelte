@@ -435,7 +435,7 @@
 					id="new-request-item"
 					bind:value={newItemId}
 					items={itemOptions}
-					showOnHand
+					showInStock
 					autofocus
 					onSelect={pickItem}
 				/>
@@ -464,12 +464,12 @@
 					{/if}
 				</InputGroup.Root>
 				{#if newItem && newOverStock}
-					<Field.Error>Only {withUnit(newOnHand, newUnit)} on hand.</Field.Error>
+					<Field.Error>Only {withUnit(newOnHand, newUnit)} in stock.</Field.Error>
 				{:else if newItem && newOnHand === 0}
-					<Field.Error>Nothing on hand.</Field.Error>
+					<Field.Error>Nothing in stock.</Field.Error>
 				{:else if newItem}
 					<Field.Description
-						><Quantity value={newOnHand} unit={newUnit} /> on hand.</Field.Description
+						><Quantity value={newOnHand} unit={newUnit} /> in stock.</Field.Description
 					>
 				{/if}
 			</Field.Field>

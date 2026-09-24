@@ -68,6 +68,13 @@
 
 	const hasEnoughStock = (request: StockRequest): boolean => onHand(request) >= request.quantity
 
+	/** Tone of the "N left after" hint: amber at or under the item's reorder level, red at nothing */
+	const leftTone = (request: StockRequest, left: number): 'danger' | 'warning' | null => {
+		if (left === 0) return 'danger'
+		const reorderLevel = inventoryStore.getItemById(request.item_id)?.reorder_level ?? -1
+		return left <= reorderLevel ? 'warning' : null
+	}
+
 	const plural = (count: number, noun: string): string =>
 		`${count} ${count === 1 ? noun : `${noun}s`}`
 
@@ -299,7 +306,7 @@
 				<Table.Head class="w-9"></Table.Head>
 				<Table.Head>Item</Table.Head>
 				<Table.Head>Quantity</Table.Head>
-				<Table.Head>On hand</Table.Head>
+				<Table.Head>In stock</Table.Head>
 				<Table.Head>Remark</Table.Head>
 				<Table.Head>Status</Table.Head>
 				<Table.Head><span class="sr-only">Actions</span></Table.Head>
@@ -369,7 +376,7 @@
 				<SortHeader key="item_name" {sort} onsort={toggleSort}>Item</SortHeader>
 				<SortHeader key="created_at" {sort} onsort={toggleSort}>Requested</SortHeader>
 				<SortHeader key="quantity" {sort} onsort={toggleSort}>Quantity</SortHeader>
-				<Table.Head>On hand</Table.Head>
+				<Table.Head>In stock</Table.Head>
 				<Table.Head class="w-[26%]">Remark</Table.Head>
 				<SortHeader key="status" {sort} onsort={toggleSort}>Status</SortHeader>
 				<Table.Head><span class="sr-only">Actions</span></Table.Head>
@@ -408,19 +415,29 @@
 							valueClass={cn(pending && 'font-semibold')}
 						/>
 					</Table.Cell>
+					<!-- Only a pending request needs the figure: it answers "can I approve this?" -->
 					<Table.Cell class="tabular-nums">
 						{#if short}
 							<ToneBadge tone="danger">
 								<TriangleAlertIcon />
 								Only {withUnit(stock, request.unit)}
 							</ToneBadge>
+						{:else if pending}
+							{@const left = stock - request.quantity}
+							{@const tone = leftTone(request, left)}
+							<Quantity value={stock} unit={request.unit} pack={false} valueClass="font-normal" />
+							<span
+								class={cn(
+									'ms-1.5 text-xs',
+									tone === 'danger' && 'text-destructive',
+									tone === 'warning' && 'text-warning',
+									tone === null && 'text-muted-foreground',
+								)}
+							>
+								{left} left after
+							</span>
 						{:else}
-							<Quantity
-								value={stock}
-								unit={request.unit}
-								pack={false}
-								valueClass={cn(stock === 0 ? 'text-destructive' : 'font-normal')}
-							/>
+							<span class="text-muted-foreground">—</span>
 						{/if}
 					</Table.Cell>
 					<!-- One line: the full remark is the title and opens in Edit Request. -->
@@ -472,7 +489,7 @@
 										{/snippet}
 									</Tooltip.Trigger>
 									{#if short}
-										<Tooltip.Content>Not enough stock on hand</Tooltip.Content>
+										<Tooltip.Content>Not enough in stock</Tooltip.Content>
 									{/if}
 								</Tooltip.Root>
 							{:else}
@@ -517,7 +534,7 @@
 				<span class="shrink-0 font-medium tabular-nums">
 					{withUnit(request.quantity, request.unit)}
 					<span class="text-muted-foreground font-normal">
-						· {onHand(request)} on hand
+						· {onHand(request)} in stock
 					</span>
 				</span>
 			</li>
@@ -526,7 +543,7 @@
 			<li class="text-muted-foreground flex items-center justify-between gap-3 px-3 py-2">
 				<span class="truncate">{request.item_name}</span>
 				<span class="text-destructive shrink-0 text-xs">
-					Skipped, only {withUnit(onHand(request), request.unit)} on hand
+					Skipped, only {withUnit(onHand(request), request.unit)} in stock
 				</span>
 			</li>
 		{/each}

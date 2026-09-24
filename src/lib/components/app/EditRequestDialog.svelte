@@ -14,7 +14,7 @@
 
 	/*
 	 * Edit Request, shared by Stock Approvals and Stock Requests. Opened with
-	 * `dialog.open(request)`; the quantity is capped at what is on hand.
+	 * `dialog.open(request)`; the quantity is capped at what is in stock.
 	 */
 	let request = $state<StockRequest | null>(null)
 	let isOpen = $state(false)
@@ -25,7 +25,7 @@
 		request ? (inventoryStore.getItemById(request.item_id)?.quantity ?? 0) : 0,
 	)
 	const unit = $derived(request?.unit ?? '')
-	const facts = $derived(request ? [{ label: 'On hand', value: withUnit(onHand, unit) }] : [])
+	const facts = $derived(request ? [{ label: 'In stock', value: withUnit(onHand, unit) }] : [])
 	const parsedQuantity = $derived(Number(quantity))
 	const overStock = $derived(quantity !== '' && parsedQuantity > onHand)
 	const isValid = $derived(
@@ -97,7 +97,7 @@
 					</InputGroup.Addon>
 				</InputGroup.Root>
 				{#if overStock}
-					<Field.Error>Only {withUnit(onHand, unit)} on hand.</Field.Error>
+					<Field.Error>Only {withUnit(onHand, unit)} in stock.</Field.Error>
 				{/if}
 			</Field.Field>
 			<Field.Field>

@@ -11,7 +11,7 @@
 	 * Rule: a row's own state (in stock, low, out) is a dot in any table that
 	 * already carries other colour. Everything else stays a ToneBadge, as in
 	 * HealthOS: decision outcomes (Pending, Approved), warnings (expiry,
-	 * "Only N on hand") and facts about an item (Ordered, Back-ordered).
+	 * "Only N in stock") and facts about an item (Ordered, Back-ordered).
 	 */
 	let {
 		tone = 'neutral',

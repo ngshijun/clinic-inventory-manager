@@ -282,7 +282,7 @@
 						<Table.Row>
 							<Table.Head>Item</Table.Head>
 							<Table.Head>Status</Table.Head>
-							<Table.Head>On hand</Table.Head>
+							<Table.Head>In stock</Table.Head>
 							<Table.Head>Order status</Table.Head>
 							<Table.Head><span class="sr-only">Actions</span></Table.Head>
 						</Table.Row>
@@ -356,7 +356,7 @@
 					<Table.Header>
 						<Table.Row>
 							<Table.Head>Item</Table.Head>
-							<Table.Head>On hand</Table.Head>
+							<Table.Head>In stock</Table.Head>
 							<Table.Head>Last movement</Table.Head>
 						</Table.Row>
 					</Table.Header>
