@@ -1,6 +1,8 @@
 <script lang="ts">
 	import '../app.css'
-	import { goto, afterNavigate } from '$app/navigation'
+	import { goto, afterNavigate, beforeNavigate } from '$app/navigation'
+	import { updated } from '$app/state'
+	import { toast } from 'svelte-sonner'
 	import { authStore } from '$lib/stores/auth.svelte'
 	import { inventoryStore } from '$lib/stores/inventory.svelte'
 	import { stockMovementsStore } from '$lib/stores/stockMovements.svelte'
@@ -78,9 +80,28 @@
 			scrollRegion.scrolled = false
 		}
 	})
+
+	/*
+	 * A new deploy while the tab is open: offer a reload, and take the next
+	 * page change as a full load so the old build never fetches chunks that
+	 * no longer exist. The toast stays until Reload is pressed, since a
+	 * half-filled form should not be thrown away on a timer.
+	 */
+	$effect(() => {
+		if (!updated.current) return
+		toast('A new version of the app is ready.', {
+			id: 'app-updated',
+			duration: Infinity,
+			action: { label: 'Reload', onClick: () => location.reload() },
+		})
+	})
+
+	beforeNavigate(({ willUnload, to }) => {
+		if (updated.current && !willUnload && to?.url) location.href = to.url.href
+	})
 </script>
 
-<Toaster richColors closeButton position="top-right" theme="light" />
+<Toaster richColors position="top-right" theme="light" />
 
 {#if authStore.isAuthenticated && authStore.user}
 	<Sidebar.Provider class="h-svh overflow-hidden">

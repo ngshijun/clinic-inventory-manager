@@ -9,6 +9,9 @@ const config = {
 		// only knows 20/22/24. Nothing runs server-side anyway (ssr = false).
 		adapter: adapter({ runtime: 'nodejs22.x' }),
 		alias: { '@/*': './src/lib/*' },
+		// A tab left open all day learns about a new deploy within a minute; the
+		// root layout then reloads on the next navigation and offers a Reload toast.
+		version: { pollInterval: 60_000 },
 	},
 }
 
