@@ -17,6 +17,7 @@
 	import * as Sidebar from '$lib/components/ui/sidebar'
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb'
 	import { Toaster } from '$lib/components/ui/sonner'
+	import { ModeWatcher } from 'mode-watcher'
 	import AppSidebar from '$lib/components/app/AppSidebar.svelte'
 	import { breadcrumbs } from '$lib/components/app/breadcrumbs.svelte'
 	import { scrollRegion } from '$lib/components/app/scroll-region.svelte'
@@ -101,7 +102,8 @@
 	})
 </script>
 
-<Toaster richColors position="top-right" theme="light" />
+<ModeWatcher />
+<Toaster richColors position="top-right" />
 
 {#if authStore.isAuthenticated && authStore.user}
 	<Sidebar.Provider class="h-svh overflow-hidden">
