@@ -1,7 +1,56 @@
 import { v } from 'convex/values'
-import { internalQuery } from './_generated/server'
+import { internalMutation, internalQuery } from './_generated/server'
 import type { Id } from './_generated/dataModel'
 import { movementsByType } from './lib/aggregates'
+import { LEAD_DAYS, addDays, toIsoDate } from './lib/orders'
+
+/*
+ * One-off: folds order_date / back_order / non_order_reason into order_status.
+ *
+ *   npx convex run migration:convertOrderStatus '{}' [--prod]
+ *
+ * An order date becomes an order expected LEAD_DAYS later (a back-order has no
+ * expected date). "Planning to order later" and "Supplier has no stock" become
+ * a two-week snooze from today; "Alternative ordered" items are already
+ * untracked and just lose the reason. Idempotent: rows without the old fields
+ * are left alone. Delete this and the old schema fields once it has run.
+ */
+export const convertOrderStatus = internalMutation({
+	args: {},
+	returns: v.object({ ordered: v.number(), snoozed: v.number(), cleared: v.number() }),
+	handler: async (ctx) => {
+		const today = new Date().toISOString().slice(0, 10)
+		const until = addDays(today, 14)
+		let ordered = 0
+		let snoozed = 0
+		let cleared = 0
+		// Bounded by the clinic's product count.
+		for (const item of await ctx.db.query('inventory').collect()) {
+			const { order_date, back_order, non_order_reason, ...rest } = item
+			if (order_date === undefined && back_order === undefined && non_order_reason === undefined)
+				continue
+			const orderedOn = toIsoDate(order_date)
+			if (orderedOn) {
+				rest.order_status = {
+					kind: 'ordered',
+					ordered_on: orderedOn,
+					expected_by: back_order ? undefined : addDays(orderedOn, LEAD_DAYS),
+				}
+				ordered++
+			} else if (non_order_reason === 'Planning to order later') {
+				rest.order_status = { kind: 'snoozed', until, reason: 'Will order later' }
+				snoozed++
+			} else if (non_order_reason === 'Supplier has no stock') {
+				rest.order_status = { kind: 'snoozed', until, reason: 'Supplier has no stock' }
+				snoozed++
+			} else {
+				cleared++
+			}
+			await ctx.db.replace(item._id, rest)
+		}
+		return { ordered, snoozed, cleared }
+	},
+})
 
 /*
  * Consistency check. Internal only, nothing in the app calls it:

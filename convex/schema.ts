@@ -14,15 +14,36 @@ export const requestStatus = v.union(
 )
 export const role = v.union(v.literal('manager'), v.literal('requester'))
 
+/**
+ * Where an item stands with the purchaser. Absent means nothing has been
+ * decided: a low item then sits in the Dashboard's To Order list. Ordered
+ * items wait for delivery (a missing expected date is a back-order); snoozed
+ * items stay out of To Order until their date. Stock in clears either.
+ */
+export const orderStatus = v.union(
+	v.object({
+		kind: v.literal('ordered'),
+		ordered_on: v.string(),
+		expected_by: v.optional(v.string()),
+	}),
+	v.object({
+		kind: v.literal('snoozed'),
+		until: v.string(),
+		reason: v.string(),
+	}),
+)
+
 export const inventoryFields = {
 	item_name: v.string(),
 	quantity: v.number(),
 	reorder_level: v.number(),
 	unit: v.string(),
 	remark: v.string(),
+	order_status: v.optional(orderStatus),
+	// Replaced by order_status; dropped once migration:convertOrderStatus has run.
 	order_date: v.optional(v.string()),
 	non_order_reason: v.optional(v.string()),
-	back_order: v.boolean(),
+	back_order: v.optional(v.boolean()),
 	not_track: v.boolean(),
 	is_pinned: v.boolean(),
 	...commonFields,

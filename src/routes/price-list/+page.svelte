@@ -1,8 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte'
 	import { toast } from 'svelte-sonner'
-	import CalendarIcon from '@lucide/svelte/icons/calendar'
-	import ClockIcon from '@lucide/svelte/icons/clock'
 	import PackageOpenIcon from '@lucide/svelte/icons/package-open'
 	import PencilIcon from '@lucide/svelte/icons/pencil'
 	import SearchIcon from '@lucide/svelte/icons/search'
@@ -11,12 +9,13 @@
 	import ActionModal from '$lib/components/app/ActionModal.svelte'
 	import DialogSubject from '$lib/components/app/DialogSubject.svelte'
 	import MarkOrderedDialog from '$lib/components/app/MarkOrderedDialog.svelte'
-	import OrderStatusMenu from '$lib/components/app/OrderStatusMenu.svelte'
+	import OrderControls from '$lib/components/app/OrderControls.svelte'
+	import OrderStatusBadge from '$lib/components/app/OrderStatusBadge.svelte'
 	import PageHeader from '$lib/components/app/PageHeader.svelte'
-	import ReasonBadge from '$lib/components/app/ReasonBadge.svelte'
+	import SnoozeDialog from '$lib/components/app/SnoozeDialog.svelte'
 	import SortHeader from '$lib/components/app/SortHeader.svelte'
 	import type { SortState } from '$lib/components/app/sort'
-	import ToneBadge from '$lib/components/app/ToneBadge.svelte'
+	import StopTrackingDialog from '$lib/components/app/StopTrackingDialog.svelte'
 	import { Button } from '$lib/components/ui/button'
 	import * as Empty from '$lib/components/ui/empty'
 	import * as Field from '$lib/components/ui/field'
@@ -30,20 +29,20 @@
 	import { createLoadMore } from '$lib/composables/loadMore.svelte'
 	import { inventoryStore } from '$lib/stores/inventory.svelte'
 	import type { InventoryItem } from '$lib/types/inventory'
-	import { formatDate, formatDayMonth } from '$lib/utils/date'
+	import { isOnOrder, isSnoozing, needsDecision } from '$lib/utils/orders'
 	import Quantity from '$lib/components/app/Quantity.svelte'
 	import { cn } from '$lib/utils'
 	import { capsClass } from '$lib/utils/text'
 
 	// ---------- Toolbar state ----------
-	type Filter = 'all' | 'ordered' | 'reason' | 'none'
+	type Filter = 'all' | 'toorder' | 'ordered' | 'snoozed'
 	type SortKey = 'item_name' | 'quantity' | 'order_status' | 'remark'
 
 	const FILTERS: Array<{ value: Filter; label: string }> = [
 		{ value: 'all', label: 'All' },
+		{ value: 'toorder', label: 'To Order' },
 		{ value: 'ordered', label: 'On Order' },
-		{ value: 'reason', label: 'With Reason' },
-		{ value: 'none', label: 'No Status' },
+		{ value: 'snoozed', label: 'Snoozed' },
 	]
 
 	let searchQuery = $state('')
@@ -55,22 +54,22 @@
 
 	const matchesFilter = (item: InventoryItem): boolean => {
 		switch (filter) {
+			case 'toorder':
+				return needsDecision(item)
 			case 'ordered':
-				return !!item.order_date
-			case 'reason':
-				return !item.order_date && !!item.non_order_reason
-			case 'none':
-				return !item.order_date && !item.non_order_reason
+				return isOnOrder(item)
+			case 'snoozed':
+				return isSnoozing(item)
 			default:
 				return true
 		}
 	}
 
-	// On order first, then reasons, then nothing; within on order, by date
+	// On order first, then snoozed, then nothing; within each, by date
 	const orderStatusValue = (item: InventoryItem): string | null => {
-		if (item.order_date) return `0 ${item.order_date}`
-		if (item.non_order_reason) return `1 ${item.non_order_reason}`
-		return null
+		const status = item.order_status
+		if (!status) return null
+		return status.kind === 'ordered' ? `0 ${status.ordered_on}` : `1 ${status.until}`
 	}
 
 	const quantityTone = (item: InventoryItem): 'danger' | 'warning' | null => {
@@ -143,8 +142,10 @@
 		}
 	}
 
-	// ---------- Mark ordered ----------
+	// ---------- Order dialogs ----------
 	let orderDialog = $state<MarkOrderedDialog | null>(null)
+	let snoozeDialog = $state<SnoozeDialog | null>(null)
+	let stopTrackingDialog = $state<StopTrackingDialog | null>(null)
 
 	// ---------- Edit remark ----------
 	let showRemarkDialog = $state(false)
@@ -294,21 +295,7 @@
 						/>
 					</Table.Cell>
 					<Table.Cell>
-						{#if item.order_date}
-							<ToneBadge tone="info">
-								{#if item.back_order}
-									<ClockIcon />
-									Back-ordered {formatDayMonth(item.order_date)}
-								{:else}
-									<CalendarIcon />
-									Ordered {formatDayMonth(item.order_date)}
-								{/if}
-							</ToneBadge>
-						{:else if item.non_order_reason}
-							<ReasonBadge reason={item.non_order_reason} size="md" />
-						{:else}
-							<span class="text-muted-foreground">—</span>
-						{/if}
+						<OrderStatusBadge {item} />
 					</Table.Cell>
 					<!-- One line: the full remark is the title and opens in Edit Remark. -->
 					<Table.Cell class="max-w-0">
@@ -320,7 +307,12 @@
 					</Table.Cell>
 					<Table.Cell>
 						<div class="flex justify-end gap-1">
-							<OrderStatusMenu {item} onMarkOrdered={(target) => orderDialog?.open(target)} />
+							<OrderControls
+								{item}
+								onMarkOrdered={(target) => orderDialog?.open(target)}
+								onSnooze={(target) => snoozeDialog?.open(target)}
+								onStopTracking={(target) => stopTrackingDialog?.open(target)}
+							/>
 							<Tooltip.Root>
 								<Tooltip.Trigger>
 									{#snippet child({ props })}
@@ -352,6 +344,8 @@
 {/if}
 
 <MarkOrderedDialog bind:this={orderDialog} />
+<SnoozeDialog bind:this={snoozeDialog} />
+<StopTrackingDialog bind:this={stopTrackingDialog} />
 
 <!-- Edit Remark -->
 <ActionModal

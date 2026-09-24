@@ -5,6 +5,11 @@ export type InventoryId = Id<'inventory'>
 
 export type InventoryItem = WithLegacy<Doc<'inventory'>>
 
+/** Where an item stands with the purchaser; see convex/schema.ts orderStatus */
+export type OrderStatus = NonNullable<Doc<'inventory'>['order_status']>
+export type OrderedStatus = Extract<OrderStatus, { kind: 'ordered' }>
+export type SnoozedStatus = Extract<OrderStatus, { kind: 'snoozed' }>
+
 /** Fields the Add New Item form and the Excel import provide */
 export interface NewInventoryItem {
 	item_name: string
@@ -12,9 +17,6 @@ export interface NewInventoryItem {
 	reorder_level: number
 	unit: string
 	remark?: string
-	order_date?: string | null
-	non_order_reason?: string | null
-	back_order?: boolean
 	not_track?: boolean
 }
 
@@ -25,6 +27,4 @@ export interface InventoryItemUpdate {
 	reorder_level?: number
 	remark?: string
 	not_track?: boolean
-	order_date?: string | null
-	non_order_reason?: string | null
 }

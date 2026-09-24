@@ -6,6 +6,7 @@ import type {
 	InventoryItem,
 	InventoryItemUpdate,
 	NewInventoryItem,
+	OrderStatus,
 } from '$lib/types/inventory'
 import { errorMessage, withLegacy } from '$lib/types/legacy'
 import { authStore } from './auth.svelte'
@@ -100,8 +101,6 @@ class InventoryStore {
 				reorder_level: Math.max(-1, newItem.reorder_level),
 				unit: newItem.unit,
 				remark: newItem.remark || '',
-				order_date: newItem.order_date || undefined,
-				non_order_reason: newItem.non_order_reason || undefined,
 				not_track: newItem.not_track || false,
 				expiry_date: expiryDate || undefined,
 			}),
@@ -113,7 +112,7 @@ class InventoryStore {
 	stockIn = async (
 		itemId: InventoryId,
 		quantity: number,
-		clearOrderDate: boolean = true,
+		clearOrderStatus: boolean = true,
 		notTrackStatus?: boolean,
 		expiryDate?: string | null,
 		remark?: string,
@@ -123,7 +122,7 @@ class InventoryStore {
 				auth: authStore.token,
 				item_id: itemId,
 				quantity: Math.max(0, Math.floor(quantity)),
-				clear_order_date: clearOrderDate,
+				clear_order_status: clearOrderStatus,
 				not_track: notTrackStatus,
 				expiry_date: expiryDate || undefined,
 				remark: remark || '',
@@ -144,38 +143,43 @@ class InventoryStore {
 		)
 	}
 
-	// Mark item as ordered
-	markAsOrdered = async (
+	// Mark ordered on a date; no expected date means a back-order
+	markOrdered = async (
 		itemId: InventoryId,
-		orderDate?: string,
-		backOrder?: boolean,
+		orderedOn: string,
+		expectedBy: string | null,
 	): Promise<void> => {
 		await this.#run('An error occurred while marking item as ordered', () =>
 			convex.mutation(api.inventory.markOrdered, {
 				auth: authStore.token,
 				id: itemId,
-				order_date: orderDate || new Date().toISOString(),
-				back_order: backOrder ?? false,
+				ordered_on: orderedOn,
+				expected_by: expectedBy ?? undefined,
 			}),
 		)
 	}
 
-	// Clear order date
-	clearOrderDate = async (itemId: InventoryId): Promise<void> => {
-		await this.#run('An error occurred while clearing order date', () =>
-			convex.mutation(api.inventory.clearOrderDate, { auth: authStore.token, id: itemId }),
+	// Keep the item out of To Order until a date
+	snooze = async (itemId: InventoryId, until: string, reason: string): Promise<void> => {
+		await this.#run('An error occurred while snoozing item', () =>
+			convex.mutation(api.inventory.snooze, { auth: authStore.token, id: itemId, until, reason }),
 		)
 	}
 
-	// Set non-order reason ('Alternative ordered' also marks the item untracked)
-	setNonOrderReason = async (itemId: InventoryId, reason: string | null): Promise<void> => {
-		await this.#run('An error occurred while setting non-order reason', () =>
-			convex.mutation(api.inventory.setNonOrderReason, {
-				auth: authStore.token,
-				id: itemId,
-				reason,
-			}),
+	// Back to undecided
+	clearOrderStatus = async (itemId: InventoryId): Promise<void> => {
+		await this.#run('An error occurred while clearing order status', () =>
+			convex.mutation(api.inventory.clearOrderStatus, { auth: authStore.token, id: itemId }),
 		)
+	}
+
+	/** Puts a status back after an undo */
+	restoreOrderStatus = async (itemId: InventoryId, status: OrderStatus | undefined) => {
+		if (!status) return await this.clearOrderStatus(itemId)
+		if (status.kind === 'ordered') {
+			return await this.markOrdered(itemId, status.ordered_on, status.expected_by ?? null)
+		}
+		return await this.snooze(itemId, status.until, status.reason)
 	}
 
 	// Quantity is deliberately not accepted here: stock lives in batches, so
@@ -190,8 +194,6 @@ class InventoryStore {
 				reorder_level: item.reorder_level,
 				remark: item.remark,
 				not_track: item.not_track,
-				order_date: item.order_date,
-				non_order_reason: item.non_order_reason,
 			}),
 		)
 	}

@@ -72,7 +72,8 @@ export async function applyStockIn(
 	args: {
 		item_id: Id<'inventory'>
 		quantity: number
-		clear_order_date: boolean
+		/** A delivery closes the order; a snoozed item is back in play once it has stock. */
+		clear_order_status: boolean
 		not_track?: boolean
 		expiry_date?: string
 		remark: string
@@ -90,10 +91,7 @@ export async function applyStockIn(
 	})
 
 	const patch: Partial<WithoutSystemFields<Doc<'inventory'>>> = { updated_at: now }
-	if (args.clear_order_date) {
-		patch.order_date = undefined
-		patch.back_order = false
-	}
+	if (args.clear_order_status) patch.order_status = undefined
 	if (args.not_track !== undefined) patch.not_track = args.not_track
 	await ctx.db.patch(item._id, patch)
 

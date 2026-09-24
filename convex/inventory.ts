@@ -1,16 +1,26 @@
-import { ConvexError, v } from 'convex/values'
+import { ConvexError, v, type Infer } from 'convex/values'
 import { mutation, query } from './_generated/server'
 import type { MutationCtx } from './_generated/server'
 import type { Doc, Id } from './_generated/dataModel'
 import { requireRole } from './lib/auth'
-import { applyStockIn, assertNonNegativeQuantity } from './lib/stock'
-import { inventoryDoc } from './schema'
+import { toIsoDate } from './lib/orders'
+import { applyStockIn, assertNonNegativeQuantity, requireItem } from './lib/stock'
+import { inventoryDoc, orderStatus } from './schema'
+
+export type OrderStatus = Infer<typeof orderStatus>
 
 /** Empty/null/undefined -> undefined so optional fields are cleared, not stored as "". */
 function optionalText(value: string | null | undefined): string | undefined {
 	if (value === undefined || value === null) return undefined
 	const trimmed = value.trim()
 	return trimmed.length === 0 ? undefined : trimmed
+}
+
+/** A YYYY-MM-DD from the client, or INVALID_DATE. */
+function requireIsoDate(value: string, label: string): string {
+	const date = toIsoDate(value)
+	if (!date) throw new ConvexError({ code: 'INVALID_DATE', message: `${label} must be a date` })
+	return date
 }
 
 export async function createItem(
@@ -21,8 +31,7 @@ export async function createItem(
 		reorder_level: number
 		unit: string
 		remark?: string
-		order_date?: string | null
-		non_order_reason?: string | null
+		order_status?: OrderStatus
 		not_track?: boolean
 		expiry_date?: string
 		initial_remark: string
@@ -39,9 +48,7 @@ export async function createItem(
 		reorder_level: Math.max(0, args.reorder_level),
 		unit: args.unit,
 		remark: args.remark ?? '',
-		order_date: optionalText(args.order_date),
-		non_order_reason: optionalText(args.non_order_reason),
-		back_order: false,
+		order_status: args.order_status,
 		not_track: args.not_track ?? false,
 		is_pinned: false,
 		updated_at: now,
@@ -50,7 +57,7 @@ export async function createItem(
 		await applyStockIn(ctx, {
 			item_id: id,
 			quantity: args.quantity,
-			clear_order_date: false,
+			clear_order_status: false,
 			expiry_date: optionalText(args.expiry_date),
 			remark: args.initial_remark,
 		})
@@ -92,8 +99,6 @@ export const add = mutation({
 		reorder_level: v.number(),
 		unit: v.string(),
 		remark: v.optional(v.string()),
-		order_date: v.optional(v.union(v.string(), v.null())),
-		non_order_reason: v.optional(v.union(v.string(), v.null())),
 		not_track: v.optional(v.boolean()),
 		expiry_date: v.optional(v.union(v.string(), v.null())),
 	},
@@ -106,8 +111,6 @@ export const add = mutation({
 			reorder_level: args.reorder_level,
 			unit: args.unit,
 			remark: args.remark,
-			order_date: args.order_date,
-			non_order_reason: args.non_order_reason,
 			not_track: args.not_track,
 			expiry_date: args.expiry_date ?? undefined,
 			initial_remark: 'Initial stock',
@@ -124,15 +127,11 @@ export const update = mutation({
 		reorder_level: v.optional(v.number()),
 		remark: v.optional(v.string()),
 		not_track: v.optional(v.boolean()),
-		// null clears the field.
-		order_date: v.optional(v.union(v.string(), v.null())),
-		non_order_reason: v.optional(v.union(v.string(), v.null())),
 	},
 	returns: v.null(),
 	handler: async (ctx, args) => {
 		requireRole(args.auth, ['manager'])
-		const item = await ctx.db.get(args.id)
-		if (!item) throw new ConvexError({ code: 'NOT_FOUND', message: 'Inventory item not found' })
+		const item = await requireItem(ctx, args.id)
 
 		const now = Date.now()
 		const patch: Partial<Doc<'inventory'>> = { updated_at: now }
@@ -154,10 +153,10 @@ export const update = mutation({
 			patch.reorder_level = Math.max(0, args.reorder_level)
 		}
 		if (args.remark !== undefined) patch.remark = args.remark
-		if (args.not_track !== undefined) patch.not_track = args.not_track
-		if (args.order_date !== undefined) patch.order_date = optionalText(args.order_date)
-		if (args.non_order_reason !== undefined) {
-			patch.non_order_reason = optionalText(args.non_order_reason)
+		if (args.not_track !== undefined) {
+			patch.not_track = args.not_track
+			// An untracked item is nobody's to order, so it holds no order status
+			if (args.not_track) patch.order_status = undefined
 		}
 		await ctx.db.patch(item._id, patch)
 
@@ -180,9 +179,7 @@ export const remove = mutation({
 	returns: v.null(),
 	handler: async (ctx, args) => {
 		requireRole(args.auth, ['manager'])
-		const item = await ctx.db.get(args.id)
-		if (!item) throw new ConvexError({ code: 'NOT_FOUND', message: 'Inventory item not found' })
-		await deleteItem(ctx, item)
+		await deleteItem(ctx, await requireItem(ctx, args.id))
 		return null
 	},
 })
@@ -191,55 +188,58 @@ export const markOrdered = mutation({
 	args: {
 		auth: v.string(),
 		id: v.id('inventory'),
-		order_date: v.optional(v.string()),
-		back_order: v.optional(v.boolean()),
+		ordered_on: v.string(),
+		/** Omitted for a back-order: the supplier has not given a date. */
+		expected_by: v.optional(v.string()),
 	},
 	returns: v.null(),
 	handler: async (ctx, args) => {
 		requireRole(args.auth, ['manager'])
-		const item = await ctx.db.get(args.id)
-		if (!item) throw new ConvexError({ code: 'NOT_FOUND', message: 'Inventory item not found' })
+		const item = await requireItem(ctx, args.id)
 		await ctx.db.patch(item._id, {
-			order_date: optionalText(args.order_date) ?? new Date().toISOString(),
-			non_order_reason: undefined,
-			back_order: args.back_order ?? false,
+			order_status: {
+				kind: 'ordered',
+				ordered_on: requireIsoDate(args.ordered_on, 'Order date'),
+				expected_by:
+					args.expected_by === undefined
+						? undefined
+						: requireIsoDate(args.expected_by, 'Expected date'),
+			},
 			updated_at: Date.now(),
 		})
 		return null
 	},
 })
 
-export const clearOrderDate = mutation({
-	args: { auth: v.string(), id: v.id('inventory') },
+export const snooze = mutation({
+	args: {
+		auth: v.string(),
+		id: v.id('inventory'),
+		until: v.string(),
+		reason: v.string(),
+	},
 	returns: v.null(),
 	handler: async (ctx, args) => {
 		requireRole(args.auth, ['manager'])
-		const item = await ctx.db.get(args.id)
-		if (!item) throw new ConvexError({ code: 'NOT_FOUND', message: 'Inventory item not found' })
-		await ctx.db.patch(item._id, { order_date: undefined, updated_at: Date.now() })
+		const item = await requireItem(ctx, args.id)
+		const reason = optionalText(args.reason)
+		if (!reason) throw new ConvexError({ code: 'INVALID_STATE', message: 'A reason is needed' })
+		await ctx.db.patch(item._id, {
+			order_status: { kind: 'snoozed', until: requireIsoDate(args.until, 'Snooze date'), reason },
+			updated_at: Date.now(),
+		})
 		return null
 	},
 })
 
-export const setNonOrderReason = mutation({
-	args: {
-		auth: v.string(),
-		id: v.id('inventory'),
-		reason: v.union(v.string(), v.null()),
-	},
+/** Back to undecided: an ordered item was not ordered after all, or a snooze ends early. */
+export const clearOrderStatus = mutation({
+	args: { auth: v.string(), id: v.id('inventory') },
 	returns: v.null(),
 	handler: async (ctx, args) => {
 		requireRole(args.auth, ['manager'])
-		const item = await ctx.db.get(args.id)
-		if (!item) throw new ConvexError({ code: 'NOT_FOUND', message: 'Inventory item not found' })
-		const reason = optionalText(args.reason)
-		const patch: Partial<Doc<'inventory'>> = {
-			non_order_reason: reason,
-			order_date: undefined,
-			updated_at: Date.now(),
-		}
-		if (reason === 'Alternative ordered') patch.not_track = true
-		await ctx.db.patch(item._id, patch)
+		const item = await requireItem(ctx, args.id)
+		await ctx.db.patch(item._id, { order_status: undefined, updated_at: Date.now() })
 		return null
 	},
 })
