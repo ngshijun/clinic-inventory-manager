@@ -10,7 +10,8 @@ import {
 	recomputeItemQuantity,
 	requireItem,
 } from './lib/stock'
-import { createItem, deleteItem } from './inventory'
+import { createItem, deleteItem, type OrderStatus } from './inventory'
+import { LEAD_DAYS, addDays, toIsoDate } from './lib/orders'
 import { inventoryDoc, stockBatchDoc } from './schema'
 
 function optionalText(value: string | null | undefined): string | undefined {
@@ -24,7 +25,7 @@ export const stockIn = mutation({
 		auth: v.string(),
 		item_id: v.id('inventory'),
 		quantity: v.number(),
-		clear_order_date: v.optional(v.boolean()),
+		clear_order_status: v.optional(v.boolean()),
 		not_track: v.optional(v.boolean()),
 		expiry_date: v.optional(v.union(v.string(), v.null())),
 		remark: v.optional(v.string()),
@@ -35,7 +36,7 @@ export const stockIn = mutation({
 		return await applyStockIn(ctx, {
 			item_id: args.item_id,
 			quantity: args.quantity,
-			clear_order_date: args.clear_order_date ?? true,
+			clear_order_status: args.clear_order_status ?? true,
 			not_track: args.not_track,
 			expiry_date: optionalText(args.expiry_date),
 			remark: args.remark ?? 'Stock in',
@@ -152,7 +153,11 @@ export const importInventory = mutation({
 			assertNonNegativeQuantity(row.quantity)
 			const reorder_level = Number.isFinite(row.reorder_level) ? Math.max(0, row.reorder_level) : 0
 			const remark = row.remark ?? ''
-			const order_date = optionalText(row.order_date)
+			// The sheet's order_date column: a date marks the item ordered on that day
+			const order_date = toIsoDate(row.order_date)
+			const order_status: OrderStatus | undefined = order_date
+				? { kind: 'ordered', ordered_on: order_date, expected_by: addDays(order_date, LEAD_DAYS) }
+				: undefined
 
 			const current = byName.get(key)
 			if (!current) {
@@ -162,7 +167,7 @@ export const importInventory = mutation({
 					reorder_level,
 					unit: row.unit,
 					remark,
-					order_date,
+					order_status,
 					initial_remark: 'Excel import',
 				})
 				const created = await requireItem(ctx, id)
@@ -176,7 +181,9 @@ export const importInventory = mutation({
 			if (current.reorder_level !== reorder_level) patch.reorder_level = reorder_level
 			if (current.unit !== row.unit) patch.unit = row.unit
 			if (current.remark !== remark) patch.remark = remark
-			if (current.order_date !== order_date) patch.order_date = order_date
+			const currentOrderDate =
+				current.order_status?.kind === 'ordered' ? current.order_status.ordered_on : null
+			if (currentOrderDate !== order_date) patch.order_status = order_status
 			if (Object.keys(patch).length > 0) {
 				await ctx.db.patch(current._id, { ...patch, updated_at: Date.now() })
 				changed = true
@@ -187,7 +194,7 @@ export const importInventory = mutation({
 				await applyStockIn(ctx, {
 					item_id: current._id,
 					quantity: delta,
-					clear_order_date: false,
+					clear_order_status: false,
 					remark: 'Excel import',
 				})
 				changed = true

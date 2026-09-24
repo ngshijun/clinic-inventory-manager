@@ -6,9 +6,7 @@
 	import * as XLSX from 'xlsx'
 	import ArrowDownToLineIcon from '@lucide/svelte/icons/arrow-down-to-line'
 	import ArrowUpFromLineIcon from '@lucide/svelte/icons/arrow-up-from-line'
-	import CalendarIcon from '@lucide/svelte/icons/calendar'
 	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right'
-	import ClockIcon from '@lucide/svelte/icons/clock'
 	import DownloadIcon from '@lucide/svelte/icons/download'
 	import EllipsisIcon from '@lucide/svelte/icons/ellipsis'
 	import PackageOpenIcon from '@lucide/svelte/icons/package-open'
@@ -24,8 +22,9 @@
 	import DialogSubject from '$lib/components/app/DialogSubject.svelte'
 	import DiscardDialog from '$lib/components/app/DiscardDialog.svelte'
 	import PageHeader from '$lib/components/app/PageHeader.svelte'
-	import ReasonBadge from '$lib/components/app/ReasonBadge.svelte'
+	import OrderStatusBadge from '$lib/components/app/OrderStatusBadge.svelte'
 	import SortHeader from '$lib/components/app/SortHeader.svelte'
+	import StockInDialog from '$lib/components/app/StockInDialog.svelte'
 	import StockOutDialog from '$lib/components/app/StockOutDialog.svelte'
 	import type { SortState } from '$lib/components/app/sort'
 	import ToneBadge, { type Tone } from '$lib/components/app/ToneBadge.svelte'
@@ -48,7 +47,7 @@
 	import { stockBatchesStore } from '$lib/stores/stockBatches.svelte'
 	import type { InventoryItem, NewInventoryItem } from '$lib/types/inventory'
 	import { getExpiryStatus, todayIsoDate, type StockBatch } from '$lib/types/stockBatches'
-	import { formatDate, formatDayMonth } from '$lib/utils/date'
+	import { formatDate } from '$lib/utils/date'
 	import { expiryNote } from '$lib/utils/expiry'
 	import Quantity from '$lib/components/app/Quantity.svelte'
 	import { cn } from '$lib/utils'
@@ -93,7 +92,7 @@
 			case 'out':
 				return !item.not_track && item.quantity === 0
 			case 'ordered':
-				return !!item.order_date
+				return item.order_status?.kind === 'ordered'
 			case 'untracked':
 				return item.not_track
 			default:
@@ -242,69 +241,7 @@
 	}
 
 	// ---------- Stock in ----------
-	let showStockInDialog = $state(false)
-	let stockInItem = $state<InventoryItem | null>(null)
-	let stockInQuantity = $state(1)
-	let stockInExpiryDate = $state('')
-	let clearOrderDate = $state(true)
-	let keepUntracked = $state(true)
-
-	const openStockIn = (item: InventoryItem): void => {
-		stockInItem = item
-		stockInQuantity = 1
-		stockInExpiryDate = ''
-		clearOrderDate = !!item.order_date
-		keepUntracked = item.not_track
-		showStockInDialog = true
-	}
-
-	// What the person needs to know before typing a quantity; prose says none of it
-	const stockInFacts = $derived.by((): Array<{ label: string; value: string }> => {
-		if (!stockInItem) return []
-		const rows = [
-			{ label: 'In stock', value: `${stockInItem.quantity} ${stockInItem.unit}` },
-			{ label: 'Reorder at', value: String(stockInItem.reorder_level) },
-			{
-				label: 'Batches',
-				value: String(stockBatchesStore.batchesByItem.get(stockInItem.id)?.length ?? 0),
-			},
-		]
-		if (stockInItem.order_date)
-			rows.push({ label: 'Ordered', value: formatDate(stockInItem.order_date) })
-		return rows
-	})
-	const stockInAfter = $derived(
-		(stockInItem?.quantity ?? 0) + Math.max(0, Math.floor(Number(stockInQuantity) || 0)),
-	)
-
-	const isStockInDirty = $derived(
-		stockInItem !== null &&
-			(Number(stockInQuantity) !== 1 ||
-				stockInExpiryDate !== '' ||
-				clearOrderDate !== !!stockInItem.order_date ||
-				keepUntracked !== stockInItem.not_track),
-	)
-
-	const closeStockIn = (): void => {
-		showStockInDialog = false
-		stockInItem = null
-	}
-
-	const confirmStockIn = async (): Promise<void> => {
-		if (!stockInItem || Number(stockInQuantity) <= 0) return
-		const item = stockInItem
-		await inventoryStore.stockIn(
-			item.id,
-			Number(stockInQuantity),
-			clearOrderDate,
-			keepUntracked,
-			stockInExpiryDate || null,
-		)
-		if (!inventoryStore.error) {
-			toast.success(`Stocked in ${stockInQuantity} ${item.unit} of ${item.item_name}`)
-			closeStockIn()
-		}
-	}
+	let stockInDialog = $state<StockInDialog | null>(null)
 
 	// ---------- Stock out ----------
 	let stockOutDialog = $state<StockOutDialog | null>(null)
@@ -597,7 +534,7 @@
 					reorder_level: item.reorder_level,
 					unit: item.unit,
 					remark: item.remark,
-					order_date: item.order_date,
+					order_date: item.order_status?.kind === 'ordered' ? item.order_status.ordered_on : '',
 				})),
 			)
 			worksheet['!cols'] = [
@@ -841,21 +778,7 @@
 						{/if}
 					</Table.Cell>
 					<Table.Cell>
-						{#if item.order_date}
-							<ToneBadge tone="info">
-								{#if item.back_order}
-									<ClockIcon />
-									Back-ordered {formatDayMonth(item.order_date)}
-								{:else}
-									<CalendarIcon />
-									Ordered {formatDayMonth(item.order_date)}
-								{/if}
-							</ToneBadge>
-						{:else if item.non_order_reason}
-							<ReasonBadge reason={item.non_order_reason} size="md" />
-						{:else}
-							<span class="text-muted-foreground">—</span>
-						{/if}
+						<OrderStatusBadge {item} />
 					</Table.Cell>
 					<Table.Cell>
 						<div class="flex justify-end gap-1">
@@ -864,7 +787,7 @@
 								size="icon-sm"
 								aria-label="Stock In…"
 								title="Stock In…"
-								onclick={() => openStockIn(item)}
+								onclick={() => stockInDialog?.open(item)}
 							>
 								<ArrowDownToLineIcon />
 							</Button>
@@ -913,7 +836,7 @@
 							<Table.Cell colspan={6}>
 								<div class="flex items-center justify-between gap-3">
 									<span class="text-muted-foreground">Nothing in stock</span>
-									<Button variant="outline" size="sm" onclick={() => openStockIn(item)}>
+									<Button variant="outline" size="sm" onclick={() => stockInDialog?.open(item)}>
 										<ArrowDownToLineIcon data-icon="inline-start" />
 										Stock In…
 									</Button>
@@ -1124,74 +1047,7 @@
 	</form>
 </ActionModal>
 
-<!-- Stock In -->
-<ActionModal
-	bind:open={showStockInDialog}
-	title="Stock In"
-	loading={inventoryStore.loading}
-	disabled={Number(stockInQuantity) <= 0}
-	dirty={isStockInDirty}
-	confirmText="Stock In"
-	onconfirm={confirmStockIn}
-	oncancel={closeStockIn}
->
-	{#if stockInItem}
-		<DialogSubject name={stockInItem.item_name} facts={stockInFacts} />
-	{/if}
-	<form
-		onsubmit={(e) => {
-			e.preventDefault()
-			confirmStockIn()
-		}}
-	>
-		<Field.Group>
-			<div class="grid grid-cols-2 gap-4">
-				<Field.Field>
-					<Field.Label for="stock-in-quantity">Quantity to add</Field.Label>
-					<Input
-						id="stock-in-quantity"
-						bind:value={stockInQuantity}
-						type="number"
-						min={1}
-						step={1}
-						required
-						{@attach selectOnFocus()}
-					/>
-					{#if Number(stockInQuantity) > 0}
-						<Field.Description
-							><Quantity value={stockInAfter} unit={stockInItem?.unit ?? ''} /> after this stock in.</Field.Description
-						>
-					{/if}
-				</Field.Field>
-				<Field.Field>
-					<Field.Label for="stock-in-expiry">
-						Expiry date <span class="text-muted-foreground font-normal">optional</span>
-					</Field.Label>
-					<Input
-						id="stock-in-expiry"
-						bind:value={stockInExpiryDate}
-						type="date"
-						min={todayIsoDate()}
-					/>
-				</Field.Field>
-			</div>
-			{#if stockInItem?.order_date}
-				<Field.Field orientation="horizontal">
-					<Checkbox id="stock-in-clear-order" bind:checked={clearOrderDate} />
-					<Field.Label for="stock-in-clear-order">Received: clear the order date</Field.Label>
-				</Field.Field>
-			{/if}
-			{#if stockInItem?.not_track}
-				<Field.Field orientation="horizontal">
-					<Checkbox id="stock-in-untracked" bind:checked={keepUntracked} />
-					<Field.Label for="stock-in-untracked">Keep untracked</Field.Label>
-				</Field.Field>
-			{/if}
-		</Field.Group>
-		<button type="submit" class="hidden" aria-hidden="true" tabindex="-1"></button>
-	</form>
-</ActionModal>
-
+<StockInDialog bind:this={stockInDialog} />
 <StockOutDialog bind:this={stockOutDialog} />
 
 <!-- Edit Item -->
