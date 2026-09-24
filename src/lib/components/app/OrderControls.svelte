@@ -10,10 +10,9 @@
 	import { isSnoozing } from '$lib/utils/orders'
 
 	/**
-	 * The order controls on a row. An item that is on order gets one button,
-	 * Not Ordered, which takes it back with an undo. Anything else gets the
-	 * purchaser's usual action, Mark Ordered…, and a Not now menu holding the
-	 * ways to put the item aside. The dialogs belong to the page.
+	 * The purchaser's controls on a row. On order: Change Order… and Not
+	 * Ordered. Otherwise Mark Ordered… and a Not now menu holding the ways to
+	 * put the item aside. The dialogs belong to the page.
 	 */
 	let {
 		item,
@@ -51,6 +50,14 @@
 		variant="outline"
 		{size}
 		disabled={inventoryStore.loading}
+		onclick={() => onMarkOrdered(item)}
+	>
+		Change Order…
+	</Button>
+	<Button
+		variant="outline"
+		{size}
+		disabled={inventoryStore.loading}
 		onclick={() =>
 			undoable(`${item.item_name} is no longer on order`, `${item.item_name} is on order again`)}
 	>
@@ -68,7 +75,7 @@
 	<DropdownMenu.Root>
 		<DropdownMenu.Trigger>
 			{#snippet child({ props })}
-				<Button {...props} variant="ghost" {size} disabled={inventoryStore.loading}>
+				<Button {...props} variant="outline" {size} disabled={inventoryStore.loading}>
 					Not now
 					<ChevronDownIcon data-icon="inline-end" />
 				</Button>

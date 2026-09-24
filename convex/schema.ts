@@ -26,9 +26,8 @@ export const orderStatus = v.union(
 		kind: v.literal('ordered'),
 		ordered_on: v.string(),
 		expected_by: v.optional(v.string()),
-		// Optional only until migration:addOrderQuantity has run everywhere
-		quantity: v.optional(v.number()),
-		received: v.optional(v.number()),
+		quantity: v.number(),
+		received: v.number(),
 	}),
 	v.object({
 		kind: v.literal('snoozed'),

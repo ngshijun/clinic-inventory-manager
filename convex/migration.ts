@@ -1,37 +1,7 @@
 import { v } from 'convex/values'
-import { internalMutation, internalQuery } from './_generated/server'
+import { internalQuery } from './_generated/server'
 import type { Id } from './_generated/dataModel'
 import { movementsByType } from './lib/aggregates'
-import { suggestedOrderQuantity } from './lib/orders'
-
-/*
- * One-off: gives every ordered item an order quantity and a received count.
- *
- *   npx convex run migration:addOrderQuantity '{}' [--prod]
- *
- * Deploy the schema that makes these optional first, run this, then deploy
- * the schema that requires them and delete this function.
- */
-export const addOrderQuantity = internalMutation({
-	args: {},
-	returns: v.object({ filled: v.number() }),
-	handler: async (ctx) => {
-		let filled = 0
-		for (const item of await ctx.db.query('inventory').collect()) {
-			const status = item.order_status
-			if (status?.kind !== 'ordered' || status.quantity !== undefined) continue
-			await ctx.db.patch(item._id, {
-				order_status: {
-					...status,
-					quantity: suggestedOrderQuantity(item.quantity, item.reorder_level),
-					received: 0,
-				},
-			})
-			filled++
-		}
-		return { filled }
-	},
-})
 
 /*
  * Consistency check. Internal only, nothing in the app calls it:

@@ -4,7 +4,6 @@ import type { MutationCtx } from '../_generated/server'
 import type { Doc, Id } from '../_generated/dataModel'
 import { movementsByType } from './aggregates'
 
-/** Throws INVALID_QUANTITY unless `quantity` is a finite number > 0. */
 export function assertPositiveQuantity(quantity: number): void {
 	if (!Number.isFinite(quantity) || quantity <= 0) {
 		throw new ConvexError({
@@ -14,7 +13,6 @@ export function assertPositiveQuantity(quantity: number): void {
 	}
 }
 
-/** Throws INVALID_QUANTITY unless `quantity` is a finite number >= 0. */
 export function assertNonNegativeQuantity(quantity: number): void {
 	if (!Number.isFinite(quantity) || quantity < 0) {
 		throw new ConvexError({
@@ -67,13 +65,16 @@ export async function recomputeItemQuantity(
 	return await requireItem(ctx, item_id)
 }
 
+/**
+ * Adds a batch and counts it against the item's order: the order closes once
+ * the whole quantity has come in. A snoozed item is back in play once it has
+ * stock.
+ */
 export async function applyStockIn(
 	ctx: MutationCtx,
 	args: {
 		item_id: Id<'inventory'>
 		quantity: number
-		/** A delivery closes the order; a snoozed item is back in play once it has stock. */
-		clear_order_status: boolean
 		not_track?: boolean
 		expiry_date?: string
 		remark: string
@@ -91,7 +92,13 @@ export async function applyStockIn(
 	})
 
 	const patch: Partial<WithoutSystemFields<Doc<'inventory'>>> = { updated_at: now }
-	if (args.clear_order_status) patch.order_status = undefined
+	const status = item.order_status
+	if (status?.kind === 'ordered') {
+		const received = status.received + args.quantity
+		patch.order_status = received >= status.quantity ? undefined : { ...status, received }
+	} else if (status?.kind === 'snoozed') {
+		patch.order_status = undefined
+	}
 	if (args.not_track !== undefined) patch.not_track = args.not_track
 	await ctx.db.patch(item._id, patch)
 

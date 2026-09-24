@@ -5,6 +5,7 @@
 	import AlarmClockIcon from '@lucide/svelte/icons/alarm-clock'
 	import ArchiveIcon from '@lucide/svelte/icons/archive'
 	import BoxIcon from '@lucide/svelte/icons/box'
+	import PackageIcon from '@lucide/svelte/icons/package'
 	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right'
 	import CircleCheckIcon from '@lucide/svelte/icons/circle-check'
 	import ClockIcon from '@lucide/svelte/icons/clock'
@@ -16,8 +17,6 @@
 	import Quantity from '$lib/components/app/Quantity.svelte'
 	import SnoozeDialog from '$lib/components/app/SnoozeDialog.svelte'
 	import StatusDot from '$lib/components/app/StatusDot.svelte'
-	import StockInDialog from '$lib/components/app/StockInDialog.svelte'
-	import StockOutDialog from '$lib/components/app/StockOutDialog.svelte'
 	import StopTrackingDialog from '$lib/components/app/StopTrackingDialog.svelte'
 	import ToneBadge from '$lib/components/app/ToneBadge.svelte'
 	import { Button } from '$lib/components/ui/button'
@@ -52,7 +51,7 @@
 	import { cn } from '$lib/utils'
 	import { capsClass } from '$lib/utils/text'
 
-	const STALE_DAYS = 30
+	const NOT_MOVING_DAYS = 30
 	const QUEUE_PAGE = 8
 
 	useErrorToast(() => inventoryStore.error)
@@ -71,7 +70,6 @@
 	const toOrder = $derived(
 		items
 			.filter((item) => needsDecision(item, today))
-			// Out of stock first, then by name
 			.sort((a, b) => Number(b.quantity === 0) - Number(a.quantity === 0) || byName(a, b)),
 	)
 	const toOrderOut = $derived(toOrder.filter((item) => item.quantity === 0).length)
@@ -103,7 +101,6 @@
 			const status = item.order_status
 			rows.push({ item, status, late: isLate(status, today) })
 		}
-		// Late first, then the oldest order first
 		return rows.sort(
 			(a, b) =>
 				Number(b.late) - Number(a.late) ||
@@ -138,20 +135,21 @@
 	const expiredCount = $derived(expiring.filter((row) => row.daysLeft < 0).length)
 	const expiringList = createLoadMore(() => expiring, QUEUE_PAGE)
 
-	// ---------- Stale items ----------
+	// ---------- Not moving ----------
 	const stale = $derived(
 		items
 			.filter(
-				(item) => !item.not_track && item.quantity > 0 && daysSince(item.updated_at) > STALE_DAYS,
+				(item) =>
+					!item.not_track && item.quantity > 0 && daysSince(item.updated_at) > NOT_MOVING_DAYS,
 			)
 			.sort((a, b) => a.updated_at - b.updated_at),
 	)
 	const staleList = createLoadMore(() => stale, QUEUE_PAGE)
 
 	// ---------- Which queue is open ----------
-	type Queue = 'toorder' | 'waiting' | 'expiring' | 'stale'
+	type Queue = 'toorder' | 'waiting' | 'expiring' | 'notmoving'
 	const isQueue = (value: string | null): value is Queue =>
-		value === 'toorder' || value === 'waiting' || value === 'expiring' || value === 'stale'
+		value === 'toorder' || value === 'waiting' || value === 'expiring' || value === 'notmoving'
 
 	// The open queue lives in the URL, so a reload or a shared link restores it
 	const initialQueue = page.url.searchParams.get('queue')
@@ -168,8 +166,6 @@
 	let orderDialog = $state<MarkOrderedDialog | null>(null)
 	let snoozeDialog = $state<SnoozeDialog | null>(null)
 	let stopTrackingDialog = $state<StopTrackingDialog | null>(null)
-	let stockInDialog = $state<StockInDialog | null>(null)
-	let stockOutDialog = $state<StockOutDialog | null>(null)
 </script>
 
 <PageHeader title="Dashboard" />
@@ -191,7 +187,6 @@
 	<Skeleton class="h-9 w-full rounded-full sm:w-[32rem]" />
 	<Skeleton class="h-40 rounded-md" />
 {:else}
-	<!-- Headline strip: one box, four segments, each opening the queue it counts -->
 	<Card.Root size="sm" class="gap-0 rounded-2xl py-0">
 		<div class="grid grid-cols-2 lg:grid-cols-4">
 			{@render stat(
@@ -224,16 +219,15 @@
 			)}
 			{@render stat(
 				ArchiveIcon,
-				'Stale items',
+				'Not moving',
 				stale.length,
-				`No movement in ${STALE_DAYS} days`,
+				`No movement in ${NOT_MOVING_DAYS} days`,
 				null,
-				'stale',
+				'notmoving',
 			)}
 		</div>
 	</Card.Root>
 
-	<!-- One worklist at a time; the tabs keep every count in view -->
 	<Tabs.Root
 		value={queue}
 		onValueChange={(value) => {
@@ -252,7 +246,7 @@
 					lateCount > 0 ? 'warning' : 'info',
 				)}
 				{@render tab('expiring', ClockIcon, 'Expiring Batches', expiring.length, 'warning')}
-				{@render tab('stale', ArchiveIcon, 'Stale Items', stale.length, null)}
+				{@render tab('notmoving', ArchiveIcon, 'Not Moving', stale.length, null)}
 			</Tabs.List>
 			{#if queue === 'toorder'}
 				<div class="flex items-center gap-2">
@@ -361,7 +355,7 @@
 				{@render emptyPane(
 					TruckIcon,
 					'Nothing on order',
-					'Items you mark as ordered wait here until the stock comes in.',
+					'Items you mark as ordered wait here until the whole order has been stocked in.',
 				)}
 			{:else}
 				<Table.Root>
@@ -370,6 +364,7 @@
 							<Table.Head>Item</Table.Head>
 							<Table.Head>Status</Table.Head>
 							<Table.Head>Ordered</Table.Head>
+							<Table.Head>Received</Table.Head>
 							<Table.Head>Expected</Table.Head>
 							<Table.Head>In stock</Table.Head>
 							<Table.Head><span class="sr-only">Actions</span></Table.Head>
@@ -378,6 +373,7 @@
 					<Table.Body>
 						{#each waitingList.visible as { item, status, late } (item.id)}
 							{@const since = daysBetween(status.ordered_on, today)}
+							{@const toCome = status.quantity - status.received}
 							<Table.Row>
 								<Table.Cell class={cn('font-medium', capsClass(item.item_name))}
 									>{item.item_name}</Table.Cell
@@ -388,6 +384,11 @@
 											<TriangleAlertIcon />
 											Late
 										</ToneBadge>
+									{:else if status.received > 0}
+										<ToneBadge tone="warning">
+											<PackageIcon />
+											Partly received
+										</ToneBadge>
 									{:else}
 										<ToneBadge tone="info">
 											<TruckIcon />
@@ -395,11 +396,21 @@
 										</ToneBadge>
 									{/if}
 								</Table.Cell>
-								<Table.Cell class="tabular-nums">
-									{formatDate(status.ordered_on)}
+								<Table.Cell>
+									<Quantity value={status.quantity} unit={item.unit} pack={false} />
 									<span class="text-muted-foreground ms-1 text-xs">
-										{since === 0 ? 'today' : `${formatDuration(since)} ago`}
+										{since === 0
+											? 'today'
+											: `${formatDate(status.ordered_on)}, ${formatDuration(since)} ago`}
 									</span>
+								</Table.Cell>
+								<Table.Cell>
+									{#if status.received > 0}
+										<Quantity value={status.received} unit={item.unit} pack={false} />
+										<span class="text-warning ms-1 text-xs">{toCome} to come</span>
+									{:else}
+										<span class="text-muted-foreground">None yet</span>
+									{/if}
 								</Table.Cell>
 								<Table.Cell class="tabular-nums">
 									{#if status.expected_by}
@@ -447,9 +458,6 @@
 								</Table.Cell>
 								<Table.Cell>
 									<div class="flex justify-end gap-1">
-										<Button variant="outline" size="sm" onclick={() => stockInDialog?.open(item)}>
-											Stock In…
-										</Button>
 										<OrderControls
 											{item}
 											onMarkOrdered={(target) => orderDialog?.open(target)}
@@ -488,7 +496,6 @@
 							<Table.Head>Batch</Table.Head>
 							<Table.Head>Expires</Table.Head>
 							<Table.Head class="text-end">Quantity</Table.Head>
-							<Table.Head><span class="sr-only">Actions</span></Table.Head>
 						</Table.Row>
 					</Table.Header>
 					<Table.Body>
@@ -517,13 +524,6 @@
 								<Table.Cell class="text-end">
 									<Quantity value={batch.quantity} unit={item.unit} />
 								</Table.Cell>
-								<Table.Cell>
-									<div class="flex justify-end">
-										<Button variant="outline" size="sm" onclick={() => stockOutDialog?.open(item)}>
-											Stock Out…
-										</Button>
-									</div>
-								</Table.Cell>
 							</Table.Row>
 						{/each}
 					</Table.Body>
@@ -536,13 +536,13 @@
 			{/if}
 		</Tabs.Content>
 
-		<!-- Stale items -->
-		<Tabs.Content value="stale" class="flex flex-col gap-3">
+		<!-- Not moving: what to use up before ordering more -->
+		<Tabs.Content value="notmoving" class="flex flex-col gap-3">
 			{#if stale.length === 0}
 				{@render emptyPane(
 					ArchiveIcon,
-					'Nothing stale',
-					`Every tracked item with stock has moved in the last ${STALE_DAYS} days.`,
+					'Everything is moving',
+					`Every tracked item with stock has moved in the last ${NOT_MOVING_DAYS} days.`,
 				)}
 			{:else}
 				<Table.Root>
@@ -550,6 +550,7 @@
 						<Table.Row>
 							<Table.Head>Item</Table.Head>
 							<Table.Head>In stock</Table.Head>
+							<Table.Head>Reorder at</Table.Head>
 							<Table.Head>Last movement</Table.Head>
 						</Table.Row>
 					</Table.Header>
@@ -561,6 +562,9 @@
 								>
 								<Table.Cell>
 									<Quantity value={item.quantity} unit={item.unit} />
+								</Table.Cell>
+								<Table.Cell class="tabular-nums">
+									{item.reorder_level < 0 ? '—' : item.reorder_level}
 								</Table.Cell>
 								<Table.Cell class="tabular-nums">
 									{formatDate(item.updated_at)}
@@ -688,5 +692,3 @@
 <MarkOrderedDialog bind:this={orderDialog} />
 <SnoozeDialog bind:this={snoozeDialog} />
 <StopTrackingDialog bind:this={stopTrackingDialog} />
-<StockInDialog bind:this={stockInDialog} />
-<StockOutDialog bind:this={stockOutDialog} />

@@ -16,7 +16,6 @@ function optionalText(value: string | null | undefined): string | undefined {
 	return trimmed.length === 0 ? undefined : trimmed
 }
 
-/** A YYYY-MM-DD from the client, or INVALID_DATE. */
 function requireIsoDate(value: string, label: string): string {
 	const date = toIsoDate(value)
 	if (!date) throw new ConvexError({ code: 'INVALID_DATE', message: `${label} must be a date` })
@@ -48,7 +47,6 @@ export async function createItem(
 		reorder_level: Math.max(0, args.reorder_level),
 		unit: args.unit,
 		remark: args.remark ?? '',
-		order_status: args.order_status,
 		not_track: args.not_track ?? false,
 		is_pinned: false,
 		updated_at: now,
@@ -57,11 +55,12 @@ export async function createItem(
 		await applyStockIn(ctx, {
 			item_id: id,
 			quantity: args.quantity,
-			clear_order_status: false,
 			expiry_date: optionalText(args.expiry_date),
 			remark: args.initial_remark,
 		})
 	}
+	// After the opening stock, which is not a delivery against the order
+	if (args.order_status) await ctx.db.patch(id, { order_status: args.order_status })
 	return id
 }
 
@@ -184,10 +183,15 @@ export const remove = mutation({
 	},
 })
 
+/**
+ * Marks an item ordered, or changes an order. Stock already received against
+ * the order carries over; lowering the quantity to what has come in closes it.
+ */
 export const markOrdered = mutation({
 	args: {
 		auth: v.string(),
 		id: v.id('inventory'),
+		quantity: v.number(),
 		ordered_on: v.string(),
 		/** Omitted for a back-order: the supplier has not given a date. */
 		expected_by: v.optional(v.string()),
@@ -196,15 +200,27 @@ export const markOrdered = mutation({
 	handler: async (ctx, args) => {
 		requireRole(args.auth, ['manager'])
 		const item = await requireItem(ctx, args.id)
+		if (!Number.isInteger(args.quantity) || args.quantity <= 0) {
+			throw new ConvexError({
+				code: 'INVALID_QUANTITY',
+				message: 'Quantity must be a whole number',
+			})
+		}
+		const received = item.order_status?.kind === 'ordered' ? item.order_status.received : 0
 		await ctx.db.patch(item._id, {
-			order_status: {
-				kind: 'ordered',
-				ordered_on: requireIsoDate(args.ordered_on, 'Order date'),
-				expected_by:
-					args.expected_by === undefined
-						? undefined
-						: requireIsoDate(args.expected_by, 'Expected date'),
-			},
+			order_status:
+				received >= args.quantity
+					? undefined
+					: {
+							kind: 'ordered',
+							ordered_on: requireIsoDate(args.ordered_on, 'Order date'),
+							expected_by:
+								args.expected_by === undefined
+									? undefined
+									: requireIsoDate(args.expected_by, 'Expected date'),
+							quantity: args.quantity,
+							received,
+						},
 			updated_at: Date.now(),
 		})
 		return null
@@ -228,6 +244,18 @@ export const snooze = mutation({
 			order_status: { kind: 'snoozed', until: requireIsoDate(args.until, 'Snooze date'), reason },
 			updated_at: Date.now(),
 		})
+		return null
+	},
+})
+
+/** Puts a status back after an undo. */
+export const restoreOrderStatus = mutation({
+	args: { auth: v.string(), id: v.id('inventory'), status: v.optional(orderStatus) },
+	returns: v.null(),
+	handler: async (ctx, args) => {
+		requireRole(args.auth, ['manager'])
+		const item = await requireItem(ctx, args.id)
+		await ctx.db.patch(item._id, { order_status: args.status, updated_at: Date.now() })
 		return null
 	},
 })

@@ -14,11 +14,9 @@ export const needsStock = (item: InventoryItem): boolean =>
 
 export const isOnOrder = (item: InventoryItem): boolean => item.order_status?.kind === 'ordered'
 
-/** Snoozed and the date has not come yet */
 export const isSnoozing = (item: InventoryItem, today = todayIsoDate()): boolean =>
 	item.order_status?.kind === 'snoozed' && item.order_status.until > today
 
-/** Snoozed, but the date has passed: back in To Order */
 export const wokeFromSnooze = (item: InventoryItem, today = todayIsoDate()): boolean =>
 	item.order_status?.kind === 'snoozed' && item.order_status.until <= today
 
