@@ -11,7 +11,7 @@ import {
 	requireItem,
 } from './lib/stock'
 import { createItem, deleteItem, type OrderStatus } from './inventory'
-import { LEAD_DAYS, addDays, toIsoDate } from './lib/orders'
+import { LEAD_DAYS, addDays, suggestedOrderQuantity, toIsoDate } from './lib/orders'
 import { inventoryDoc, stockBatchDoc } from './schema'
 
 function optionalText(value: string | null | undefined): string | undefined {
@@ -25,7 +25,6 @@ export const stockIn = mutation({
 		auth: v.string(),
 		item_id: v.id('inventory'),
 		quantity: v.number(),
-		clear_order_status: v.optional(v.boolean()),
 		not_track: v.optional(v.boolean()),
 		expiry_date: v.optional(v.union(v.string(), v.null())),
 		remark: v.optional(v.string()),
@@ -36,7 +35,6 @@ export const stockIn = mutation({
 		return await applyStockIn(ctx, {
 			item_id: args.item_id,
 			quantity: args.quantity,
-			clear_order_status: args.clear_order_status ?? true,
 			not_track: args.not_track,
 			expiry_date: optionalText(args.expiry_date),
 			remark: args.remark ?? 'Stock in',
@@ -156,7 +154,13 @@ export const importInventory = mutation({
 			// The sheet's order_date column: a date marks the item ordered on that day
 			const order_date = toIsoDate(row.order_date)
 			const order_status: OrderStatus | undefined = order_date
-				? { kind: 'ordered', ordered_on: order_date, expected_by: addDays(order_date, LEAD_DAYS) }
+				? {
+						kind: 'ordered',
+						ordered_on: order_date,
+						expected_by: addDays(order_date, LEAD_DAYS),
+						quantity: suggestedOrderQuantity(row.quantity, reorder_level),
+						received: 0,
+					}
 				: undefined
 
 			const current = byName.get(key)
@@ -177,6 +181,16 @@ export const importInventory = mutation({
 			}
 
 			let changed = false
+			const delta = row.quantity - current.quantity
+			if (delta > 0) {
+				await applyStockIn(ctx, { item_id: current._id, quantity: delta, remark: 'Excel import' })
+				changed = true
+			} else if (delta < 0) {
+				await applyStockOut(ctx, { item_id: current._id, quantity: -delta, remark: 'Excel import' })
+				changed = true
+			}
+
+			// After the stock change, so the sheet's order date is what stays
 			const patch: Partial<Doc<'inventory'>> = {}
 			if (current.reorder_level !== reorder_level) patch.reorder_level = reorder_level
 			if (current.unit !== row.unit) patch.unit = row.unit
@@ -186,20 +200,6 @@ export const importInventory = mutation({
 			if (currentOrderDate !== order_date) patch.order_status = order_status
 			if (Object.keys(patch).length > 0) {
 				await ctx.db.patch(current._id, { ...patch, updated_at: Date.now() })
-				changed = true
-			}
-
-			const delta = row.quantity - current.quantity
-			if (delta > 0) {
-				await applyStockIn(ctx, {
-					item_id: current._id,
-					quantity: delta,
-					clear_order_status: false,
-					remark: 'Excel import',
-				})
-				changed = true
-			} else if (delta < 0) {
-				await applyStockOut(ctx, { item_id: current._id, quantity: -delta, remark: 'Excel import' })
 				changed = true
 			}
 			if (changed) updated++

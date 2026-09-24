@@ -11,23 +11,20 @@
 	import { stockBatchesStore } from '$lib/stores/stockBatches.svelte'
 	import type { InventoryItem } from '$lib/types/inventory'
 	import { todayIsoDate } from '$lib/types/stockBatches'
-	import { formatDate } from '$lib/utils/date'
 
 	/*
 	 * Stock In, shared by Inventory and the Dashboard. Opened with
-	 * `dialog.open(item)`. A delivery normally closes the item's order or
-	 * snooze; the checkbox keeps it when only part of the order arrived.
+	 * `dialog.open(item)`. The stock counts against the item's order, which
+	 * closes on its own once the whole quantity has come in.
 	 */
 	let item = $state<InventoryItem | null>(null)
 	let isOpen = $state(false)
 	let quantity = $state(1)
 	let expiryDate = $state('')
-	let clearOrderStatus = $state(true)
 	let keepUntracked = $state(true)
 
 	const status = $derived(item?.order_status)
 
-	// What the person needs to know before typing a quantity; prose says none of it
 	const facts = $derived.by((): Array<{ label: string; value: string }> => {
 		if (!item) return []
 		const rows = [
@@ -38,25 +35,25 @@
 				value: String(stockBatchesStore.batchesByItem.get(item.id)?.length ?? 0),
 			},
 		]
-		if (status?.kind === 'ordered')
-			rows.push({ label: 'Ordered', value: formatDate(status.ordered_on) })
+		if (status?.kind === 'ordered') {
+			rows.push({
+				label: 'On order',
+				value: `${status.quantity - status.received} ${item.unit} to come`,
+			})
+		}
 		return rows
 	})
 	const after = $derived((item?.quantity ?? 0) + Math.max(0, Math.floor(Number(quantity) || 0)))
 
 	const dirty = $derived(
 		item !== null &&
-			(Number(quantity) !== 1 ||
-				expiryDate !== '' ||
-				clearOrderStatus !== !!item.order_status ||
-				keepUntracked !== item.not_track),
+			(Number(quantity) !== 1 || expiryDate !== '' || keepUntracked !== item.not_track),
 	)
 
 	export function open(target: InventoryItem): void {
 		item = target
 		quantity = 1
 		expiryDate = ''
-		clearOrderStatus = !!target.order_status
 		keepUntracked = target.not_track
 		isOpen = true
 	}
@@ -69,13 +66,7 @@
 	const confirm = async (): Promise<void> => {
 		if (!item || Number(quantity) <= 0) return
 		const target = item
-		await inventoryStore.stockIn(
-			target.id,
-			Number(quantity),
-			clearOrderStatus,
-			keepUntracked,
-			expiryDate || null,
-		)
+		await inventoryStore.stockIn(target.id, Number(quantity), keepUntracked, expiryDate || null)
 		if (!inventoryStore.error) {
 			toast.success(`Stocked in ${quantity} ${target.unit} of ${target.item_name}`)
 			close()
@@ -128,14 +119,6 @@
 					<Input id="stock-in-expiry" bind:value={expiryDate} type="date" min={todayIsoDate()} />
 				</Field.Field>
 			</div>
-			{#if status}
-				<Field.Field orientation="horizontal">
-					<Checkbox id="stock-in-clear-order" bind:checked={clearOrderStatus} />
-					<Field.Label for="stock-in-clear-order">
-						{status.kind === 'ordered' ? 'This delivery completes the order' : 'End the snooze'}
-					</Field.Label>
-				</Field.Field>
-			{/if}
 			{#if item?.not_track}
 				<Field.Field orientation="horizontal">
 					<Checkbox id="stock-in-untracked" bind:checked={keepUntracked} />

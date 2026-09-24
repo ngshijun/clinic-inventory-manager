@@ -112,7 +112,6 @@ class InventoryStore {
 	stockIn = async (
 		itemId: InventoryId,
 		quantity: number,
-		clearOrderStatus: boolean = true,
 		notTrackStatus?: boolean,
 		expiryDate?: string | null,
 		remark?: string,
@@ -122,7 +121,6 @@ class InventoryStore {
 				auth: authStore.token,
 				item_id: itemId,
 				quantity: Math.max(0, Math.floor(quantity)),
-				clear_order_status: clearOrderStatus,
 				not_track: notTrackStatus,
 				expiry_date: expiryDate || undefined,
 				remark: remark || '',
@@ -143,9 +141,10 @@ class InventoryStore {
 		)
 	}
 
-	// Mark ordered on a date; no expected date means a back-order
+	// Mark ordered, or change the order; no expected date means a back-order
 	markOrdered = async (
 		itemId: InventoryId,
+		quantity: number,
 		orderedOn: string,
 		expectedBy: string | null,
 	): Promise<void> => {
@@ -153,6 +152,7 @@ class InventoryStore {
 			convex.mutation(api.inventory.markOrdered, {
 				auth: authStore.token,
 				id: itemId,
+				quantity,
 				ordered_on: orderedOn,
 				expected_by: expectedBy ?? undefined,
 			}),
@@ -175,11 +175,13 @@ class InventoryStore {
 
 	/** Puts a status back after an undo */
 	restoreOrderStatus = async (itemId: InventoryId, status: OrderStatus | undefined) => {
-		if (!status) return await this.clearOrderStatus(itemId)
-		if (status.kind === 'ordered') {
-			return await this.markOrdered(itemId, status.ordered_on, status.expected_by ?? null)
-		}
-		return await this.snooze(itemId, status.until, status.reason)
+		await this.#run('An error occurred while restoring order status', () =>
+			convex.mutation(api.inventory.restoreOrderStatus, {
+				auth: authStore.token,
+				id: itemId,
+				status,
+			}),
+		)
 	}
 
 	// Quantity is deliberately not accepted here: stock lives in batches, so

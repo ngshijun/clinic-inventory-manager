@@ -1,29 +1,44 @@
 <script lang="ts">
 	import { toast } from 'svelte-sonner'
+	import { selectOnFocus } from '$lib/attachments/focus'
 	import ActionModal from '$lib/components/app/ActionModal.svelte'
 	import DialogSubject from '$lib/components/app/DialogSubject.svelte'
 	import { Checkbox } from '$lib/components/ui/checkbox'
 	import * as Field from '$lib/components/ui/field'
 	import { Input } from '$lib/components/ui/input'
+	import * as InputGroup from '$lib/components/ui/input-group'
 	import { inventoryStore } from '$lib/stores/inventory.svelte'
-	import type { InventoryItem } from '$lib/types/inventory'
+	import type { InventoryItem, OrderedStatus } from '$lib/types/inventory'
 	import { todayIsoDate } from '$lib/types/stockBatches'
+	import { capsClass } from '$lib/utils/text'
 	import { LEAD_DAYS, addDays } from '../../../../convex/lib/orders'
 
 	/**
-	 * Marks an item as ordered. The expected date is proposed LEAD_DAYS after
-	 * the order date, so the usual case is one click; a back-order has no date
-	 * and the Dashboard chases it after two weeks instead. Shared by Price
-	 * List and the Dashboard: hold a reference with `bind:this` and call
-	 * `open(item)`.
+	 * Marks an item as ordered, or changes an order already placed. The
+	 * quantity is in the item's unit, shown beside the field because the
+	 * supplier's unit is not always the shelf's. Shared by Price List and
+	 * the Dashboard: hold a reference with `bind:this` and call `open(item)`.
 	 */
 	let item = $state<InventoryItem | null>(null)
+	let existing = $state<OrderedStatus | null>(null)
 	let isOpen = $state(false)
+	let quantity = $state<number | ''>('')
 	let orderedOn = $state('')
 	let expectedBy = $state('')
 	let backOrder = $state(false)
-	let openedWith = $state('')
-	const dirty = $derived(orderedOn !== openedWith || backOrder)
+	let openedWith = $state({
+		quantity: '' as number | '',
+		orderedOn: '',
+		expectedBy: '',
+		backOrder: false,
+	})
+
+	const dirty = $derived(
+		quantity !== openedWith.quantity ||
+			orderedOn !== openedWith.orderedOn ||
+			expectedBy !== openedWith.expectedBy ||
+			backOrder !== openedWith.backOrder,
+	)
 	const facts = $derived.by((): Array<{ label: string; value: string }> =>
 		item
 			? [
@@ -32,19 +47,24 @@
 				]
 			: [],
 	)
+	const received = $derived(existing?.received ?? 0)
+	const closes = $derived(received > 0 && Number(quantity) <= received)
 
 	export function open(target: InventoryItem): void {
 		item = target
-		orderedOn = todayIsoDate()
-		openedWith = orderedOn
-		expectedBy = addDays(orderedOn, LEAD_DAYS)
-		backOrder = false
+		existing = target.order_status?.kind === 'ordered' ? target.order_status : null
+		quantity = existing?.quantity ?? ''
+		orderedOn = existing?.ordered_on ?? todayIsoDate()
+		backOrder = existing !== null && !existing.expected_by
+		expectedBy = existing?.expected_by ?? addDays(orderedOn, LEAD_DAYS)
+		openedWith = { quantity, orderedOn, expectedBy, backOrder }
 		isOpen = true
 	}
 
 	const close = (): void => {
 		isOpen = false
 		item = null
+		existing = null
 	}
 
 	// A new order date moves the proposed expected date with it
@@ -52,14 +72,30 @@
 		if (orderedOn) expectedBy = addDays(orderedOn, LEAD_DAYS)
 	}
 
-	const isValid = $derived(!!orderedOn && (backOrder || !!expectedBy))
+	const isValid = $derived(
+		Number.isInteger(Number(quantity)) &&
+			Number(quantity) > 0 &&
+			!!orderedOn &&
+			(backOrder || !!expectedBy),
+	)
 
 	const confirm = async (): Promise<void> => {
 		if (!item || !isValid) return
 		const name = item.item_name
-		await inventoryStore.markOrdered(item.id, orderedOn, backOrder ? null : expectedBy)
+		await inventoryStore.markOrdered(
+			item.id,
+			Number(quantity),
+			orderedOn,
+			backOrder ? null : expectedBy,
+		)
 		if (!inventoryStore.error) {
-			toast.success(`Marked ${name} as ${backOrder ? 'back-ordered' : 'ordered'}`)
+			toast.success(
+				closes
+					? `Order closed for ${name}`
+					: existing
+						? `Changed the order for ${name}`
+						: `Marked ${name} as ${backOrder ? 'back-ordered' : 'ordered'}`,
+			)
 			close()
 		}
 	}
@@ -67,11 +103,11 @@
 
 <ActionModal
 	bind:open={isOpen}
-	title="Mark as Ordered"
+	title={existing ? 'Change Order' : 'Mark as Ordered'}
 	loading={inventoryStore.loading}
 	{dirty}
 	disabled={!isValid}
-	confirmText="Mark Ordered"
+	confirmText={closes ? 'Close Order' : existing ? 'Save' : 'Mark Ordered'}
 	onconfirm={confirm}
 	oncancel={close}
 >
@@ -85,6 +121,31 @@
 		}}
 	>
 		<Field.Group>
+			<Field.Field>
+				<Field.Label for="order-quantity">How many</Field.Label>
+				<InputGroup.Root>
+					<InputGroup.Input
+						id="order-quantity"
+						bind:value={quantity}
+						type="number"
+						inputmode="numeric"
+						min={1}
+						step={1}
+						required
+						{@attach selectOnFocus()}
+					/>
+					<InputGroup.Addon align="inline-end">
+						<InputGroup.Text class={capsClass(item?.unit ?? '')}>{item?.unit ?? ''}</InputGroup.Text
+						>
+					</InputGroup.Addon>
+				</InputGroup.Root>
+				{#if received > 0}
+					<Field.Description>
+						{received}
+						{item?.unit} received so far. Set it to {received} if nothing more is coming.
+					</Field.Description>
+				{/if}
+			</Field.Field>
 			<div class="grid grid-cols-2 gap-4">
 				<Field.Field>
 					<Field.Label for="order-date">Order date</Field.Label>
@@ -106,9 +167,6 @@
 						disabled={backOrder}
 						required={!backOrder}
 					/>
-					<Field.Description>
-						{backOrder ? 'Shown as late after 14 days.' : 'Shown as late after this date.'}
-					</Field.Description>
 				</Field.Field>
 			</div>
 			<Field.Field orientation="horizontal">
