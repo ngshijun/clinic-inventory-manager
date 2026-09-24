@@ -23,7 +23,7 @@
 	const facts = $derived.by((): Array<{ label: string; value: string }> => {
 		if (!item) return []
 		const rows = [
-			{ label: 'On hand', value: `${item.quantity} ${item.unit}` },
+			{ label: 'In stock', value: `${item.quantity} ${item.unit}` },
 			{ label: 'Reorder at', value: item.reorder_level < 0 ? '—' : String(item.reorder_level) },
 		]
 		if (item.order_date) rows.push({ label: 'Ordered', value: formatDate(item.order_date) })

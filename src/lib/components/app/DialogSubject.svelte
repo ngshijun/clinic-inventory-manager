@@ -8,7 +8,7 @@
 	 * ("Stock In"). The name sits on its own line in the normal ink and a strip
 	 * of label/figure facts under it says what the person needs to know before
 	 * they type; a hairline then hands over to the form. Facts replace prose:
-	 * a dialog that shows "On hand 12 BTL" needs no sentence saying so.
+	 * a dialog that shows "In stock 12 BTL" needs no sentence saying so.
 	 */
 	let { name, facts = [] }: { name: string; facts?: Array<{ label: string; value: string }> } =
 		$props()

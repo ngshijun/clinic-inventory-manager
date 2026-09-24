@@ -262,7 +262,7 @@
 	const stockInFacts = $derived.by((): Array<{ label: string; value: string }> => {
 		if (!stockInItem) return []
 		const rows = [
-			{ label: 'On hand', value: `${stockInItem.quantity} ${stockInItem.unit}` },
+			{ label: 'In stock', value: `${stockInItem.quantity} ${stockInItem.unit}` },
 			{ label: 'Reorder at', value: String(stockInItem.reorder_level) },
 			{
 				label: 'Batches',
@@ -717,7 +717,7 @@
 		<Table.Header>
 			<Table.Row>
 				<Table.Head>Item</Table.Head>
-				<Table.Head>On hand</Table.Head>
+				<Table.Head>In stock</Table.Head>
 				<Table.Head>Reorder level</Table.Head>
 				<Table.Head>Nearest expiry</Table.Head>
 				<Table.Head>Order</Table.Head>
@@ -774,7 +774,7 @@
 			<Table.Row>
 				<Table.Head class="w-9"><span class="sr-only">Batches</span></Table.Head>
 				<SortHeader key="item_name" {sort} onsort={toggleSort}>Item</SortHeader>
-				<SortHeader key="quantity" {sort} onsort={toggleSort}>On hand</SortHeader>
+				<SortHeader key="quantity" {sort} onsort={toggleSort}>In stock</SortHeader>
 				<SortHeader key="reorder_level" {sort} onsort={toggleSort}>Reorder level</SortHeader>
 				<SortHeader key="nearest_expiry" {sort} onsort={toggleSort}>Nearest expiry</SortHeader>
 				<Table.Head>Order</Table.Head>
@@ -912,7 +912,7 @@
 							<Table.Cell></Table.Cell>
 							<Table.Cell colspan={6}>
 								<div class="flex items-center justify-between gap-3">
-									<span class="text-muted-foreground">No stock on hand</span>
+									<span class="text-muted-foreground">Nothing in stock</span>
 									<Button variant="outline" size="sm" onclick={() => openStockIn(item)}>
 										<ArrowDownToLineIcon data-icon="inline-start" />
 										Stock In…

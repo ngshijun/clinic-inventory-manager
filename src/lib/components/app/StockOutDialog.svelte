@@ -33,7 +33,7 @@
 	)
 	const facts = $derived.by((): Array<{ label: string; value: string }> => {
 		const rows = [
-			{ label: 'On hand', value: `${max} ${unit}` },
+			{ label: 'In stock', value: `${max} ${unit}` },
 			{ label: 'Batches', value: String(batchCount) },
 		]
 		if (earliestExpiry) rows.push({ label: 'Earliest expiry', value: formatDate(earliestExpiry) })
@@ -121,7 +121,7 @@
 					{@attach selectOnFocus()}
 				/>
 				{#if overMax}
-					<Field.Error>Only {max} {unit} on hand.</Field.Error>
+					<Field.Error>Only {max} {unit} in stock.</Field.Error>
 				{:else if isValid}
 					<Field.Description
 						><Quantity value={left} {unit} /> left after this stock out.</Field.Description
