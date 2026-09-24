@@ -16,15 +16,19 @@ export const role = v.union(v.literal('manager'), v.literal('requester'))
 
 /**
  * Where an item stands with the purchaser. Absent means nothing has been
- * decided: a low item then sits in the Dashboard's To Order list. Ordered
- * items wait for delivery (a missing expected date is a back-order); snoozed
- * items stay out of To Order until their date. Stock in clears either.
+ * decided: a low item then sits in the Dashboard's To Order list. An ordered
+ * item waits for delivery (a missing expected date is a back-order) until
+ * stock in has received the whole quantity; a snoozed item stays out of To
+ * Order until its date, or until stock comes in.
  */
 export const orderStatus = v.union(
 	v.object({
 		kind: v.literal('ordered'),
 		ordered_on: v.string(),
 		expected_by: v.optional(v.string()),
+		// Optional only until migration:addOrderQuantity has run everywhere
+		quantity: v.optional(v.number()),
+		received: v.optional(v.number()),
 	}),
 	v.object({
 		kind: v.literal('snoozed'),
