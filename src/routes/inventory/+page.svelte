@@ -83,6 +83,11 @@
 	// The Suppliers page links here with ?supplier=NAME
 	let supplierChoice = $state(page.url.searchParams.get('supplier') ?? ALL_SUPPLIERS)
 	const supplier = $derived(activeSupplier(supplierChoice, inventoryStore.items))
+	// The Units page links here with ?unit=NAME. No control sets it: it shows as
+	// a button in the toolbar that removes it.
+	let unitFilter = $state(page.url.searchParams.get('unit') ?? '')
+	const matchesUnit = (item: InventoryItem): boolean =>
+		unitFilter === '' || item.unit === unitFilter || item.pack_unit === unitFilter
 	let sort = $state<SortState<SortKey>>({ key: null, direction: 'asc' })
 	let fileInput = $state<HTMLInputElement | null>(null)
 
@@ -122,7 +127,7 @@
 	const sortedItems = $derived.by((): InventoryItem[] => {
 		const items = inventoryStore
 			.searchItems(searchQuery)
-			.filter((item) => matchesFilter(item) && matchesSupplier(item, supplier))
+			.filter((item) => matchesFilter(item) && matchesSupplier(item, supplier) && matchesUnit(item))
 		const key = sort.key
 		if (!key) return items
 
@@ -162,16 +167,20 @@
 		void searchQuery
 		void filter
 		void supplier
+		void unitFilter
 		void sort.key
 		void sort.direction
 		untrack(() => list.reset())
 	})
 
-	const isFiltered = $derived(searchQuery !== '' || filter !== 'all' || supplier !== ALL_SUPPLIERS)
+	const isFiltered = $derived(
+		searchQuery !== '' || filter !== 'all' || supplier !== ALL_SUPPLIERS || unitFilter !== '',
+	)
 	const clearFilters = (): void => {
 		searchQuery = ''
 		filter = 'all'
 		supplierChoice = ALL_SUPPLIERS
+		unitFilter = ''
 	}
 
 	// ⌥⌘F focuses the search field
@@ -626,6 +635,13 @@
 			{/each}
 		</ToggleGroup.Root>
 		<SupplierFilter bind:value={supplierChoice} items={inventoryStore.items} />
+		{#if unitFilter}
+			<Button variant="secondary" onclick={() => (unitFilter = '')}>
+				Unit: <span class="tracking-wide">{unitFilter}</span>
+				<XIcon data-icon="inline-end" />
+				<span class="sr-only">Remove unit filter</span>
+			</Button>
+		{/if}
 	</div>
 	<DropdownMenu.Root>
 		<DropdownMenu.Trigger>

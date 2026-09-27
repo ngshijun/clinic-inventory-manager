@@ -201,7 +201,15 @@
 					<Table.Cell class="font-medium tracking-wide">{unit.name}</Table.Cell>
 					<Table.Cell class="tabular-nums">
 						{#if count > 0}
-							{plural(count, 'item')}
+							<!-- Opens Inventory held to the items that use this unit -->
+							<Button
+								variant="link"
+								size="sm"
+								class="h-auto p-0 text-sm"
+								href={`/inventory?unit=${encodeURIComponent(unit.name)}`}
+							>
+								{plural(count, 'item')}
+							</Button>
 						{:else}
 							<span class="text-muted-foreground">No items</span>
 						{/if}
