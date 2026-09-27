@@ -1,7 +1,8 @@
 import { v } from 'convex/values'
-import { internalQuery } from './_generated/server'
+import { internalMutation, internalQuery } from './_generated/server'
 import type { Id } from './_generated/dataModel'
 import { movementsByType } from './lib/aggregates'
+import { parseUnitLabel, unitLabel } from './lib/units'
 
 /*
  * Consistency check. Internal only, nothing in the app calls it:
@@ -81,6 +82,98 @@ export const verify = internalQuery({
 			danglingBatches,
 			danglingRequests,
 			danglingRunItems,
+		}
+	},
+})
+
+/** Spelling slips in item names, found when the units were reviewed. */
+const NAME_FIXES: Array<[wrong: string, right: string]> = [
+	['CLEASNER', 'CLEANSER'],
+	['SUL[HUR', 'SULPHUR'],
+	['LOTON', 'LOTION'],
+	['SULUTION', 'SOLUTION'],
+]
+
+/*
+ * One-off: splits each item's unit text ("BOX (30 TAB)") into its three
+ * parts and fills the units list from them. Typing slips are repaired on the
+ * way: a letter O among the digits, missing or doubled spaces, and a unit
+ * with no outer name, which becomes a PACK. Units are otherwise kept as they
+ * are. Safe to run again. Remove once production has been converted.
+ *
+ *   npx convex run migration:splitUnits '{}' [--prod]
+ */
+export const splitUnits = internalMutation({
+	args: {},
+	returns: v.object({
+		items: v.number(),
+		units: v.array(v.string()),
+		unitsFixed: v.array(v.object({ item_name: v.string(), from: v.string(), to: v.string() })),
+		namesFixed: v.array(v.object({ from: v.string(), to: v.string() })),
+		unreadable: v.array(v.object({ item_name: v.string(), unit: v.string() })),
+	}),
+	handler: async (ctx) => {
+		const inventory = await ctx.db.query('inventory').collect()
+		const names = new Set<string>()
+		const unitsFixed: Array<{ item_name: string; from: string; to: string }> = []
+		const namesFixed: Array<{ from: string; to: string }> = []
+		const unreadable: Array<{ item_name: string; unit: string }> = []
+
+		for (const item of inventory) {
+			// Four names carry a stray space at the end, which search and sorting trip on
+			let item_name = item.item_name.trim()
+			for (const [wrong, right] of NAME_FIXES) item_name = item_name.replace(wrong, right)
+			if (item_name !== item.item_name) {
+				await ctx.db.patch(item._id, { item_name })
+				const requests = await ctx.db
+					.query('stock_requests')
+					.withIndex('by_item', (q) => q.eq('item_id', item._id))
+					.collect()
+				for (const request of requests) await ctx.db.patch(request._id, { item_name })
+				namesFixed.push({ from: item.item_name, to: item_name })
+			}
+
+			if (item.pack_size !== undefined) {
+				names.add(item.unit)
+				if (item.pack_unit) names.add(item.pack_unit)
+				continue
+			}
+			const text = item.unit
+				.trim()
+				.toUpperCase()
+				.replace(/^\(/, 'PACK (')
+				.replace(/\(\s*[0-9O]+/, (digits) => digits.replace(/O/g, '0'))
+			const parts = parseUnitLabel(text)
+			if (!parts) {
+				unreadable.push({ item_name, unit: item.unit })
+				continue
+			}
+			await ctx.db.patch(item._id, {
+				unit: parts.unit,
+				pack_size: parts.pack_size,
+				pack_unit: parts.pack_unit,
+			})
+			names.add(parts.unit)
+			if (parts.pack_unit) names.add(parts.pack_unit)
+			const label = unitLabel(parts)
+			if (label !== item.unit) unitsFixed.push({ item_name, from: item.unit, to: label })
+		}
+
+		const now = Date.now()
+		for (const name of names) {
+			const existing = await ctx.db
+				.query('units')
+				.withIndex('by_name', (q) => q.eq('name', name))
+				.unique()
+			if (!existing) await ctx.db.insert('units', { name, updated_at: now })
+		}
+
+		return {
+			items: inventory.length,
+			units: [...names].sort(),
+			unitsFixed,
+			namesFixed,
+			unreadable,
 		}
 	},
 })

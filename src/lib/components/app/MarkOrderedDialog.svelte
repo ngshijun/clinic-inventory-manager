@@ -42,7 +42,7 @@
 	const facts = $derived.by((): Array<{ label: string; value: string }> =>
 		item
 			? [
-					{ label: 'In stock', value: `${item.quantity} ${item.unit}` },
+					{ label: 'In stock', value: `${item.quantity} ${item.unit_label}` },
 					{ label: 'Reorder at', value: item.reorder_level < 0 ? '—' : String(item.reorder_level) },
 				]
 			: [],
@@ -135,14 +135,15 @@
 						{@attach selectOnFocus()}
 					/>
 					<InputGroup.Addon align="inline-end">
-						<InputGroup.Text class={capsClass(item?.unit ?? '')}>{item?.unit ?? ''}</InputGroup.Text
+						<InputGroup.Text class={capsClass(item?.unit_label ?? '')}
+							>{item?.unit_label ?? ''}</InputGroup.Text
 						>
 					</InputGroup.Addon>
 				</InputGroup.Root>
 				{#if received > 0}
 					<Field.Description>
 						{received}
-						{item?.unit} received so far. Set it to {received} if nothing more is coming.
+						{item?.unit_label} received so far. Set it to {received} if nothing more is coming.
 					</Field.Description>
 				{/if}
 			</Field.Field>

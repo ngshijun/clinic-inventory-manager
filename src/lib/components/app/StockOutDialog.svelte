@@ -26,7 +26,7 @@
 	// The dialog keeps a snapshot; read the live row so the maximum tracks the store
 	const live = $derived(item ? (inventoryStore.getItemById(item.id) ?? item) : null)
 	const max = $derived(live?.quantity ?? 0)
-	const unit = $derived(live?.unit ?? '')
+	const unit = $derived(live?.unit_label ?? '')
 	const batchCount = $derived(item ? stockBatchesStore.getBatchesForItem(item.id).length : 0)
 	const earliestExpiry = $derived(
 		item ? stockBatchesStore.nearestExpiryByItem.get(item.id) : undefined,
@@ -81,7 +81,7 @@
 		const amount = Number(quantity)
 		await inventoryStore.stockOut(target.id, amount)
 		if (!inventoryStore.error) {
-			toast.success(`Stocked out ${amount} ${target.unit} of ${target.item_name}`)
+			toast.success(`Stocked out ${amount} ${target.unit_label} of ${target.item_name}`)
 			close()
 		}
 	}

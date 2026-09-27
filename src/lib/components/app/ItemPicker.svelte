@@ -195,7 +195,7 @@
 						{#if showInStock}
 							<Quantity
 								value={item.quantity}
-								unit={item.unit}
+								unit={item.unit_label}
 								pack={false}
 								class="shrink-0 text-xs"
 								valueClass={cn(item.quantity === 0 && 'text-destructive')}

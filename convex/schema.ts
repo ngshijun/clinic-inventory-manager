@@ -36,15 +36,31 @@ export const orderStatus = v.union(
 	}),
 )
 
+/**
+ * A unit in three parts; see lib/units.ts. `unit` and `pack_unit` are names
+ * from the units table, kept as text so every row reads without a join.
+ */
+export const unitParts = {
+	unit: v.string(),
+	pack_size: v.optional(v.number()),
+	pack_unit: v.optional(v.string()),
+}
+
 export const inventoryFields = {
 	item_name: v.string(),
 	quantity: v.number(),
 	reorder_level: v.number(),
-	unit: v.string(),
+	...unitParts,
 	remark: v.string(),
 	order_status: v.optional(orderStatus),
 	not_track: v.boolean(),
 	is_pinned: v.boolean(),
+	...commonFields,
+}
+
+/** The preset units an item's unit is picked from. */
+export const unitFields = {
+	name: v.string(),
 	...commonFields,
 }
 
@@ -120,6 +136,7 @@ const systemFields = <T extends string>(table: T) => ({
 
 /** Shared doc validators so `returns` validators match the stored docs exactly. */
 export const inventoryDoc = v.object({ ...systemFields('inventory'), ...inventoryFields })
+export const unitDoc = v.object({ ...systemFields('units'), ...unitFields })
 export const stockBatchDoc = v.object({ ...systemFields('stock_batches'), ...stockBatchFields })
 export const stockMovementDoc = v.object({
 	...systemFields('stock_movements'),
@@ -138,6 +155,8 @@ export const payrollRunItemDoc = v.object({
 
 export default defineSchema({
 	inventory: defineTable(inventoryFields).index('by_item_name', ['item_name']),
+
+	units: defineTable(unitFields).index('by_name', ['name']),
 
 	stock_batches: defineTable(stockBatchFields)
 		// Stock out drains these in FEFO order (see lib/stock.ts fefoOrder).

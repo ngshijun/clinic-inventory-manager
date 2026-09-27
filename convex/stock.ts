@@ -12,7 +12,9 @@ import {
 } from './lib/stock'
 import { createItem, deleteItem, type OrderStatus } from './inventory'
 import { LEAD_DAYS, addDays, suggestedOrderQuantity, toIsoDate } from './lib/orders'
+import { parseUnitLabel, sameUnit } from './lib/units'
 import { inventoryDoc, stockBatchDoc } from './schema'
+import { requireUnitParts } from './units'
 
 function optionalText(value: string | null | undefined): string | undefined {
 	if (value === undefined || value === null) return undefined
@@ -151,6 +153,13 @@ export const importInventory = mutation({
 			assertNonNegativeQuantity(row.quantity)
 			const reorder_level = Number.isFinite(row.reorder_level) ? Math.max(0, row.reorder_level) : 0
 			const remark = row.remark ?? ''
+			const unit = parseUnitLabel(row.unit)
+			if (!unit) {
+				throw new ConvexError({
+					code: 'INVALID_STATE',
+					message: `${item_name}: the unit "${row.unit}" cannot be read. Write it like BOX (30 TAB).`,
+				})
+			}
 			// The sheet's order_date column: a date marks the item ordered on that day
 			const order_date = toIsoDate(row.order_date)
 			const order_status: OrderStatus | undefined = order_date
@@ -169,7 +178,7 @@ export const importInventory = mutation({
 					item_name,
 					quantity: row.quantity,
 					reorder_level,
-					unit: row.unit,
+					unit,
 					remark,
 					order_status,
 					initial_remark: 'Excel import',
@@ -193,7 +202,12 @@ export const importInventory = mutation({
 			// After the stock change, so the sheet's order date is what stays
 			const patch: Partial<Doc<'inventory'>> = {}
 			if (current.reorder_level !== reorder_level) patch.reorder_level = reorder_level
-			if (current.unit !== row.unit) patch.unit = row.unit
+			if (!sameUnit(current, unit)) {
+				const checked = await requireUnitParts(ctx, unit)
+				patch.unit = checked.unit
+				patch.pack_size = checked.pack_size
+				patch.pack_unit = checked.pack_unit
+			}
 			if (current.remark !== remark) patch.remark = remark
 			const currentOrderDate =
 				current.order_status?.kind === 'ordered' ? current.order_status.ordered_on : null

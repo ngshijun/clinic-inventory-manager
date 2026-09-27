@@ -3,6 +3,7 @@ import { mutation, query } from './_generated/server'
 import type { Doc, Id } from './_generated/dataModel'
 import { requireRole } from './lib/auth'
 import { applyStockOut, assertPositiveQuantity } from './lib/stock'
+import { unitLabel } from './lib/units'
 import { stockRequestDoc } from './schema'
 
 const requestRow = v.object({ ...stockRequestDoc.fields, unit: v.string() })
@@ -57,7 +58,7 @@ export const list = query({
 			let unit = units.get(request.item_id)
 			if (unit === undefined) {
 				const item = await ctx.db.get(request.item_id)
-				unit = item?.unit ?? ''
+				unit = item ? unitLabel(item) : ''
 				units.set(request.item_id, unit)
 			}
 			rows.push({ ...request, unit })

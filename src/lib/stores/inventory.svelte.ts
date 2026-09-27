@@ -1,5 +1,7 @@
 // stores/inventory.svelte.ts
 import { api } from '../../../convex/_generated/api'
+import type { Doc } from '../../../convex/_generated/dataModel'
+import { unitLabel } from '../../../convex/lib/units'
 import { convex } from '$lib/convex'
 import type {
 	InventoryId,
@@ -10,6 +12,11 @@ import type {
 } from '$lib/types/inventory'
 import { errorMessage, withLegacy } from '$lib/types/legacy'
 import { authStore } from './auth.svelte'
+
+const toItem = (doc: Doc<'inventory'>): InventoryItem => ({
+	...withLegacy(doc),
+	unit_label: unitLabel(doc),
+})
 
 /** One row of an Excel import, as the sheet provides it */
 export interface InventoryImportRow {
@@ -88,7 +95,7 @@ class InventoryStore {
 	fetchItems = async (): Promise<void> => {
 		await this.#run('An error occurred while fetching items', async () => {
 			const docs = await convex.query(api.inventory.list, { auth: authStore.token })
-			this.items = docs.map(withLegacy)
+			this.items = docs.map(toItem)
 		})
 	}
 
@@ -246,7 +253,7 @@ class InventoryStore {
 			api.inventory.list,
 			{ auth: authStore.token },
 			(docs) => {
-				this.items = docs.map(withLegacy)
+				this.items = docs.map(toItem)
 				this.error = null
 				settle()
 			},

@@ -28,7 +28,7 @@
 	const facts = $derived.by((): Array<{ label: string; value: string }> => {
 		if (!item) return []
 		const rows = [
-			{ label: 'In stock', value: `${item.quantity} ${item.unit}` },
+			{ label: 'In stock', value: `${item.quantity} ${item.unit_label}` },
 			{ label: 'Reorder at', value: item.reorder_level < 0 ? '—' : String(item.reorder_level) },
 			{
 				label: 'Batches',
@@ -38,7 +38,7 @@
 		if (status?.kind === 'ordered') {
 			rows.push({
 				label: 'On order',
-				value: `${status.quantity - status.received} ${item.unit} to come`,
+				value: `${status.quantity - status.received} ${item.unit_label} to come`,
 			})
 		}
 		return rows
@@ -68,7 +68,7 @@
 		const target = item
 		await inventoryStore.stockIn(target.id, Number(quantity), keepUntracked, expiryDate || null)
 		if (!inventoryStore.error) {
-			toast.success(`Stocked in ${quantity} ${target.unit} of ${target.item_name}`)
+			toast.success(`Stocked in ${quantity} ${target.unit_label} of ${target.item_name}`)
 			close()
 		}
 	}
@@ -108,7 +108,7 @@
 					/>
 					{#if Number(quantity) > 0}
 						<Field.Description
-							><Quantity value={after} unit={item?.unit ?? ''} /> after this stock in.</Field.Description
+							><Quantity value={after} unit={item?.unit_label ?? ''} /> after this stock in.</Field.Description
 						>
 					{/if}
 				</Field.Field>

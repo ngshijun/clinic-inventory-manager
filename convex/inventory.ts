@@ -5,7 +5,9 @@ import type { Doc, Id } from './_generated/dataModel'
 import { requireRole } from './lib/auth'
 import { toIsoDate } from './lib/orders'
 import { applyStockIn, assertNonNegativeQuantity, requireItem } from './lib/stock'
-import { inventoryDoc, orderStatus } from './schema'
+import type { UnitParts } from './lib/units'
+import { inventoryDoc, orderStatus, unitParts } from './schema'
+import { requireUnitParts } from './units'
 
 export type OrderStatus = Infer<typeof orderStatus>
 
@@ -28,7 +30,7 @@ export async function createItem(
 		item_name: string
 		quantity: number
 		reorder_level: number
-		unit: string
+		unit: UnitParts
 		remark?: string
 		order_status?: OrderStatus
 		not_track?: boolean
@@ -40,12 +42,13 @@ export async function createItem(
 	if (!Number.isFinite(args.reorder_level)) {
 		throw new ConvexError({ code: 'INVALID_QUANTITY', message: 'Reorder level must be a number' })
 	}
+	const unit = await requireUnitParts(ctx, args.unit)
 	const now = Date.now()
 	const id = await ctx.db.insert('inventory', {
 		item_name: args.item_name.trim(),
 		quantity: 0,
 		reorder_level: Math.max(0, args.reorder_level),
-		unit: args.unit,
+		...unit,
 		remark: args.remark ?? '',
 		not_track: args.not_track ?? false,
 		is_pinned: false,
@@ -96,7 +99,7 @@ export const add = mutation({
 		item_name: v.string(),
 		quantity: v.number(),
 		reorder_level: v.number(),
-		unit: v.string(),
+		unit: v.object(unitParts),
 		remark: v.optional(v.string()),
 		not_track: v.optional(v.boolean()),
 		expiry_date: v.optional(v.union(v.string(), v.null())),
@@ -122,7 +125,7 @@ export const update = mutation({
 		auth: v.string(),
 		id: v.id('inventory'),
 		item_name: v.optional(v.string()),
-		unit: v.optional(v.string()),
+		unit: v.optional(v.object(unitParts)),
 		reorder_level: v.optional(v.number()),
 		remark: v.optional(v.string()),
 		not_track: v.optional(v.boolean()),
@@ -141,7 +144,13 @@ export const update = mutation({
 			}
 			patch.item_name = name
 		}
-		if (args.unit !== undefined) patch.unit = args.unit
+		if (args.unit !== undefined) {
+			const unit = await requireUnitParts(ctx, args.unit)
+			// Both pack fields are always written, so a unit without contents clears them
+			patch.unit = unit.unit
+			patch.pack_size = unit.pack_size
+			patch.pack_unit = unit.pack_unit
+		}
 		if (args.reorder_level !== undefined) {
 			if (!Number.isFinite(args.reorder_level)) {
 				throw new ConvexError({
