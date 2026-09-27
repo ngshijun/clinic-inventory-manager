@@ -11,13 +11,13 @@
 	import ClockIcon from '@lucide/svelte/icons/clock'
 	import TriangleAlertIcon from '@lucide/svelte/icons/triangle-alert'
 	import TruckIcon from '@lucide/svelte/icons/truck'
+	import SupplierFilter from '$lib/components/app/SupplierFilter.svelte'
 	import MarkOrderedDialog from '$lib/components/app/MarkOrderedDialog.svelte'
 	import OrderControls from '$lib/components/app/OrderControls.svelte'
 	import PageHeader from '$lib/components/app/PageHeader.svelte'
 	import Quantity from '$lib/components/app/Quantity.svelte'
 	import SnoozeDialog from '$lib/components/app/SnoozeDialog.svelte'
-	import StatusDot from '$lib/components/app/StatusDot.svelte'
-	import StopTrackingDialog from '$lib/components/app/StopTrackingDialog.svelte'
+	import StopOrderingDialog from '$lib/components/app/StopOrderingDialog.svelte'
 	import ToneBadge from '$lib/components/app/ToneBadge.svelte'
 	import { Button } from '$lib/components/ui/button'
 	import * as Card from '$lib/components/ui/card'
@@ -38,7 +38,7 @@
 		todayIsoDate,
 		type StockBatch,
 	} from '$lib/types/stockBatches'
-	import { daysSince, formatDate, formatDuration } from '$lib/utils/date'
+	import { daysSince, formatDate, formatDayMonth, formatDuration } from '$lib/utils/date'
 	import { expiryNote } from '$lib/utils/expiry'
 	import {
 		daysBetween,
@@ -49,6 +49,7 @@
 		wokeFromSnooze,
 	} from '$lib/utils/orders'
 	import { cn } from '$lib/utils'
+	import { ALL_SUPPLIERS, activeSupplier, matchesSupplier } from '$lib/utils/supplier'
 	import { capsClass } from '$lib/utils/text'
 
 	const NOT_MOVING_DAYS = 30
@@ -85,7 +86,11 @@
 	// Snoozed rows go first when shown: the person asked to see them, and the
 	// inbox behind them can run to a hundred rows
 	let showSnoozed = $state(false)
-	const toOrderRows = $derived(showSnoozed ? snoozed.concat(toOrder) : toOrder)
+	const toOrderAll = $derived(showSnoozed ? snoozed.concat(toOrder) : toOrder)
+	// One supplier at a time, so everything from that supplier goes on one order
+	let supplierChoice = $state(ALL_SUPPLIERS)
+	const supplier = $derived(activeSupplier(supplierChoice, toOrderAll))
+	const toOrderRows = $derived(toOrderAll.filter((item) => matchesSupplier(item, supplier)))
 	const toOrderList = createLoadMore(() => toOrderRows, QUEUE_PAGE)
 
 	// ---------- Waiting for delivery ----------
@@ -165,7 +170,7 @@
 	// ---------- Dialogs ----------
 	let orderDialog = $state<MarkOrderedDialog | null>(null)
 	let snoozeDialog = $state<SnoozeDialog | null>(null)
-	let stopTrackingDialog = $state<StopTrackingDialog | null>(null)
+	let stopOrderingDialog = $state<StopOrderingDialog | null>(null)
 </script>
 
 <PageHeader title="Dashboard" />
@@ -239,9 +244,12 @@
 		</Card.Root>
 
 		{#if queue === 'toorder'}
-			<div class="flex items-center justify-end gap-2">
-				<Checkbox id="show-snoozed" bind:checked={showSnoozed} />
-				<Label for="show-snoozed" class="font-normal">Show snoozed ({snoozed.length})</Label>
+			<div class="flex flex-wrap items-center justify-between gap-2">
+				<SupplierFilter bind:value={supplierChoice} items={toOrderAll} />
+				<div class="flex items-center gap-2">
+					<Checkbox id="show-snoozed" bind:checked={showSnoozed} />
+					<Label for="show-snoozed" class="font-normal">Show snoozed ({snoozed.length})</Label>
+				</div>
 			</div>
 		{:else if queue === 'expiring'}
 			<div class="flex justify-end">
@@ -260,16 +268,16 @@
 					'Nothing to order',
 					snoozed.length > 0
 						? `Every low item is on order or snoozed. ${plural(snoozed.length, 'item')} will come back when its snooze ends.`
-						: 'Every tracked item is above its reorder level or already on order.',
+						: 'Every item is above its reorder level or already on order.',
 				)}
 			{:else}
 				<Table.Root>
 					<Table.Header>
 						<Table.Row>
 							<Table.Head>Item</Table.Head>
+							<Table.Head>Supplier</Table.Head>
 							<Table.Head>Status</Table.Head>
 							<Table.Head>In stock</Table.Head>
-							<Table.Head>Note</Table.Head>
 							<Table.Head><span class="sr-only">Actions</span></Table.Head>
 						</Table.Row>
 					</Table.Header>
@@ -281,40 +289,40 @@
 								<Table.Cell class={cn('font-medium', capsClass(item.item_name))}
 									>{item.item_name}</Table.Cell
 								>
+								<Table.Cell class={capsClass(item.supplier)}>
+									{#if item.supplier}
+										{item.supplier}
+									{:else}
+										<span class="text-muted-foreground">—</span>
+									{/if}
+								</Table.Cell>
 								<Table.Cell>
-									<StatusDot tone={out ? 'danger' : 'warning'}>
+									<ToneBadge tone={out ? 'danger' : 'warning'}>
 										{out ? 'Out of stock' : 'Low stock'}
-									</StatusDot>
-								</Table.Cell>
-								<Table.Cell>
-									<Quantity
-										value={item.quantity}
-										unit={item.unit_label}
-										valueClass={cn(!snoozing && out && 'text-destructive')}
-									/>
-									<span class="text-muted-foreground ms-1 text-xs"
-										>reorder at {item.reorder_level}</span
-									>
-								</Table.Cell>
-								<Table.Cell>
+									</ToneBadge>
+									<!-- A snooze is the exception, so it follows the stock badge only where there is one -->
 									{#if item.order_status?.kind === 'snoozed'}
 										{#if wokeFromSnooze(item, today)}
-											<ToneBadge tone="warning">
+											<ToneBadge tone="warning" class="ms-1">
 												<AlarmClockIcon />
-												Snooze ended {formatDate(item.order_status.until)}
+												Snooze ended {formatDayMonth(item.order_status.until)}
 											</ToneBadge>
 										{:else}
-											<ToneBadge tone="neutral">
+											<ToneBadge tone="neutral" class="ms-1">
 												<AlarmClockIcon />
-												Snoozed until {formatDate(item.order_status.until)}
+												Snoozed until {formatDayMonth(item.order_status.until)}
 											</ToneBadge>
 										{/if}
 										<span class="text-muted-foreground ms-1 text-xs"
 											>{item.order_status.reason}</span
 										>
-									{:else}
-										<span class="text-muted-foreground">—</span>
 									{/if}
+								</Table.Cell>
+								<Table.Cell>
+									<Quantity value={item.quantity} unit={item.unit_label} />
+									<span class="text-muted-foreground ms-1 text-xs"
+										>reorder at {item.reorder_level}</span
+									>
 								</Table.Cell>
 								<Table.Cell>
 									<div class="flex justify-end gap-1">
@@ -322,7 +330,7 @@
 											{item}
 											onMarkOrdered={(target) => orderDialog?.open(target)}
 											onSnooze={(target) => snoozeDialog?.open(target)}
-											onStopTracking={(target) => stopTrackingDialog?.open(target)}
+											onStopOrdering={(target) => stopOrderingDialog?.open(target)}
 										/>
 									</div>
 								</Table.Cell>
@@ -332,7 +340,7 @@
 				</Table.Root>
 				{@render footer(
 					toOrderList.shown,
-					showSnoozed && snoozed.length > 0
+					supplier === ALL_SUPPLIERS && showSnoozed && snoozed.length > 0
 						? `${plural(toOrder.length, 'item')} to order and ${snoozed.length} snoozed`
 						: plural(toOrderList.total, 'item'),
 					toOrderList,
@@ -353,9 +361,9 @@
 					<Table.Header>
 						<Table.Row>
 							<Table.Head>Item</Table.Head>
+							<Table.Head>Supplier</Table.Head>
 							<Table.Head>Status</Table.Head>
 							<Table.Head>Ordered</Table.Head>
-							<Table.Head>Received</Table.Head>
 							<Table.Head>Expected</Table.Head>
 							<Table.Head>In stock</Table.Head>
 							<Table.Head><span class="sr-only">Actions</span></Table.Head>
@@ -369,11 +377,24 @@
 								<Table.Cell class={cn('font-medium', capsClass(item.item_name))}
 									>{item.item_name}</Table.Cell
 								>
+								<Table.Cell class={capsClass(item.supplier)}>
+									{#if item.supplier}
+										{item.supplier}
+									{:else}
+										<span class="text-muted-foreground">—</span>
+									{/if}
+								</Table.Cell>
+								<!-- One badge, the most urgent that applies -->
 								<Table.Cell>
 									{#if late}
 										<ToneBadge tone="danger">
 											<TriangleAlertIcon />
 											Late
+										</ToneBadge>
+									{:else if !status.expected_by}
+										<ToneBadge tone="neutral">
+											<ClockIcon />
+											Back-ordered
 										</ToneBadge>
 									{:else if status.received > 0}
 										<ToneBadge tone="warning">
@@ -392,15 +413,12 @@
 									<span class="text-muted-foreground ms-1 text-xs">
 										{since === 0
 											? 'today'
-											: `${formatDate(status.ordered_on)}, ${formatDuration(since)} ago`}
+											: `${formatDayMonth(status.ordered_on)}, ${formatDuration(since)} ago`}
 									</span>
-								</Table.Cell>
-								<Table.Cell>
 									{#if status.received > 0}
-										<Quantity value={status.received} unit={item.unit_label} pack={false} />
-										<span class="text-warning ms-1 text-xs">{toCome} to come</span>
-									{:else}
-										<span class="text-muted-foreground">None yet</span>
+										<span class="text-warning ms-1 text-xs">
+											{status.received} received, {toCome} to come
+										</span>
 									{/if}
 								</Table.Cell>
 								<Table.Cell class="tabular-nums">
@@ -426,18 +444,10 @@
 														: `in ${formatDuration(left)}`}
 										</span>
 									{:else}
-										<ToneBadge tone={late ? 'danger' : 'neutral'}>
-											<ClockIcon />
-											Back-ordered
-										</ToneBadge>
-										<span
-											class={cn(
-												'ms-1 text-xs',
-												late ? 'text-destructive' : 'text-muted-foreground',
-											)}
-										>
-											{late ? 'chase the supplier' : 'no date yet'}
-										</span>
+										<span class="text-muted-foreground">No date yet</span>
+										{#if late}
+											<span class="text-destructive ms-1 text-xs">chase the supplier</span>
+										{/if}
 									{/if}
 								</Table.Cell>
 								<Table.Cell>
@@ -453,7 +463,7 @@
 											{item}
 											onMarkOrdered={(target) => orderDialog?.open(target)}
 											onSnooze={(target) => snoozeDialog?.open(target)}
-											onStopTracking={(target) => stopTrackingDialog?.open(target)}
+											onStopOrdering={(target) => stopOrderingDialog?.open(target)}
 										/>
 									</div>
 								</Table.Cell>
@@ -533,7 +543,7 @@
 				{@render emptyPane(
 					ArchiveIcon,
 					'Everything is moving',
-					`Every tracked item with stock has moved in the last ${NOT_MOVING_DAYS} days.`,
+					`Every item with stock has moved in the last ${NOT_MOVING_DAYS} days.`,
 				)}
 			{:else}
 				<Table.Root>
@@ -555,7 +565,7 @@
 									<Quantity value={item.quantity} unit={item.unit_label} />
 								</Table.Cell>
 								<Table.Cell class="tabular-nums">
-									{item.reorder_level < 0 ? '—' : item.reorder_level}
+									{item.reorder_level}
 								</Table.Cell>
 								<Table.Cell class="tabular-nums">
 									{formatDate(item.updated_at)}
@@ -663,4 +673,4 @@
 
 <MarkOrderedDialog bind:this={orderDialog} />
 <SnoozeDialog bind:this={snoozeDialog} />
-<StopTrackingDialog bind:this={stopTrackingDialog} />
+<StopOrderingDialog bind:this={stopOrderingDialog} />

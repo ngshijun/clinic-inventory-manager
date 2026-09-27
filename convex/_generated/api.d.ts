@@ -21,6 +21,7 @@ import type * as payroll from '../payroll.js'
 import type * as payrollRuns from '../payrollRuns.js'
 import type * as requests from '../requests.js'
 import type * as stock from '../stock.js'
+import type * as suppliers from '../suppliers.js'
 import type * as units from '../units.js'
 
 import type { ApiFromModules, FilterApi, FunctionReference } from 'convex/server'
@@ -39,6 +40,7 @@ declare const fullApi: ApiFromModules<{
 	payrollRuns: typeof payrollRuns
 	requests: typeof requests
 	stock: typeof stock
+	suppliers: typeof suppliers
 	units: typeof units
 }>
 

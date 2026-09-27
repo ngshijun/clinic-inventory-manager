@@ -7,6 +7,7 @@ import { toIsoDate } from './lib/orders'
 import { applyStockIn, assertNonNegativeQuantity, requireItem } from './lib/stock'
 import type { UnitParts } from './lib/units'
 import { inventoryDoc, orderStatus, unitParts } from './schema'
+import { supplierResolver } from './suppliers'
 import { requireUnitParts } from './units'
 
 export type OrderStatus = Infer<typeof orderStatus>
@@ -28,6 +29,8 @@ export async function createItem(
 	ctx: MutationCtx,
 	args: {
 		item_name: string
+		/** Already through supplierResolver */
+		supplier?: string
 		quantity: number
 		reorder_level: number
 		unit: UnitParts
@@ -46,6 +49,7 @@ export async function createItem(
 	const now = Date.now()
 	const id = await ctx.db.insert('inventory', {
 		item_name: args.item_name.trim(),
+		supplier: args.supplier,
 		quantity: 0,
 		reorder_level: Math.max(0, args.reorder_level),
 		...unit,
@@ -97,6 +101,7 @@ export const add = mutation({
 	args: {
 		auth: v.string(),
 		item_name: v.string(),
+		supplier: v.optional(v.string()),
 		quantity: v.number(),
 		reorder_level: v.number(),
 		unit: v.object(unitParts),
@@ -109,6 +114,7 @@ export const add = mutation({
 		requireRole(args.auth, ['manager'])
 		return await createItem(ctx, {
 			item_name: args.item_name,
+			supplier: await (await supplierResolver(ctx))(args.supplier),
 			quantity: args.quantity,
 			reorder_level: args.reorder_level,
 			unit: args.unit,
@@ -125,6 +131,8 @@ export const update = mutation({
 		auth: v.string(),
 		id: v.id('inventory'),
 		item_name: v.optional(v.string()),
+		/** An empty name clears the supplier */
+		supplier: v.optional(v.string()),
 		unit: v.optional(v.object(unitParts)),
 		reorder_level: v.optional(v.number()),
 		remark: v.optional(v.string()),
@@ -143,6 +151,9 @@ export const update = mutation({
 				throw new ConvexError({ code: 'INVALID_STATE', message: 'Item name cannot be empty' })
 			}
 			patch.item_name = name
+		}
+		if (args.supplier !== undefined) {
+			patch.supplier = await (await supplierResolver(ctx))(args.supplier)
 		}
 		if (args.unit !== undefined) {
 			const unit = await requireUnitParts(ctx, args.unit)
@@ -163,7 +174,7 @@ export const update = mutation({
 		if (args.remark !== undefined) patch.remark = args.remark
 		if (args.not_track !== undefined) {
 			patch.not_track = args.not_track
-			// An untracked item is nobody's to order, so it holds no order status
+			// An item the clinic no longer orders is nobody's to order, so it holds no order status
 			if (args.not_track) patch.order_status = undefined
 		}
 		await ctx.db.patch(item._id, patch)

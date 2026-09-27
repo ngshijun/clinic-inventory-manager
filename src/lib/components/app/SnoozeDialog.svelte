@@ -76,7 +76,7 @@
 			name={item.item_name}
 			facts={[
 				{ label: 'In stock', value: `${item.quantity} ${item.unit_label}` },
-				{ label: 'Reorder at', value: item.reorder_level < 0 ? '—' : String(item.reorder_level) },
+				{ label: 'Reorder at', value: String(item.reorder_level) },
 			]}
 		/>
 	{/if}

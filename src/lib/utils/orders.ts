@@ -3,14 +3,14 @@ import type { InventoryItem, OrderedStatus } from '$lib/types/inventory'
 import { todayIsoDate } from '$lib/types/stockBatches'
 
 /*
- * The purchaser's queues. A tracked item at or below its reorder level needs
+ * The purchaser's queues. An item the clinic still orders, at or below its reorder level needs
  * stock; it needs a decision until it is ordered or snoozed. Snoozes end on
  * their own: once the date passes the item is back in To Order, still
  * carrying the snooze so the row can say it was snoozed.
  */
 
 export const needsStock = (item: InventoryItem): boolean =>
-	!item.not_track && item.reorder_level >= 0 && item.quantity <= item.reorder_level
+	!item.not_track && item.quantity <= item.reorder_level
 
 export const isOnOrder = (item: InventoryItem): boolean => item.order_status?.kind === 'ordered'
 

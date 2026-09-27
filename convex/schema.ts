@@ -48,6 +48,8 @@ export const unitParts = {
 
 export const inventoryFields = {
 	item_name: v.string(),
+	/** Who the item is bought from: a name from the suppliers table, kept as text like the unit. Absent means none. */
+	supplier: v.optional(v.string()),
 	quantity: v.number(),
 	reorder_level: v.number(),
 	...unitParts,
@@ -55,6 +57,12 @@ export const inventoryFields = {
 	order_status: v.optional(orderStatus),
 	not_track: v.boolean(),
 	is_pinned: v.boolean(),
+	...commonFields,
+}
+
+/** The suppliers an item's supplier is one of. */
+export const supplierFields = {
+	name: v.string(),
 	...commonFields,
 }
 
@@ -137,6 +145,7 @@ const systemFields = <T extends string>(table: T) => ({
 /** Shared doc validators so `returns` validators match the stored docs exactly. */
 export const inventoryDoc = v.object({ ...systemFields('inventory'), ...inventoryFields })
 export const unitDoc = v.object({ ...systemFields('units'), ...unitFields })
+export const supplierDoc = v.object({ ...systemFields('suppliers'), ...supplierFields })
 export const stockBatchDoc = v.object({ ...systemFields('stock_batches'), ...stockBatchFields })
 export const stockMovementDoc = v.object({
 	...systemFields('stock_movements'),
@@ -157,6 +166,7 @@ export default defineSchema({
 	inventory: defineTable(inventoryFields).index('by_item_name', ['item_name']),
 
 	units: defineTable(unitFields).index('by_name', ['name']),
+	suppliers: defineTable(supplierFields).index('by_name', ['name']),
 
 	stock_batches: defineTable(stockBatchFields)
 		// Stock out drains these in FEFO order (see lib/stock.ts fefoOrder).
