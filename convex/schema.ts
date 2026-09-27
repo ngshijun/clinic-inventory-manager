@@ -74,9 +74,13 @@ export const supplierFields = {
 	...commonFields,
 }
 
-/** The preset units an item's unit is picked from. */
+/**
+ * The preset units an item's unit is picked from. `measure` marks an amount
+ * inside a pack, such as TAB or ML, which no supplier quotes a price for.
+ */
 export const unitFields = {
 	name: v.string(),
+	measure: v.optional(v.boolean()),
 	...commonFields,
 }
 

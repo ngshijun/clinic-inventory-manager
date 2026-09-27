@@ -17,8 +17,12 @@ export function priceFormFrom(item: UnitParts & { price?: Price }): PriceForm {
 }
 
 /** The units the field offers: what a supplier quotes in, and the saved unit if it is another */
-export function priceFormUnits(parts: UnitParts, form: PriceForm): string[] {
-	const units = priceUnits(parts)
+export function priceFormUnits(
+	parts: UnitParts,
+	form: PriceForm,
+	measures: ReadonlySet<string>,
+): string[] {
+	const units = priceUnits(parts, measures)
 	return units.includes(form.unit) ? units : [...units, form.unit]
 }
 

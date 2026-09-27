@@ -5,6 +5,7 @@
 	import * as Field from '$lib/components/ui/field'
 	import * as InputGroup from '$lib/components/ui/input-group'
 	import * as ToggleGroup from '$lib/components/ui/toggle-group'
+	import { unitsStore } from '$lib/stores/units.svelte'
 	import { formatRM } from '$lib/utils/money'
 	import { priceFormUnits, priceFormValue, type PriceForm } from '$lib/utils/price'
 
@@ -12,7 +13,7 @@
 	 * What the item costs. She types a number for the unit she orders in,
 	 * "Price per BOX". Where the contents are packs a supplier prices, such as
 	 * the bottles in a bundle, two buttons above the field say which one the
-	 * number is for. With `quantity`, one line underneath gives the order
+	 * number is for; the Units page says which units those are. With `quantity`, one line underneath gives the order
 	 * total: a total six times off tells her the wrong button is chosen.
 	 * Empty means the price is not known. Shared by Mark as Ordered and the
 	 * Price List pencil.
@@ -30,7 +31,7 @@
 		id: string
 	} = $props()
 
-	const units = $derived(priceFormUnits(parts, value))
+	const units = $derived(priceFormUnits(parts, value, unitsStore.measures))
 	const total = $derived.by((): number | null => {
 		const price = priceFormValue(value)
 		if (!price || !quantity || quantity <= 0) return null

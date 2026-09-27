@@ -11,22 +11,14 @@ export interface Price {
 	unit: string
 }
 
-/** Contents that are measured out, which no supplier quotes a price for */
-const MEASURES: ReadonlySet<string> = new Set([
-	'TAB',
-	'CAP',
-	'ML',
-	'G',
-	'OZ',
-	'DOSE',
-	'PLY',
-	'SPRAY',
-])
-
-/** The units a price can be quoted in: the item's unit, then its contents when they are packs */
-export function priceUnits(parts: UnitParts): string[] {
+/**
+ * The units a price can be quoted in: the item's unit, then its contents
+ * when they are packs. `measures` are the units marked on the Units page as
+ * amounts, such as TAB or ML, which no supplier quotes a price for.
+ */
+export function priceUnits(parts: UnitParts, measures: ReadonlySet<string>): string[] {
 	const pack = parts.pack_unit
-	return parts.pack_size !== undefined && pack && pack !== parts.unit && !MEASURES.has(pack)
+	return parts.pack_size !== undefined && pack && pack !== parts.unit && !measures.has(pack)
 		? [parts.unit, pack]
 		: [parts.unit]
 }
