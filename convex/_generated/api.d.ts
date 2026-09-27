@@ -13,6 +13,7 @@ import type * as inventory from '../inventory.js'
 import type * as lib_aggregates from '../lib/aggregates.js'
 import type * as lib_auth from '../lib/auth.js'
 import type * as lib_orders from '../lib/orders.js'
+import type * as lib_price from '../lib/price.js'
 import type * as lib_stock from '../lib/stock.js'
 import type * as lib_units from '../lib/units.js'
 import type * as migration from '../migration.js'
@@ -32,6 +33,7 @@ declare const fullApi: ApiFromModules<{
 	'lib/aggregates': typeof lib_aggregates
 	'lib/auth': typeof lib_auth
 	'lib/orders': typeof lib_orders
+	'lib/price': typeof lib_price
 	'lib/stock': typeof lib_stock
 	'lib/units': typeof lib_units
 	migration: typeof migration

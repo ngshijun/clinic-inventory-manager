@@ -7,9 +7,11 @@
 
 	/*
 	 * Who the item is bought from. A text field that suggests the Suppliers
-	 * list as the name is typed, the way the item search does, so a supplier
-	 * keeps one spelling; a name that is not on the list joins it when the item
-	 * is saved. Empty means no supplier. Shared by Add Item and Edit Item.
+	 * list as the name is typed, the way the item search does. Only a supplier
+	 * on the list can be saved, so half a name never becomes a supplier: the
+	 * form reads the choice with `suppliersStore.nameOf` and holds Save while
+	 * it is null. New suppliers are added on the Suppliers page. Empty means
+	 * no supplier. Shared by Add Item, Edit Item and Edit Price Details.
 	 */
 	let { value = $bindable(''), id }: { value?: string; id: string } = $props()
 
@@ -25,6 +27,7 @@
 			.slice(0, MAX_RESULTS),
 	)
 	const showList = $derived(open && results.length > 0)
+	const notOnList = $derived(suppliersStore.nameOf(value) === null)
 	const listId = $derived(`${id}-list`)
 
 	function choose(name: string) {
@@ -62,7 +65,7 @@
 	}
 </script>
 
-<Field.Field>
+<Field.Field data-invalid={(notOnList && !open) || undefined}>
 	<Field.Label for={id}>Supplier</Field.Label>
 	<div class="relative" data-picker={id}>
 		<Input
@@ -73,6 +76,7 @@
 			aria-expanded={showList}
 			aria-controls={listId}
 			aria-autocomplete="list"
+			aria-invalid={(notOnList && !open) || undefined}
 			autocomplete="off"
 			placeholder="Who it is bought from"
 			class={capsClass(value)}
@@ -112,4 +116,10 @@
 			</div>
 		{/if}
 	</div>
+	{#if notOnList && !showList}
+		<Field.Error>
+			{value.trim()} is not on the Suppliers list. Choose a supplier from the list, or add it on the Suppliers
+			page first.
+		</Field.Error>
+	{/if}
 </Field.Field>

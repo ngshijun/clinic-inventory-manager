@@ -15,6 +15,7 @@
 	import MarkOrderedDialog from '$lib/components/app/MarkOrderedDialog.svelte'
 	import OrderControls from '$lib/components/app/OrderControls.svelte'
 	import PageHeader from '$lib/components/app/PageHeader.svelte'
+	import Price from '$lib/components/app/Price.svelte'
 	import Quantity from '$lib/components/app/Quantity.svelte'
 	import SnoozeDialog from '$lib/components/app/SnoozeDialog.svelte'
 	import StopOrderingDialog from '$lib/components/app/StopOrderingDialog.svelte'
@@ -278,6 +279,7 @@
 							<Table.Head>Supplier</Table.Head>
 							<Table.Head>Status</Table.Head>
 							<Table.Head>In stock</Table.Head>
+							<Table.Head>Last price</Table.Head>
 							<Table.Head><span class="sr-only">Actions</span></Table.Head>
 						</Table.Row>
 					</Table.Header>
@@ -323,6 +325,9 @@
 									<span class="text-muted-foreground ms-1 text-xs"
 										>reorder at {item.reorder_level}</span
 									>
+								</Table.Cell>
+								<Table.Cell>
+									<Price price={item.price} />
 								</Table.Cell>
 								<Table.Cell>
 									<div class="flex justify-end gap-1">

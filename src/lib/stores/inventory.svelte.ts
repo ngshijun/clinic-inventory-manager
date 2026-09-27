@@ -1,6 +1,7 @@
 // stores/inventory.svelte.ts
 import { api } from '../../../convex/_generated/api'
 import type { Doc } from '../../../convex/_generated/dataModel'
+import type { Price } from '../../../convex/lib/price'
 import { unitLabel } from '../../../convex/lib/units'
 import { convex } from '$lib/convex'
 import type {
@@ -26,6 +27,9 @@ export interface InventoryImportRow {
 	quantity: number
 	reorder_level: number
 	unit: string
+	/** Left out when the sheet has no price column; null is an empty cell */
+	price?: number | null
+	price_unit?: string
 	remark: string
 	order_date: string
 }
@@ -155,6 +159,7 @@ class InventoryStore {
 		quantity: number,
 		orderedOn: string,
 		expectedBy: string | null,
+		price: Price | null,
 	): Promise<void> => {
 		await this.#run('An error occurred while marking item as ordered', () =>
 			convex.mutation(api.inventory.markOrdered, {
@@ -163,6 +168,7 @@ class InventoryStore {
 				quantity,
 				ordered_on: orderedOn,
 				expected_by: expectedBy ?? undefined,
+				price: price ?? undefined,
 			}),
 		)
 	}
@@ -202,6 +208,7 @@ class InventoryStore {
 				item_name: item.item_name,
 				supplier: item.supplier,
 				unit: item.unit,
+				price: item.price,
 				reorder_level: item.reorder_level,
 				remark: item.remark,
 				not_track: item.not_track,

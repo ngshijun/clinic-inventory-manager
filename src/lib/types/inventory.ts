@@ -1,4 +1,5 @@
 import type { Doc, Id } from '../../../convex/_generated/dataModel'
+import type { Price } from '../../../convex/lib/price'
 import type { UnitParts } from '../../../convex/lib/units'
 import type { WithLegacy } from '$lib/types/legacy'
 
@@ -29,6 +30,8 @@ export interface InventoryItemUpdate {
 	/** An empty name clears the supplier */
 	supplier?: string
 	unit?: UnitParts
+	/** null clears the price */
+	price?: Price | null
 	reorder_level?: number
 	remark?: string
 	not_track?: boolean
