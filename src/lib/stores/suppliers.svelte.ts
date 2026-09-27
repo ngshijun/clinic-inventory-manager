@@ -1,4 +1,5 @@
 import { api } from '../../../convex/_generated/api'
+import { capitalName } from '../../../convex/lib/names'
 import { convex } from '$lib/convex'
 import { errorMessage, withLegacy } from '$lib/types/legacy'
 import type { Supplier, SupplierId } from '$lib/types/suppliers'
@@ -26,9 +27,9 @@ class SuppliersStore {
 	 * supplier, null while the text is not a supplier on the list.
 	 */
 	nameOf = (text: string): string | null => {
-		const typed = text.trim().toLowerCase()
+		const typed = capitalName(text)
 		if (typed === '') return ''
-		return this.names.find((name) => name.toLowerCase() === typed) ?? null
+		return this.names.includes(typed) ? typed : null
 	}
 
 	#run = async <T>(fallback: string, work: () => Promise<T>): Promise<T | undefined> => {

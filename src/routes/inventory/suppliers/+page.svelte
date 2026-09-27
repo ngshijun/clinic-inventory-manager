@@ -17,14 +17,12 @@
 	import { suppliersStore } from '$lib/stores/suppliers.svelte'
 	import type { Supplier } from '$lib/types/suppliers'
 	import { supplierCounts } from '$lib/utils/supplier'
-	import { cn } from '$lib/utils'
-	import { capsClass } from '$lib/utils/text'
 
 	/*
 	 * The list the Supplier field in Add Item and Edit Item suggests from,
 	 * opened from Inventory's More menu. A rename reaches every item that uses
-	 * the supplier; renaming to a name already on the list, in any letter case,
-	 * combines the two under that supplier's spelling.
+	 * the supplier; renaming to a name already on the list combines the two.
+	 * Names are kept in capitals, so the fields raise the letters as typed.
 	 */
 	useErrorToast(() => suppliersStore.error)
 
@@ -37,11 +35,10 @@
 	)
 	const usedBy = (name: string): number => usage.get(name) ?? 0
 
-	/** The supplier on the list with this name in any letter case, other than `except` */
+	/** The supplier on the list with this name, other than `except` */
 	const findSupplier = (name: string, except?: Supplier | null): Supplier | null =>
 		suppliersStore.suppliers.find(
-			(supplier) =>
-				supplier.id !== except?.id && supplier.name.toLowerCase() === name.toLowerCase(),
+			(supplier) => supplier.id !== except?.id && supplier.name === name,
 		) ?? null
 
 	// ---------- Add supplier ----------
@@ -189,9 +186,7 @@
 			{#each suppliersStore.suppliers as supplier (supplier.id)}
 				{@const count = usedBy(supplier.name)}
 				<Table.Row>
-					<Table.Cell class={cn('font-medium', capsClass(supplier.name))}
-						>{supplier.name}</Table.Cell
-					>
+					<Table.Cell class="font-medium tracking-wide">{supplier.name}</Table.Cell>
 					<Table.Cell class="tabular-nums">
 						{#if count > 0}
 							{plural(count, 'item')}
@@ -254,8 +249,8 @@
 				<Input
 					id="supplier-add-name"
 					bind:ref={addInput}
-					bind:value={addName}
-					class={capsClass(addName)}
+					bind:value={() => addName, (text) => (addName = text.toUpperCase())}
+					class="tracking-wide placeholder:tracking-normal"
 					autocomplete="off"
 					placeholder="e.g. PHARMANIAGA"
 					aria-invalid={addExisting !== null || undefined}
@@ -299,8 +294,8 @@
 					<Input
 						id="supplier-rename-name"
 						bind:ref={renameInput}
-						bind:value={newName}
-						class={capsClass(newName)}
+						bind:value={() => newName, (text) => (newName = text.toUpperCase())}
+						class="tracking-wide placeholder:tracking-normal"
 						autocomplete="off"
 						required
 					/>

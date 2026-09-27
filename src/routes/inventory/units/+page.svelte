@@ -16,7 +16,6 @@
 	import { inventoryStore } from '$lib/stores/inventory.svelte'
 	import { unitsStore } from '$lib/stores/units.svelte'
 	import type { Unit } from '$lib/types/units'
-	import { capsClass } from '$lib/utils/text'
 	import { UNIT_NAME_PATTERN } from '../../../../convex/lib/units'
 
 	/*
@@ -250,7 +249,7 @@
 					id="unit-add-name"
 					bind:ref={addInput}
 					bind:value={() => addName, (text) => (addName = clean(text))}
-					class={capsClass(addName)}
+					class="tracking-wide placeholder:tracking-normal"
 					maxlength={12}
 					autocomplete="off"
 					placeholder="e.g. CARTON"
@@ -296,7 +295,7 @@
 						id="unit-rename-name"
 						bind:ref={renameInput}
 						bind:value={() => newName, (text) => (newName = clean(text))}
-						class={capsClass(newName)}
+						class="tracking-wide placeholder:tracking-normal"
 						maxlength={12}
 						autocomplete="off"
 						required

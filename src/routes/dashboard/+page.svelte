@@ -51,7 +51,6 @@
 	} from '$lib/utils/orders'
 	import { cn } from '$lib/utils'
 	import { ALL_SUPPLIERS, activeSupplier, matchesSupplier } from '$lib/utils/supplier'
-	import { capsClass } from '$lib/utils/text'
 
 	const NOT_MOVING_DAYS = 30
 	const QUEUE_PAGE = 8
@@ -288,10 +287,8 @@
 							{@const out = item.quantity === 0}
 							{@const snoozing = isSnoozing(item, today)}
 							<Table.Row class={cn(snoozing && 'text-muted-foreground')}>
-								<Table.Cell class={cn('font-medium', capsClass(item.item_name))}
-									>{item.item_name}</Table.Cell
-								>
-								<Table.Cell class={capsClass(item.supplier)}>
+								<Table.Cell class="font-medium tracking-wide">{item.item_name}</Table.Cell>
+								<Table.Cell class="tracking-wide">
 									{#if item.supplier}
 										{item.supplier}
 									{:else}
@@ -379,10 +376,8 @@
 							{@const since = daysBetween(status.ordered_on, today)}
 							{@const toCome = status.quantity - status.received}
 							<Table.Row>
-								<Table.Cell class={cn('font-medium', capsClass(item.item_name))}
-									>{item.item_name}</Table.Cell
-								>
-								<Table.Cell class={capsClass(item.supplier)}>
+								<Table.Cell class="font-medium tracking-wide">{item.item_name}</Table.Cell>
+								<Table.Cell class="tracking-wide">
 									{#if item.supplier}
 										{item.supplier}
 									{:else}
@@ -508,9 +503,7 @@
 						{#each expiringList.visible as { batch, item } (batch.id)}
 							{@const note = expiryNote(batch.expiry_date)}
 							<Table.Row>
-								<Table.Cell class={cn('font-medium', capsClass(item.item_name))}
-									>{item.item_name}</Table.Cell
-								>
+								<Table.Cell class="font-medium tracking-wide">{item.item_name}</Table.Cell>
 								<Table.Cell class="text-muted-foreground tabular-nums">
 									Received {formatDate(batch._creationTime)}
 								</Table.Cell>
@@ -563,9 +556,7 @@
 					<Table.Body>
 						{#each staleList.visible as item (item.id)}
 							<Table.Row>
-								<Table.Cell class={cn('font-medium', capsClass(item.item_name))}
-									>{item.item_name}</Table.Cell
-								>
+								<Table.Cell class="font-medium tracking-wide">{item.item_name}</Table.Cell>
 								<Table.Cell>
 									<Quantity value={item.quantity} unit={item.unit_label} />
 								</Table.Cell>

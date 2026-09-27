@@ -18,7 +18,6 @@
 		samePrice,
 		type PriceForm,
 	} from '$lib/utils/price'
-	import { capsClass } from '$lib/utils/text'
 	import { LEAD_DAYS, addDays } from '../../../../convex/lib/orders'
 
 	/**
@@ -152,9 +151,7 @@
 						{@attach selectOnFocus()}
 					/>
 					<InputGroup.Addon align="inline-end">
-						<InputGroup.Text class={capsClass(item?.unit_label ?? '')}
-							>{item?.unit_label ?? ''}</InputGroup.Text
-						>
+						<InputGroup.Text class="tracking-wide">{item?.unit_label ?? ''}</InputGroup.Text>
 					</InputGroup.Addon>
 				</InputGroup.Root>
 				{#if received > 0}

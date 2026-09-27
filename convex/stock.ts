@@ -2,6 +2,7 @@ import { ConvexError, v } from 'convex/values'
 import { mutation, query } from './_generated/server'
 import type { Doc } from './_generated/dataModel'
 import { requireRole } from './lib/auth'
+import { capitalName } from './lib/names'
 import {
 	applyStockIn,
 	applyStockOut,
@@ -146,7 +147,7 @@ export const importInventory = mutation({
 		// Bounded by product count.
 		const existing = await ctx.db.query('inventory').withIndex('by_item_name').collect()
 		const byName = new Map<string, Doc<'inventory'>>()
-		for (const item of existing) byName.set(item.item_name.trim().toLowerCase(), item)
+		for (const item of existing) byName.set(capitalName(item.item_name), item)
 
 		const resolveSupplier = await supplierResolver(ctx, 'add')
 		const seen = new Set<string>()
@@ -154,10 +155,9 @@ export const importInventory = mutation({
 		let updated = 0
 
 		for (const row of args.rows) {
-			const item_name = row.item_name.trim()
+			const item_name = capitalName(row.item_name)
 			if (item_name.length === 0) continue
-			const key = item_name.toLowerCase()
-			seen.add(key)
+			seen.add(item_name)
 			assertNonNegativeQuantity(row.quantity)
 			const reorder_level = Number.isFinite(row.reorder_level) ? Math.max(0, row.reorder_level) : 0
 			const remark = row.remark ?? ''
@@ -188,7 +188,7 @@ export const importInventory = mutation({
 					}
 				: undefined
 
-			const current = byName.get(key)
+			const current = byName.get(item_name)
 			if (!current) {
 				const id = await createItem(ctx, {
 					item_name,
@@ -202,7 +202,7 @@ export const importInventory = mutation({
 					initial_remark: 'Excel import',
 				})
 				const created = await requireItem(ctx, id)
-				byName.set(key, created)
+				byName.set(item_name, created)
 				imported++
 				continue
 			}
@@ -219,6 +219,7 @@ export const importInventory = mutation({
 
 			// After the stock change, so the sheet's order date is what stays
 			const patch: Partial<Doc<'inventory'>> = {}
+			if (current.item_name !== item_name) patch.item_name = item_name
 			if (current.reorder_level !== reorder_level) patch.reorder_level = reorder_level
 			if (!sameUnit(current, unit)) {
 				const checked = await requireUnitParts(ctx, unit)

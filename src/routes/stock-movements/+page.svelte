@@ -40,7 +40,6 @@
 	import { expiryNote } from '$lib/utils/expiry'
 	import Quantity from '$lib/components/app/Quantity.svelte'
 	import { cn } from '$lib/utils'
-	import { capsClass } from '$lib/utils/text'
 
 	const SEARCH_DEBOUNCE_MS = 300
 	const PAGE_SIZE = 25
@@ -580,9 +579,7 @@
 						<span class="text-muted-foreground ms-1 text-xs">{formatTime(movement.created_at)}</span
 						>
 					</Table.Cell>
-					<Table.Cell class={cn('font-medium', capsClass(movement.item_name))}
-						>{movement.item_name}</Table.Cell
-					>
+					<Table.Cell class="font-medium tracking-wide">{movement.item_name}</Table.Cell>
 					<Table.Cell class="text-end">
 						<Quantity
 							value={`${isIn ? '+' : '−'}${movement.quantity}`}

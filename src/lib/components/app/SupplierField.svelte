@@ -3,11 +3,11 @@
 	import { Input } from '$lib/components/ui/input'
 	import { suppliersStore } from '$lib/stores/suppliers.svelte'
 	import { cn } from '$lib/utils'
-	import { capsClass } from '$lib/utils/text'
 
 	/*
 	 * Who the item is bought from. A text field that suggests the Suppliers
-	 * list as the name is typed, the way the item search does. Only a supplier
+	 * list as the name is typed, the way the item search does. Letters are
+	 * raised as they are typed, since every supplier is kept in capitals. Only a supplier
 	 * on the list can be saved, so half a name never becomes a supplier: the
 	 * form reads the choice with `suppliersStore.nameOf` and holds Save while
 	 * it is null. New suppliers are added on the Suppliers page. Empty means
@@ -20,10 +20,10 @@
 	let open = $state(false)
 	let highlighted = $state(-1)
 
-	const query = $derived(value.trim().toLowerCase())
+	const query = $derived(value.trim())
 	const results = $derived(
 		suppliersStore.names
-			.filter((name) => name.toLowerCase().includes(query) && name !== value.trim())
+			.filter((name) => name.includes(query) && name !== query)
 			.slice(0, MAX_RESULTS),
 	)
 	const showList = $derived(open && results.length > 0)
@@ -70,7 +70,7 @@
 	<div class="relative" data-picker={id}>
 		<Input
 			{id}
-			bind:value
+			bind:value={() => value, (text) => (value = text.toUpperCase())}
 			type="text"
 			role="combobox"
 			aria-expanded={showList}
@@ -79,7 +79,7 @@
 			aria-invalid={(notOnList && !open) || undefined}
 			autocomplete="off"
 			placeholder="Who it is bought from"
-			class={capsClass(value)}
+			class="tracking-wide placeholder:tracking-normal"
 			oninput={() => {
 				open = true
 				highlighted = -1
@@ -102,9 +102,8 @@
 						role="option"
 						aria-selected={active}
 						class={cn(
-							'flex w-full rounded-xl px-3 py-2 text-start text-sm font-medium',
+							'flex w-full rounded-xl px-3 py-2 text-start text-sm font-medium tracking-wide',
 							active && 'bg-muted',
-							capsClass(name),
 						)}
 						onmousedown={(event) => event.preventDefault()}
 						onmouseenter={() => (highlighted = index)}

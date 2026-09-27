@@ -3,6 +3,7 @@ import { mutation, query } from './_generated/server'
 import type { MutationCtx } from './_generated/server'
 import type { Doc, Id } from './_generated/dataModel'
 import { requireRole } from './lib/auth'
+import { capitalName } from './lib/names'
 import { toIsoDate } from './lib/orders'
 import { applyStockIn, assertNonNegativeQuantity, requireItem } from './lib/stock'
 import { roundAmount, type Price } from './lib/price'
@@ -65,7 +66,7 @@ export async function createItem(
 	const unit = await requireUnitParts(ctx, args.unit)
 	const now = Date.now()
 	const id = await ctx.db.insert('inventory', {
-		item_name: args.item_name.trim(),
+		item_name: capitalName(args.item_name),
 		supplier: args.supplier,
 		quantity: 0,
 		reorder_level: Math.max(0, args.reorder_level),
@@ -166,7 +167,7 @@ export const update = mutation({
 		const now = Date.now()
 		const patch: Partial<Doc<'inventory'>> = { updated_at: now }
 		if (args.item_name !== undefined) {
-			const name = args.item_name.trim()
+			const name = capitalName(args.item_name)
 			if (name.length === 0) {
 				throw new ConvexError({ code: 'INVALID_STATE', message: 'Item name cannot be empty' })
 			}

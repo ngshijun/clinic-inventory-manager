@@ -59,7 +59,6 @@
 	import Quantity from '$lib/components/app/Quantity.svelte'
 	import { cn } from '$lib/utils'
 	import { ALL_SUPPLIERS, activeSupplier, matchesSupplier } from '$lib/utils/supplier'
-	import { capsClass } from '$lib/utils/text'
 	import { emptyUnitForm, unitFormFrom, unitFormParts, type UnitForm } from '$lib/utils/units'
 	import { sameUnit } from '../../../convex/lib/units'
 
@@ -794,7 +793,7 @@
 							<ChevronRightIcon />
 						</Button>
 					</Table.Cell>
-					<Table.Cell class={cn('font-medium', capsClass(item.item_name))}>
+					<Table.Cell class="font-medium tracking-wide">
 						<span class="inline-flex items-center gap-2">
 							{item.item_name}
 							{#if status}
@@ -802,7 +801,7 @@
 							{/if}
 						</span>
 					</Table.Cell>
-					<Table.Cell class={capsClass(item.supplier)}>
+					<Table.Cell class="tracking-wide">
 						{#if item.supplier}
 							{item.supplier}
 						{:else}
@@ -1039,8 +1038,9 @@
 				<Input
 					id="add-name"
 					bind:ref={newItemNameInput}
-					bind:value={newItem.item_name}
-					placeholder="e.g. Ibuprofen 400 mg"
+					bind:value={() => newItem.item_name, (text) => (newItem.item_name = text.toUpperCase())}
+					class="tracking-wide placeholder:tracking-normal"
+					placeholder="e.g. IBUPROFEN 400MG"
 					required
 				/>
 			</Field.Field>
@@ -1122,7 +1122,12 @@
 		<Field.Group>
 			<Field.Field>
 				<Field.Label for="edit-name">Item name</Field.Label>
-				<Input id="edit-name" bind:value={editForm.item_name} required />
+				<Input
+					id="edit-name"
+					bind:value={() => editForm.item_name, (text) => (editForm.item_name = text.toUpperCase())}
+					class="tracking-wide"
+					required
+				/>
 			</Field.Field>
 			<SupplierField id="edit-supplier" bind:value={editForm.supplier} />
 			<UnitField id="edit" bind:value={editForm.unit} />
