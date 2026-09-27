@@ -25,50 +25,26 @@
 	import { Skeleton } from '$lib/components/ui/skeleton'
 	import * as Table from '$lib/components/ui/table'
 	import { Textarea } from '$lib/components/ui/textarea'
-	import * as ToggleGroup from '$lib/components/ui/toggle-group'
 	import * as Tooltip from '$lib/components/ui/tooltip'
 	import { useErrorToast } from '$lib/composables/errorToast.svelte'
 	import { createLoadMore } from '$lib/composables/loadMore.svelte'
 	import { inventoryStore } from '$lib/stores/inventory.svelte'
 	import type { InventoryItem } from '$lib/types/inventory'
-	import { isOnOrder, isSnoozing, needsDecision } from '$lib/utils/orders'
 	import Quantity from '$lib/components/app/Quantity.svelte'
 	import { cn } from '$lib/utils'
 	import { ALL_SUPPLIERS, activeSupplier, matchesSupplier } from '$lib/utils/supplier'
 	import { capsClass } from '$lib/utils/text'
 
 	// ---------- Toolbar state ----------
-	type Filter = 'all' | 'toorder' | 'ordered' | 'snoozed'
 	type SortKey = 'item_name' | 'supplier' | 'quantity' | 'order_status' | 'remark'
-
-	const FILTERS: Array<{ value: Filter; label: string }> = [
-		{ value: 'all', label: 'All' },
-		{ value: 'toorder', label: 'To Order' },
-		{ value: 'ordered', label: 'On Order' },
-		{ value: 'snoozed', label: 'Snoozed' },
-	]
 
 	let searchQuery = $state('')
 	let searchInput = $state<HTMLInputElement | null>(null)
-	let filter = $state<Filter>('all')
 	let supplierChoice = $state(ALL_SUPPLIERS)
 	const supplier = $derived(activeSupplier(supplierChoice, inventoryStore.items))
 	let sort = $state<SortState<SortKey>>({ key: null, direction: 'asc' })
 
 	useErrorToast(() => inventoryStore.error)
-
-	const matchesFilter = (item: InventoryItem): boolean => {
-		switch (filter) {
-			case 'toorder':
-				return needsDecision(item)
-			case 'ordered':
-				return isOnOrder(item)
-			case 'snoozed':
-				return isSnoozing(item)
-			default:
-				return true
-		}
-	}
 
 	// On order first, then snoozed, then nothing; within each, by date
 	const orderStatusValue = (item: InventoryItem): string | null => {
@@ -91,7 +67,7 @@
 	const sortedItems = $derived.by((): InventoryItem[] => {
 		const items = inventoryStore
 			.searchItems(searchQuery)
-			.filter((item) => matchesFilter(item) && matchesSupplier(item, supplier))
+			.filter((item) => matchesSupplier(item, supplier))
 		const key = sort.key
 		if (!key) return items
 
@@ -127,20 +103,18 @@
 		}
 	}
 
-	// A new search, filter or sort starts the list from the top again
+	// A new search, supplier or sort starts the list from the top again
 	$effect(() => {
 		void searchQuery
-		void filter
 		void supplier
 		void sort.key
 		void sort.direction
 		untrack(() => list.reset())
 	})
 
-	const isFiltered = $derived(searchQuery !== '' || filter !== 'all' || supplier !== ALL_SUPPLIERS)
+	const isFiltered = $derived(searchQuery !== '' || supplier !== ALL_SUPPLIERS)
 	const clearFilters = (): void => {
 		searchQuery = ''
-		filter = 'all'
 		supplierChoice = ALL_SUPPLIERS
 	}
 
@@ -218,18 +192,6 @@
 				</InputGroup.Addon>
 			{/if}
 		</InputGroup.Root>
-		<ToggleGroup.Root
-			class="grid auto-cols-fr grid-flow-col"
-			type="single"
-			variant="outline"
-			value={filter}
-			onValueChange={(value) => (filter = (value || 'all') as Filter)}
-			aria-label="Filter by order status"
-		>
-			{#each FILTERS as option (option.value)}
-				<ToggleGroup.Item value={option.value}>{option.label}</ToggleGroup.Item>
-			{/each}
-		</ToggleGroup.Root>
 		<SupplierFilter bind:value={supplierChoice} items={inventoryStore.items} />
 	</div>
 </PageHeader>
