@@ -45,7 +45,7 @@
 	import { pricePerUnit } from '../../../convex/lib/price'
 
 	// ---------- Toolbar state ----------
-	type SortKey = 'item_name' | 'supplier' | 'quantity' | 'price' | 'order_status' | 'remark'
+	type SortKey = 'item_name' | 'supplier' | 'quantity' | 'price' | 'order_status'
 
 	let searchQuery = $state('')
 	let searchInput = $state<HTMLInputElement | null>(null)
@@ -83,7 +83,6 @@
 		const dir = sort.direction === 'asc' ? 1 : -1
 		const valueOf = (item: InventoryItem): string | number | null => {
 			if (key === 'order_status') return orderStatusValue(item)
-			if (key === 'remark') return item.remark || null
 			if (key === 'supplier') return item.supplier ?? null
 			// By what one of the item's unit costs, so a price per bottle sorts with prices per bundle
 			if (key === 'price') {
@@ -233,7 +232,6 @@
 				<Table.Head>In stock</Table.Head>
 				<Table.Head>Price</Table.Head>
 				<Table.Head>Order status</Table.Head>
-				<Table.Head class="w-[25%]">Remark</Table.Head>
 				<Table.Head><span class="sr-only">Actions</span></Table.Head>
 			</Table.Row>
 		</Table.Header>
@@ -245,7 +243,6 @@
 					<Table.Cell><Skeleton class="h-4 w-20" /></Table.Cell>
 					<Table.Cell><Skeleton class="h-4 w-24" /></Table.Cell>
 					<Table.Cell><Skeleton class="h-4 w-28" /></Table.Cell>
-					<Table.Cell><Skeleton class="h-4 w-64" /></Table.Cell>
 					<Table.Cell><Skeleton class="ms-auto h-7 w-32" /></Table.Cell>
 				</Table.Row>
 			{/each}
@@ -281,7 +278,6 @@
 				<SortHeader key="quantity" {sort} onsort={toggleSort}>In stock</SortHeader>
 				<SortHeader key="price" {sort} onsort={toggleSort}>Price</SortHeader>
 				<SortHeader key="order_status" {sort} onsort={toggleSort}>Order status</SortHeader>
-				<SortHeader key="remark" {sort} onsort={toggleSort} class="w-[25%]">Remark</SortHeader>
 				<Table.Head><span class="sr-only">Actions</span></Table.Head>
 			</Table.Row>
 		</Table.Header>
@@ -296,6 +292,15 @@
 								<ToneBadge tone={status.tone}>{status.text}</ToneBadge>
 							{/if}
 						</span>
+						<!-- The remark in full, under the name: long lines wrap, typed line breaks are
+						     kept. Width 0 keeps it from widening the column the names have set. -->
+						{#if item.remark}
+							<div
+								class="text-muted-foreground mt-0.5 w-0 min-w-[max(100%,16rem)] text-sm font-normal tracking-normal wrap-break-word whitespace-pre-line"
+							>
+								{item.remark}
+							</div>
+						{/if}
 					</Table.Cell>
 					<Table.Cell class="tracking-wide">
 						{#if item.supplier}
@@ -312,14 +317,6 @@
 					</Table.Cell>
 					<Table.Cell>
 						<OrderStatusBadge {item} />
-					</Table.Cell>
-					<!-- One line: the full remark is the title and opens in Edit Price Details. -->
-					<Table.Cell class="max-w-0">
-						{#if item.remark}
-							<div class="text-foreground/80 truncate" title={item.remark}>{item.remark}</div>
-						{:else}
-							<span class="text-muted-foreground">No remark</span>
-						{/if}
 					</Table.Cell>
 					<Table.Cell>
 						<div class="flex justify-end gap-1">
