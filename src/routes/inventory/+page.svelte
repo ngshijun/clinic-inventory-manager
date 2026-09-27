@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { tick, untrack } from 'svelte'
 	import { SvelteSet } from 'svelte/reactivity'
+	import { goto } from '$app/navigation'
 	import { page } from '$app/state'
 	import { toast } from 'svelte-sonner'
 	import * as XLSX from 'xlsx'
@@ -12,6 +13,7 @@
 	import PackageOpenIcon from '@lucide/svelte/icons/package-open'
 	import PencilIcon from '@lucide/svelte/icons/pencil'
 	import PlusIcon from '@lucide/svelte/icons/plus'
+	import RulerIcon from '@lucide/svelte/icons/ruler'
 	import SearchIcon from '@lucide/svelte/icons/search'
 	import Trash2Icon from '@lucide/svelte/icons/trash-2'
 	import TriangleAlertIcon from '@lucide/svelte/icons/triangle-alert'
@@ -28,6 +30,7 @@
 	import StockOutDialog from '$lib/components/app/StockOutDialog.svelte'
 	import type { SortState } from '$lib/components/app/sort'
 	import ToneBadge, { type Tone } from '$lib/components/app/ToneBadge.svelte'
+	import UnitField from '$lib/components/app/UnitField.svelte'
 	import * as Alert from '$lib/components/ui/alert'
 	import { Button } from '$lib/components/ui/button'
 	import { Checkbox } from '$lib/components/ui/checkbox'
@@ -52,6 +55,8 @@
 	import Quantity from '$lib/components/app/Quantity.svelte'
 	import { cn } from '$lib/utils'
 	import { capsClass } from '$lib/utils/text'
+	import { emptyUnitForm, unitFormFrom, unitFormParts, type UnitForm } from '$lib/utils/units'
+	import { sameUnit } from '../../../convex/lib/units'
 
 	// ---------- Toolbar state ----------
 	type Filter = 'all' | 'low' | 'out' | 'ordered' | 'untracked'
@@ -182,7 +187,7 @@
 	// ---------- Add item ----------
 	interface NewItemForm {
 		item_name: string
-		unit: string
+		unit: UnitForm
 		reorder_level: number
 		/** Low-stock alert on; off saves a reorder level of −1 */
 		alert: boolean
@@ -192,7 +197,7 @@
 	}
 	const emptyNewItem = (): NewItemForm => ({
 		item_name: '',
-		unit: '',
+		unit: emptyUnitForm(),
 		reorder_level: 0,
 		alert: true,
 		quantity: 0,
@@ -206,7 +211,7 @@
 
 	const isNewItemValid = $derived(
 		newItem.item_name.trim() !== '' &&
-			newItem.unit.trim() !== '' &&
+			unitFormParts(newItem.unit) !== null &&
 			Number(newItem.quantity) >= 0 &&
 			(!newItem.alert || Number(newItem.reorder_level) >= 0),
 	)
@@ -225,10 +230,11 @@
 	}
 
 	const confirmAddItem = async (): Promise<void> => {
-		if (!isNewItemValid) return
+		const unit = unitFormParts(newItem.unit)
+		if (!isNewItemValid || !unit) return
 		const payload: NewInventoryItem = {
 			item_name: newItem.item_name.trim(),
-			unit: newItem.unit.trim(),
+			unit,
 			quantity: Math.max(0, Math.floor(Number(newItem.quantity))),
 			reorder_level: newItem.alert ? Math.max(0, Math.floor(Number(newItem.reorder_level))) : -1,
 			remark: newItem.remark,
@@ -249,7 +255,7 @@
 	// ---------- Edit item ----------
 	interface EditItemForm {
 		item_name: string
-		unit: string
+		unit: UnitForm
 		reorder_level: number
 		alert: boolean
 		remark: string
@@ -260,7 +266,7 @@
 	let editingItem = $state<InventoryItem | null>(null)
 	let editForm = $state<EditItemForm>({
 		item_name: '',
-		unit: '',
+		unit: emptyUnitForm(),
 		reorder_level: 0,
 		alert: true,
 		remark: '',
@@ -271,7 +277,7 @@
 		editingItem = item
 		editForm = {
 			item_name: item.item_name,
-			unit: item.unit,
+			unit: unitFormFrom(item),
 			reorder_level: Math.max(0, item.reorder_level),
 			alert: item.reorder_level >= 0,
 			remark: item.remark,
@@ -285,9 +291,10 @@
 		editingItem = null
 	}
 
+	const editUnit = $derived(unitFormParts(editForm.unit))
 	const isEditValid = $derived(
 		editForm.item_name.trim() !== '' &&
-			editForm.unit.trim() !== '' &&
+			editUnit !== null &&
 			(!editForm.alert || Number(editForm.reorder_level) >= 0),
 	)
 	const editReorderLevel = $derived(
@@ -298,7 +305,7 @@
 		if (!editingItem) return false
 		return (
 			editForm.item_name.trim() !== editingItem.item_name ||
-			editForm.unit.trim() !== editingItem.unit ||
+			(editUnit !== null && !sameUnit(editUnit, editingItem)) ||
 			editReorderLevel !== editingItem.reorder_level ||
 			editForm.remark !== editingItem.remark ||
 			editForm.not_track !== editingItem.not_track
@@ -306,11 +313,11 @@
 	})
 
 	const confirmEdit = async (): Promise<void> => {
-		if (!editingItem || !isEditValid || !isEditChanged) return
+		if (!editingItem || !editUnit || !isEditValid || !isEditChanged) return
 		const item = editingItem
 		await inventoryStore.updateItem(item.id, {
 			item_name: editForm.item_name.trim(),
-			unit: editForm.unit.trim(),
+			unit: editUnit,
 			reorder_level: editReorderLevel,
 			remark: editForm.remark,
 			not_track: editForm.not_track,
@@ -532,7 +539,7 @@
 					item_name: item.item_name,
 					quantity: item.quantity,
 					reorder_level: item.reorder_level,
-					unit: item.unit,
+					unit: item.unit_label,
 					remark: item.remark,
 					order_date: item.order_status?.kind === 'ordered' ? item.order_status.ordered_on : '',
 				})),
@@ -614,6 +621,13 @@
 				<DropdownMenu.Item onclick={exportToExcel}>
 					<UploadIcon />
 					Export to Excel
+				</DropdownMenu.Item>
+			</DropdownMenu.Group>
+			<DropdownMenu.Separator />
+			<DropdownMenu.Group>
+				<DropdownMenu.Item onclick={() => goto('/inventory/units')}>
+					<RulerIcon />
+					Units
 				</DropdownMenu.Item>
 			</DropdownMenu.Group>
 		</DropdownMenu.Content>
@@ -752,12 +766,12 @@
 							{/if}
 						</span>
 					</Table.Cell>
-					<Table.Cell><Quantity value={item.quantity} unit={item.unit} /></Table.Cell>
+					<Table.Cell><Quantity value={item.quantity} unit={item.unit_label} /></Table.Cell>
 					<Table.Cell>
 						{#if item.reorder_level < 0 || item.not_track}
 							<span class="text-muted-foreground">—</span>
 						{:else}
-							<Quantity value={item.reorder_level} unit={item.unit} pack={false} />
+							<Quantity value={item.reorder_level} unit={item.unit_label} pack={false} />
 						{/if}
 					</Table.Cell>
 					<Table.Cell class="tabular-nums">
@@ -872,12 +886,12 @@
 											step={1}
 											bind:value={batchForm.quantity}
 											class="h-8 w-28"
-											aria-label="Quantity ({item.unit})"
+											aria-label="Quantity ({item.unit_label})"
 											onkeydown={onBatchKeydown}
 											{@attach selectOnFocus()}
 										/>
 									{:else}
-										<Quantity value={batch.quantity} unit={item.unit} pack={false} />
+										<Quantity value={batch.quantity} unit={item.unit_label} pack={false} />
 									{/if}
 								</Table.Cell>
 								<Table.Cell></Table.Cell>
@@ -986,11 +1000,8 @@
 					required
 				/>
 			</Field.Field>
+			<UnitField id="add" bind:value={newItem.unit} />
 			<div class="grid grid-cols-2 gap-4">
-				<Field.Field>
-					<Field.Label for="add-unit">Unit</Field.Label>
-					<Input id="add-unit" bind:value={newItem.unit} placeholder="e.g. tabs" required />
-				</Field.Field>
 				<Field.Field data-disabled={!newItem.alert || undefined}>
 					<Field.Label for="add-reorder">Reorder level</Field.Label>
 					<Input
@@ -1075,11 +1086,8 @@
 				<Field.Label for="edit-name">Item name</Field.Label>
 				<Input id="edit-name" bind:value={editForm.item_name} required />
 			</Field.Field>
+			<UnitField id="edit" bind:value={editForm.unit} />
 			<div class="grid grid-cols-2 gap-4">
-				<Field.Field>
-					<Field.Label for="edit-unit">Unit</Field.Label>
-					<Input id="edit-unit" bind:value={editForm.unit} required />
-				</Field.Field>
 				<Field.Field data-disabled={!editForm.alert || undefined}>
 					<Field.Label for="edit-reorder">Reorder level</Field.Label>
 					<Input

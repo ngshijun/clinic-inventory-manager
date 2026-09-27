@@ -289,7 +289,7 @@
 								<Table.Cell>
 									<Quantity
 										value={item.quantity}
-										unit={item.unit}
+										unit={item.unit_label}
 										valueClass={cn(!snoozing && out && 'text-destructive')}
 									/>
 									<span class="text-muted-foreground ms-1 text-xs"
@@ -388,7 +388,7 @@
 									{/if}
 								</Table.Cell>
 								<Table.Cell>
-									<Quantity value={status.quantity} unit={item.unit} pack={false} />
+									<Quantity value={status.quantity} unit={item.unit_label} pack={false} />
 									<span class="text-muted-foreground ms-1 text-xs">
 										{since === 0
 											? 'today'
@@ -397,7 +397,7 @@
 								</Table.Cell>
 								<Table.Cell>
 									{#if status.received > 0}
-										<Quantity value={status.received} unit={item.unit} pack={false} />
+										<Quantity value={status.received} unit={item.unit_label} pack={false} />
 										<span class="text-warning ms-1 text-xs">{toCome} to come</span>
 									{:else}
 										<span class="text-muted-foreground">None yet</span>
@@ -443,7 +443,7 @@
 								<Table.Cell>
 									<Quantity
 										value={item.quantity}
-										unit={item.unit}
+										unit={item.unit_label}
 										valueClass={cn(item.quantity === 0 && 'text-destructive')}
 									/>
 								</Table.Cell>
@@ -513,7 +513,7 @@
 									{/if}
 								</Table.Cell>
 								<Table.Cell class="text-end">
-									<Quantity value={batch.quantity} unit={item.unit} />
+									<Quantity value={batch.quantity} unit={item.unit_label} />
 								</Table.Cell>
 							</Table.Row>
 						{/each}
@@ -552,7 +552,7 @@
 									>{item.item_name}</Table.Cell
 								>
 								<Table.Cell>
-									<Quantity value={item.quantity} unit={item.unit} />
+									<Quantity value={item.quantity} unit={item.unit_label} />
 								</Table.Cell>
 								<Table.Cell class="tabular-nums">
 									{item.reorder_level < 0 ? '—' : item.reorder_level}

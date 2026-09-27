@@ -8,6 +8,7 @@
 	import { stockMovementsStore } from '$lib/stores/stockMovements.svelte'
 	import { stockBatchesStore } from '$lib/stores/stockBatches.svelte'
 	import { stockRequestsStore } from '$lib/stores/stockRequests.svelte'
+	import { unitsStore } from '$lib/stores/units.svelte'
 	import { payrollStore } from '$lib/stores/payroll.svelte'
 	import { payrollRecordsStore } from '$lib/stores/payrollRecords.svelte'
 	import { connection, useConnection } from '$lib/stores/connection.svelte'
@@ -37,8 +38,9 @@
 		stockBatchesStore.initializeStore()
 		stockMovementsStore.initializeStore()
 		stockRequestsStore.initializeStore()
-		// Payroll queries reject any other role, so a requester never subscribes to them.
+		// Payroll and unit queries reject any other role, so a requester never subscribes to them.
 		if (authStore.user?.role === 'manager') {
+			unitsStore.initializeStore()
 			payrollStore.initializeStore()
 			payrollRecordsStore.initializeStore()
 		}
@@ -49,6 +51,7 @@
 		stockBatchesStore.cleanup()
 		stockMovementsStore.cleanup()
 		stockRequestsStore.cleanup()
+		unitsStore.cleanup()
 		payrollStore.cleanup()
 		payrollRecordsStore.cleanup()
 	}

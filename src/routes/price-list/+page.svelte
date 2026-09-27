@@ -287,7 +287,7 @@
 					<Table.Cell>
 						<Quantity
 							value={item.quantity}
-							unit={item.unit}
+							unit={item.unit_label}
 							valueClass={cn(
 								tone === 'danger' && 'text-destructive font-semibold',
 								tone === 'warning' && 'text-warning font-semibold',

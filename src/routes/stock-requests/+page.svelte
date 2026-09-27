@@ -134,7 +134,7 @@
 
 	const newItem = $derived(newItemId === null ? undefined : inventoryStore.getItemById(newItemId))
 	const newOnHand = $derived(newItem?.quantity ?? 0)
-	const newUnit = $derived(newItem?.unit ?? '')
+	const newUnit = $derived(newItem?.unit_label ?? '')
 	const newParsed = $derived(Number(newQuantity))
 	const newOverStock = $derived(
 		newItem !== undefined && newQuantity !== '' && newParsed > newOnHand,
@@ -176,7 +176,7 @@
 			remark: newRemark.trim(),
 		})
 		if (!stockRequestsStore.error) {
-			toast.success(`Requested ${withUnit(newParsed, item.unit)} of ${item.item_name}`)
+			toast.success(`Requested ${withUnit(newParsed, item.unit_label)} of ${item.item_name}`)
 			closeNew()
 		}
 	}

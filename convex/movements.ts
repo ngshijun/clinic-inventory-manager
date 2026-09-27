@@ -7,6 +7,7 @@ import { internal } from './_generated/api'
 import type { DataModel, Doc, Id } from './_generated/dataModel'
 import { requireRole } from './lib/auth'
 import { movementsByType } from './lib/aggregates'
+import { unitLabel } from './lib/units'
 import { movementType, stockMovementDoc } from './schema'
 
 const MAX_PAGE_SIZE = 500
@@ -134,7 +135,7 @@ export const page = query({
 			let unit = units.get(movement.item_id)
 			if (unit === undefined) {
 				const item = await ctx.db.get(movement.item_id)
-				unit = item?.unit ?? ''
+				unit = item ? unitLabel(item) : ''
 				units.set(movement.item_id, unit)
 			}
 			pageRows.push({ ...movement, unit })
