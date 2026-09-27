@@ -11,6 +11,7 @@
 	import * as Field from '$lib/components/ui/field'
 	import { Input } from '$lib/components/ui/input'
 	import { Skeleton } from '$lib/components/ui/skeleton'
+	import { Switch } from '$lib/components/ui/switch'
 	import * as Table from '$lib/components/ui/table'
 	import { useErrorToast } from '$lib/composables/errorToast.svelte'
 	import { inventoryStore } from '$lib/stores/inventory.svelte'
@@ -23,6 +24,11 @@
 	 * Inventory's More menu. A rename
 	 * reaches every item that uses the unit; renaming to a name already on the
 	 * list combines the two, which is how BOTTLE and BTL become one.
+	 *
+	 * The switch says whether suppliers quote a price for the unit. BTL is on:
+	 * a box of bottles may be priced per BOX or per BTL, so the Price field
+	 * offers both. TAB is off: it is an amount inside a pack, and the Price
+	 * field never offers "Per TAB".
 	 */
 	useErrorToast(() => unitsStore.error)
 
@@ -48,12 +54,14 @@
 	// ---------- Add unit ----------
 	let showAdd = $state(false)
 	let addName = $state('')
+	let addPriced = $state(true)
 	let addInput = $state<HTMLInputElement | null>(null)
 	const addExists = $derived(unitsStore.names.includes(addName))
 	const isAddValid = $derived(UNIT_NAME_PATTERN.test(addName) && !addExists)
 
 	const openAdd = async (): Promise<void> => {
 		addName = ''
+		addPriced = true
 		showAdd = true
 		await tick()
 		addInput?.focus()
@@ -62,7 +70,7 @@
 	const confirmAdd = async (): Promise<void> => {
 		if (!isAddValid) return
 		const name = addName
-		await unitsStore.addUnit(name)
+		await unitsStore.addUnit(name, !addPriced)
 		if (!unitsStore.error) {
 			toast.success(`Added ${name}`)
 			showAdd = false
@@ -144,6 +152,7 @@
 			<Table.Row>
 				<Table.Head>Unit</Table.Head>
 				<Table.Head>Used by</Table.Head>
+				<Table.Head>Suppliers price by this unit</Table.Head>
 				<Table.Head><span class="sr-only">Actions</span></Table.Head>
 			</Table.Row>
 		</Table.Header>
@@ -152,6 +161,7 @@
 				<Table.Row>
 					<Table.Cell><Skeleton class="h-4 w-20" /></Table.Cell>
 					<Table.Cell><Skeleton class="h-4 w-24" /></Table.Cell>
+					<Table.Cell><Skeleton class="h-5 w-11 rounded-full" /></Table.Cell>
 					<Table.Cell><Skeleton class="ms-auto h-7 w-24" /></Table.Cell>
 				</Table.Row>
 			{/each}
@@ -180,6 +190,7 @@
 			<Table.Row>
 				<Table.Head>Unit</Table.Head>
 				<Table.Head>Used by</Table.Head>
+				<Table.Head>Suppliers price by this unit</Table.Head>
 				<Table.Head><span class="sr-only">Actions</span></Table.Head>
 			</Table.Row>
 		</Table.Header>
@@ -194,6 +205,14 @@
 						{:else}
 							<span class="text-muted-foreground">No items</span>
 						{/if}
+					</Table.Cell>
+					<Table.Cell>
+						<Switch
+							checked={!unit.measure}
+							disabled={unitsStore.loading}
+							onCheckedChange={(priced) => unitsStore.setMeasure(unit.id, !priced)}
+							aria-label="Suppliers price by {unit.name}"
+						/>
 					</Table.Cell>
 					<Table.Cell>
 						<div class="flex justify-end gap-1">
@@ -259,6 +278,15 @@
 				{#if addExists}
 					<Field.Error>{addName} is already in the list.</Field.Error>
 				{/if}
+			</Field.Field>
+			<Field.Field orientation="horizontal">
+				<Field.Content>
+					<Field.Label for="unit-add-priced">Suppliers price by this unit</Field.Label>
+					<Field.Description>
+						On for a pack such as BOX or BTL. Off for an amount inside a pack, such as TAB or ML.
+					</Field.Description>
+				</Field.Content>
+				<Switch id="unit-add-priced" bind:checked={addPriced} />
 			</Field.Field>
 		</Field.Group>
 		<button type="submit" class="hidden" aria-hidden="true" tabindex="-1"></button>

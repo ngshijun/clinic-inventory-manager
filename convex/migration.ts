@@ -2,7 +2,6 @@ import { v } from 'convex/values'
 import { internalMutation, internalQuery } from './_generated/server'
 import type { Id } from './_generated/dataModel'
 import { movementsByType } from './lib/aggregates'
-import { capitalName } from './lib/names'
 
 /*
  * Consistency check. Internal only, nothing in the app calls it:
@@ -87,65 +86,23 @@ export const verify = internalQuery({
 })
 
 /*
- * Raises the names typed before names were kept in capitals: employees and
- * their past payslip rows, and items with the movements and requests that
- * carry the item's name. Internal only, and safe to run again:
+ * Marks the units that were the fixed list of measures before the setting
+ * moved to the Units page, and GM, which the list had missed. Internal
+ * only, and safe to run again:
  *
- *   npx convex run migration:capitalNames '{}' [--prod]
+ *   npx convex run migration:markMeasures '{}' [--prod]
  */
-export const capitalNames = internalMutation({
+export const markMeasures = internalMutation({
 	args: {},
-	returns: v.object({
-		employees: v.number(),
-		payslips: v.number(),
-		items: v.number(),
-		movements: v.number(),
-		requests: v.number(),
-	}),
+	returns: v.array(v.string()),
 	handler: async (ctx) => {
-		let employees = 0
-		for (const employee of await ctx.db.query('payroll').collect()) {
-			const name = capitalName(employee.name)
-			if (name === employee.name) continue
-			await ctx.db.patch(employee._id, { name })
-			employees++
+		const measures = new Set(['TAB', 'CAP', 'ML', 'G', 'GM', 'OZ', 'DOSE', 'PLY', 'SPRAY'])
+		const marked: string[] = []
+		for (const unit of await ctx.db.query('units').collect()) {
+			if (!measures.has(unit.name) || unit.measure) continue
+			await ctx.db.patch(unit._id, { measure: true })
+			marked.push(unit.name)
 		}
-
-		let payslips = 0
-		for (const row of await ctx.db.query('payroll_run_items').collect()) {
-			const employee_name = capitalName(row.employee_name)
-			if (employee_name === row.employee_name) continue
-			await ctx.db.patch(row._id, { employee_name })
-			payslips++
-		}
-
-		let items = 0
-		let movements = 0
-		let requests = 0
-		// Bounded by the clinic's product count (hundreds).
-		for (const item of await ctx.db.query('inventory').collect()) {
-			const item_name = capitalName(item.item_name)
-			if (item_name === item.item_name) continue
-			// `updated_at` is left alone: Not Moving reads it as the last stock movement
-			await ctx.db.patch(item._id, { item_name })
-			items++
-			const itemMovements = await ctx.db
-				.query('stock_movements')
-				.withIndex('by_item', (q) => q.eq('item_id', item._id))
-				.collect()
-			for (const movement of itemMovements) {
-				await ctx.db.patch(movement._id, { item_name })
-				movements++
-			}
-			const itemRequests = await ctx.db
-				.query('stock_requests')
-				.withIndex('by_item', (q) => q.eq('item_id', item._id))
-				.collect()
-			for (const request of itemRequests) {
-				await ctx.db.patch(request._id, { item_name })
-				requests++
-			}
-		}
-		return { employees, payslips, items, movements, requests }
+		return marked
 	},
 })

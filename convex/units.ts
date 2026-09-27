@@ -64,7 +64,7 @@ export const list = query({
 })
 
 export const add = mutation({
-	args: { auth: v.string(), name: v.string() },
+	args: { auth: v.string(), name: v.string(), measure: v.boolean() },
 	returns: v.null(),
 	handler: async (ctx, args) => {
 		requireRole(args.auth, ['manager'])
@@ -72,15 +72,28 @@ export const add = mutation({
 		if (await findByName(ctx, name)) {
 			throw new ConvexError({ code: 'INVALID_STATE', message: `${name} is already in the list` })
 		}
-		await ctx.db.insert('units', { name, updated_at: Date.now() })
+		await ctx.db.insert('units', { name, measure: args.measure, updated_at: Date.now() })
+		return null
+	},
+})
+
+/** Says whether the unit is an amount inside a pack, which no price is quoted for. */
+export const setMeasure = mutation({
+	args: { auth: v.string(), id: v.id('units'), measure: v.boolean() },
+	returns: v.null(),
+	handler: async (ctx, args) => {
+		requireRole(args.auth, ['manager'])
+		const unit = await ctx.db.get(args.id)
+		if (!unit) throw new ConvexError({ code: 'NOT_FOUND', message: 'Unit not found' })
+		await ctx.db.patch(unit._id, { measure: args.measure, updated_at: Date.now() })
 		return null
 	},
 })
 
 /**
  * Renames a unit on the list and on every item that uses it. A name that
- * is already on the list combines the two: the items move to that unit and
- * this one leaves the list.
+ * is already on the list combines the two: the items move to that unit,
+ * which keeps its own setting, and this one leaves the list.
  */
 export const rename = mutation({
 	args: { auth: v.string(), id: v.id('units'), name: v.string() },

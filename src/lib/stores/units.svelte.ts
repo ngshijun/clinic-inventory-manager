@@ -21,6 +21,11 @@ class UnitsStore {
 		return this.units.map((unit) => unit.name)
 	}
 
+	/** The units that are amounts inside a pack, which a price is never quoted for */
+	measures = $derived<ReadonlySet<string>>(
+		new Set(this.units.filter((unit) => unit.measure).map((unit) => unit.name)),
+	)
+
 	#run = async <T>(fallback: string, work: () => Promise<T>): Promise<T | undefined> => {
 		this.#loadingCount++
 		this.error = null
@@ -35,9 +40,15 @@ class UnitsStore {
 		}
 	}
 
-	addUnit = async (name: string): Promise<void> => {
+	addUnit = async (name: string, measure: boolean): Promise<void> => {
 		await this.#run('An error occurred while adding the unit', () =>
-			convex.mutation(api.units.add, { auth: authStore.token, name }),
+			convex.mutation(api.units.add, { auth: authStore.token, name, measure }),
+		)
+	}
+
+	setMeasure = async (id: UnitId, measure: boolean): Promise<void> => {
+		await this.#run('An error occurred while changing the unit', () =>
+			convex.mutation(api.units.setMeasure, { auth: authStore.token, id, measure }),
 		)
 	}
 
