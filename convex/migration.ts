@@ -1,5 +1,5 @@
 import { v } from 'convex/values'
-import { internalMutation, internalQuery } from './_generated/server'
+import { internalQuery } from './_generated/server'
 import type { Id } from './_generated/dataModel'
 import { movementsByType } from './lib/aggregates'
 
@@ -82,27 +82,5 @@ export const verify = internalQuery({
 			danglingRequests,
 			danglingRunItems,
 		}
-	},
-})
-
-/*
- * Marks the units that were the fixed list of measures before the setting
- * moved to the Units page, and GM, which the list had missed. Internal
- * only, and safe to run again:
- *
- *   npx convex run migration:markMeasures '{}' [--prod]
- */
-export const markMeasures = internalMutation({
-	args: {},
-	returns: v.array(v.string()),
-	handler: async (ctx) => {
-		const measures = new Set(['TAB', 'CAP', 'ML', 'G', 'GM', 'OZ', 'DOSE', 'PLY', 'SPRAY'])
-		const marked: string[] = []
-		for (const unit of await ctx.db.query('units').collect()) {
-			if (!measures.has(unit.name) || unit.measure) continue
-			await ctx.db.patch(unit._id, { measure: true })
-			marked.push(unit.name)
-		}
-		return marked
 	},
 })
