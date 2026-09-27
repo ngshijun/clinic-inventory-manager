@@ -8,6 +8,7 @@
 	import { caretAtEnd } from '$lib/attachments/focus'
 	import ActionModal from '$lib/components/app/ActionModal.svelte'
 	import SupplierField from '$lib/components/app/SupplierField.svelte'
+	import StatusFilter from '$lib/components/app/StatusFilter.svelte'
 	import SupplierFilter from '$lib/components/app/SupplierFilter.svelte'
 	import DialogSubject from '$lib/components/app/DialogSubject.svelte'
 	import MarkOrderedDialog from '$lib/components/app/MarkOrderedDialog.svelte'
@@ -34,6 +35,7 @@
 	import { inventoryStore } from '$lib/stores/inventory.svelte'
 	import type { InventoryItem, InventoryItemUpdate } from '$lib/types/inventory'
 	import Quantity from '$lib/components/app/Quantity.svelte'
+	import { matchesStatus, type StatusFilter as StatusFilterValue } from '$lib/utils/statusFilter'
 	import { ALL_SUPPLIERS, activeSupplier, matchesSupplier } from '$lib/utils/supplier'
 	import {
 		priceFormFrom,
@@ -49,6 +51,7 @@
 
 	let searchQuery = $state('')
 	let searchInput = $state<HTMLInputElement | null>(null)
+	let filter = $state<StatusFilterValue>('all')
 	let supplierChoice = $state(ALL_SUPPLIERS)
 	const supplier = $derived(activeSupplier(supplierChoice, inventoryStore.items))
 	let sort = $state<SortState<SortKey>>({ key: null, direction: 'asc' })
@@ -76,7 +79,7 @@
 	const sortedItems = $derived.by((): InventoryItem[] => {
 		const items = inventoryStore
 			.searchItems(searchQuery)
-			.filter((item) => matchesSupplier(item, supplier))
+			.filter((item) => matchesStatus(item, filter) && matchesSupplier(item, supplier))
 		const key = sort.key
 		if (!key) return items
 
@@ -115,18 +118,20 @@
 		}
 	}
 
-	// A new search, supplier or sort starts the list from the top again
+	// A new search, filter or sort starts the list from the top again
 	$effect(() => {
 		void searchQuery
+		void filter
 		void supplier
 		void sort.key
 		void sort.direction
 		untrack(() => list.reset())
 	})
 
-	const isFiltered = $derived(searchQuery !== '' || supplier !== ALL_SUPPLIERS)
+	const isFiltered = $derived(searchQuery !== '' || filter !== 'all' || supplier !== ALL_SUPPLIERS)
 	const clearFilters = (): void => {
 		searchQuery = ''
+		filter = 'all'
 		supplierChoice = ALL_SUPPLIERS
 	}
 
@@ -219,6 +224,7 @@
 				</InputGroup.Addon>
 			{/if}
 		</InputGroup.Root>
+		<StatusFilter bind:value={filter} />
 		<SupplierFilter bind:value={supplierChoice} items={inventoryStore.items} />
 	</div>
 </PageHeader>
