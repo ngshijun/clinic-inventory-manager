@@ -80,7 +80,8 @@
 		FILTERS.some((option) => option.value === value)
 	const initialFilter = page.url.searchParams.get('filter')
 	let filter = $state<Filter>(isFilter(initialFilter) ? initialFilter : 'all')
-	let supplierChoice = $state(ALL_SUPPLIERS)
+	// The Suppliers page links here with ?supplier=NAME
+	let supplierChoice = $state(page.url.searchParams.get('supplier') ?? ALL_SUPPLIERS)
 	const supplier = $derived(activeSupplier(supplierChoice, inventoryStore.items))
 	let sort = $state<SortState<SortKey>>({ key: null, direction: 'asc' })
 	let fileInput = $state<HTMLInputElement | null>(null)

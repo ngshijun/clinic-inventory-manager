@@ -22,6 +22,7 @@
 	 * The list the Supplier field in Add Item and Edit Item suggests from,
 	 * opened from Inventory's More menu. A rename reaches every item that uses
 	 * the supplier; renaming to a name already on the list combines the two.
+	 * The count of items is a link to Inventory held to that supplier.
 	 * Names are kept in capitals, so the fields raise the letters as typed.
 	 */
 	useErrorToast(() => suppliersStore.error)
@@ -189,7 +190,15 @@
 					<Table.Cell class="font-medium tracking-wide">{supplier.name}</Table.Cell>
 					<Table.Cell class="tabular-nums">
 						{#if count > 0}
-							{plural(count, 'item')}
+							<!-- Opens Inventory held to this supplier, where each item can be edited -->
+							<Button
+								variant="link"
+								size="sm"
+								class="h-auto p-0 text-sm"
+								href={`/inventory?supplier=${encodeURIComponent(supplier.name)}`}
+							>
+								{plural(count, 'item')}
+							</Button>
 						{:else}
 							<span class="text-muted-foreground">No items</span>
 						{/if}
