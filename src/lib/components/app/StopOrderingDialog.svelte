@@ -6,7 +6,7 @@
 	import type { InventoryItem } from '$lib/types/inventory'
 
 	/**
-	 * Takes an item off the purchaser's lists for good: it becomes untracked,
+	 * Takes an item off the purchaser's lists for good: it is marked not ordering,
 	 * as the Inventory edit form can also do, and loses any order status.
 	 * Undo puts both back. `bind:this` and `open(item)`.
 	 */
@@ -29,7 +29,7 @@
 		await inventoryStore.updateItem(id, { not_track: true })
 		if (inventoryStore.error) return
 		close()
-		toast.success(`Stopped tracking ${name}`, {
+		toast.success(`Stopped ordering ${name}`, {
 			duration: 8000,
 			action: {
 				label: 'Undo',
@@ -38,7 +38,7 @@
 					if (!inventoryStore.error && previous) {
 						await inventoryStore.restoreOrderStatus(id, previous)
 					}
-					if (!inventoryStore.error) toast.success(`Tracking ${name} again`)
+					if (!inventoryStore.error) toast.success(`Ordering ${name} again`)
 				},
 			},
 		})
@@ -47,10 +47,10 @@
 
 <ActionModal
 	bind:open={isOpen}
-	title="Stop Tracking Item"
-	description="It leaves every Dashboard list and no longer counts as low or out of stock. You can track it again from Inventory."
+	title="Stop Ordering Item"
+	description="It leaves every Dashboard list and no longer counts as low or out of stock. Its stock is still counted. You can order it again from Inventory."
 	loading={inventoryStore.loading}
-	confirmText="Stop Tracking"
+	confirmText="Stop Ordering"
 	onconfirm={confirm}
 	oncancel={close}
 >

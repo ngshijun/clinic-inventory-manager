@@ -19,13 +19,13 @@
 		size = 'sm',
 		onMarkOrdered,
 		onSnooze,
-		onStopTracking,
+		onStopOrdering,
 	}: {
 		item: InventoryItem
 		size?: 'sm' | 'default'
 		onMarkOrdered: (item: InventoryItem) => void
 		onSnooze: (item: InventoryItem) => void
-		onStopTracking: (item: InventoryItem) => void
+		onStopOrdering: (item: InventoryItem) => void
 	} = $props()
 
 	const undoable = async (message: string, undone: string): Promise<void> => {
@@ -98,9 +98,9 @@
 			</DropdownMenu.Group>
 			<DropdownMenu.Separator />
 			<DropdownMenu.Group>
-				<DropdownMenu.Item variant="destructive" onclick={() => onStopTracking(item)}>
+				<DropdownMenu.Item variant="destructive" onclick={() => onStopOrdering(item)}>
 					<EyeOffIcon />
-					Stop Tracking This Item…
+					Stop Ordering This Item…
 				</DropdownMenu.Item>
 			</DropdownMenu.Group>
 		</DropdownMenu.Content>

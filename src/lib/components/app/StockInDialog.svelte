@@ -21,7 +21,7 @@
 	let isOpen = $state(false)
 	let quantity = $state(1)
 	let expiryDate = $state('')
-	let keepUntracked = $state(true)
+	let keepNotOrdering = $state(true)
 
 	const status = $derived(item?.order_status)
 
@@ -29,7 +29,7 @@
 		if (!item) return []
 		const rows = [
 			{ label: 'In stock', value: `${item.quantity} ${item.unit_label}` },
-			{ label: 'Reorder at', value: item.reorder_level < 0 ? '—' : String(item.reorder_level) },
+			{ label: 'Reorder at', value: String(item.reorder_level) },
 			{
 				label: 'Batches',
 				value: String(stockBatchesStore.batchesByItem.get(item.id)?.length ?? 0),
@@ -47,14 +47,14 @@
 
 	const dirty = $derived(
 		item !== null &&
-			(Number(quantity) !== 1 || expiryDate !== '' || keepUntracked !== item.not_track),
+			(Number(quantity) !== 1 || expiryDate !== '' || keepNotOrdering !== item.not_track),
 	)
 
 	export function open(target: InventoryItem): void {
 		item = target
 		quantity = 1
 		expiryDate = ''
-		keepUntracked = target.not_track
+		keepNotOrdering = target.not_track
 		isOpen = true
 	}
 
@@ -66,7 +66,7 @@
 	const confirm = async (): Promise<void> => {
 		if (!item || Number(quantity) <= 0) return
 		const target = item
-		await inventoryStore.stockIn(target.id, Number(quantity), keepUntracked, expiryDate || null)
+		await inventoryStore.stockIn(target.id, Number(quantity), keepNotOrdering, expiryDate || null)
 		if (!inventoryStore.error) {
 			toast.success(`Stocked in ${quantity} ${target.unit_label} of ${target.item_name}`)
 			close()
@@ -121,8 +121,8 @@
 			</div>
 			{#if item?.not_track}
 				<Field.Field orientation="horizontal">
-					<Checkbox id="stock-in-untracked" bind:checked={keepUntracked} />
-					<Field.Label for="stock-in-untracked">Keep untracked</Field.Label>
+					<Checkbox id="stock-in-not-ordering" bind:checked={keepNotOrdering} />
+					<Field.Label for="stock-in-not-ordering">Keep as not ordering</Field.Label>
 				</Field.Field>
 			{/if}
 		</Field.Group>

@@ -7,15 +7,17 @@
 	import XIcon from '@lucide/svelte/icons/x'
 	import { caretAtEnd } from '$lib/attachments/focus'
 	import ActionModal from '$lib/components/app/ActionModal.svelte'
+	import SupplierFilter from '$lib/components/app/SupplierFilter.svelte'
 	import DialogSubject from '$lib/components/app/DialogSubject.svelte'
 	import MarkOrderedDialog from '$lib/components/app/MarkOrderedDialog.svelte'
 	import OrderControls from '$lib/components/app/OrderControls.svelte'
 	import OrderStatusBadge from '$lib/components/app/OrderStatusBadge.svelte'
 	import PageHeader from '$lib/components/app/PageHeader.svelte'
 	import SnoozeDialog from '$lib/components/app/SnoozeDialog.svelte'
+	import ToneBadge, { type Tone } from '$lib/components/app/ToneBadge.svelte'
 	import SortHeader from '$lib/components/app/SortHeader.svelte'
 	import type { SortState } from '$lib/components/app/sort'
-	import StopTrackingDialog from '$lib/components/app/StopTrackingDialog.svelte'
+	import StopOrderingDialog from '$lib/components/app/StopOrderingDialog.svelte'
 	import { Button } from '$lib/components/ui/button'
 	import * as Empty from '$lib/components/ui/empty'
 	import * as Field from '$lib/components/ui/field'
@@ -32,11 +34,12 @@
 	import { isOnOrder, isSnoozing, needsDecision } from '$lib/utils/orders'
 	import Quantity from '$lib/components/app/Quantity.svelte'
 	import { cn } from '$lib/utils'
+	import { ALL_SUPPLIERS, activeSupplier, matchesSupplier } from '$lib/utils/supplier'
 	import { capsClass } from '$lib/utils/text'
 
 	// ---------- Toolbar state ----------
 	type Filter = 'all' | 'toorder' | 'ordered' | 'snoozed'
-	type SortKey = 'item_name' | 'quantity' | 'order_status' | 'remark'
+	type SortKey = 'item_name' | 'supplier' | 'quantity' | 'order_status' | 'remark'
 
 	const FILTERS: Array<{ value: Filter; label: string }> = [
 		{ value: 'all', label: 'All' },
@@ -48,6 +51,8 @@
 	let searchQuery = $state('')
 	let searchInput = $state<HTMLInputElement | null>(null)
 	let filter = $state<Filter>('all')
+	let supplierChoice = $state(ALL_SUPPLIERS)
+	const supplier = $derived(activeSupplier(supplierChoice, inventoryStore.items))
 	let sort = $state<SortState<SortKey>>({ key: null, direction: 'asc' })
 
 	useErrorToast(() => inventoryStore.error)
@@ -72,10 +77,11 @@
 		return status.kind === 'ordered' ? `0 ${status.ordered_on}` : `1 ${status.until}`
 	}
 
-	const quantityTone = (item: InventoryItem): 'danger' | 'warning' | null => {
-		if (item.not_track) return null
-		if (item.quantity === 0) return 'danger'
-		if (item.quantity <= item.reorder_level) return 'warning'
+	// In stock is the default and gets no mark, as on Inventory
+	const stockStatus = (item: InventoryItem): { tone: Tone; text: string } | null => {
+		if (item.not_track) return { tone: 'neutral', text: 'Not ordering' }
+		if (item.quantity === 0) return { tone: 'danger', text: 'Out of stock' }
+		if (item.quantity <= item.reorder_level) return { tone: 'warning', text: 'Low stock' }
 		return null
 	}
 
@@ -83,7 +89,9 @@
 		`${count} ${count === 1 ? noun : `${noun}s`}`
 
 	const sortedItems = $derived.by((): InventoryItem[] => {
-		const items = inventoryStore.searchItems(searchQuery).filter(matchesFilter)
+		const items = inventoryStore
+			.searchItems(searchQuery)
+			.filter((item) => matchesFilter(item) && matchesSupplier(item, supplier))
 		const key = sort.key
 		if (!key) return items
 
@@ -91,6 +99,7 @@
 		const valueOf = (item: InventoryItem): string | number | null => {
 			if (key === 'order_status') return orderStatusValue(item)
 			if (key === 'remark') return item.remark || null
+			if (key === 'supplier') return item.supplier ?? null
 			return item[key]
 		}
 		return [...items].sort((a, b) => {
@@ -122,15 +131,17 @@
 	$effect(() => {
 		void searchQuery
 		void filter
+		void supplier
 		void sort.key
 		void sort.direction
 		untrack(() => list.reset())
 	})
 
-	const isFiltered = $derived(searchQuery !== '' || filter !== 'all')
+	const isFiltered = $derived(searchQuery !== '' || filter !== 'all' || supplier !== ALL_SUPPLIERS)
 	const clearFilters = (): void => {
 		searchQuery = ''
 		filter = 'all'
+		supplierChoice = ALL_SUPPLIERS
 	}
 
 	// ⌥⌘F focuses the search field
@@ -145,7 +156,7 @@
 	// ---------- Order dialogs ----------
 	let orderDialog = $state<MarkOrderedDialog | null>(null)
 	let snoozeDialog = $state<SnoozeDialog | null>(null)
-	let stopTrackingDialog = $state<StopTrackingDialog | null>(null)
+	let stopOrderingDialog = $state<StopOrderingDialog | null>(null)
 
 	// ---------- Edit remark ----------
 	let showRemarkDialog = $state(false)
@@ -192,8 +203,8 @@
 				bind:ref={searchInput}
 				bind:value={searchQuery}
 				type="search"
-				placeholder="Search by item name"
-				aria-label="Search by item name"
+				placeholder="Search by item or supplier"
+				aria-label="Search by item or supplier"
 			/>
 			{#if searchQuery}
 				<InputGroup.Addon align="inline-end">
@@ -219,6 +230,7 @@
 				<ToggleGroup.Item value={option.value}>{option.label}</ToggleGroup.Item>
 			{/each}
 		</ToggleGroup.Root>
+		<SupplierFilter bind:value={supplierChoice} items={inventoryStore.items} />
 	</div>
 </PageHeader>
 
@@ -227,9 +239,10 @@
 		<Table.Header>
 			<Table.Row>
 				<Table.Head>Item</Table.Head>
+				<Table.Head>Supplier</Table.Head>
 				<Table.Head>In stock</Table.Head>
 				<Table.Head>Order status</Table.Head>
-				<Table.Head class="w-[38%]">Remark</Table.Head>
+				<Table.Head class="w-[30%]">Remark</Table.Head>
 				<Table.Head><span class="sr-only">Actions</span></Table.Head>
 			</Table.Row>
 		</Table.Header>
@@ -237,6 +250,7 @@
 			{#each { length: 8 } as _, i (i)}
 				<Table.Row>
 					<Table.Cell><Skeleton class="h-4 w-48" /></Table.Cell>
+					<Table.Cell><Skeleton class="h-4 w-24" /></Table.Cell>
 					<Table.Cell><Skeleton class="h-4 w-20" /></Table.Cell>
 					<Table.Cell><Skeleton class="h-4 w-28" /></Table.Cell>
 					<Table.Cell><Skeleton class="h-4 w-64" /></Table.Cell>
@@ -271,28 +285,34 @@
 		<Table.Header>
 			<Table.Row>
 				<SortHeader key="item_name" {sort} onsort={toggleSort}>Item</SortHeader>
+				<SortHeader key="supplier" {sort} onsort={toggleSort}>Supplier</SortHeader>
 				<SortHeader key="quantity" {sort} onsort={toggleSort}>In stock</SortHeader>
 				<SortHeader key="order_status" {sort} onsort={toggleSort}>Order status</SortHeader>
-				<SortHeader key="remark" {sort} onsort={toggleSort} class="w-[38%]">Remark</SortHeader>
+				<SortHeader key="remark" {sort} onsort={toggleSort} class="w-[30%]">Remark</SortHeader>
 				<Table.Head><span class="sr-only">Actions</span></Table.Head>
 			</Table.Row>
 		</Table.Header>
 		<Table.Body>
 			{#each list.visible as item (item.id)}
-				{@const tone = quantityTone(item)}
+				{@const status = stockStatus(item)}
 				<Table.Row>
-					<Table.Cell class={cn('font-medium', capsClass(item.item_name))}
-						>{item.item_name}</Table.Cell
-					>
+					<Table.Cell class={cn('font-medium', capsClass(item.item_name))}>
+						<span class="inline-flex items-center gap-2">
+							{item.item_name}
+							{#if status}
+								<ToneBadge tone={status.tone}>{status.text}</ToneBadge>
+							{/if}
+						</span>
+					</Table.Cell>
+					<Table.Cell class={capsClass(item.supplier)}>
+						{#if item.supplier}
+							{item.supplier}
+						{:else}
+							<span class="text-muted-foreground">—</span>
+						{/if}
+					</Table.Cell>
 					<Table.Cell>
-						<Quantity
-							value={item.quantity}
-							unit={item.unit_label}
-							valueClass={cn(
-								tone === 'danger' && 'text-destructive font-semibold',
-								tone === 'warning' && 'text-warning font-semibold',
-							)}
-						/>
+						<Quantity value={item.quantity} unit={item.unit_label} />
 					</Table.Cell>
 					<Table.Cell>
 						<OrderStatusBadge {item} />
@@ -311,7 +331,7 @@
 								{item}
 								onMarkOrdered={(target) => orderDialog?.open(target)}
 								onSnooze={(target) => snoozeDialog?.open(target)}
-								onStopTracking={(target) => stopTrackingDialog?.open(target)}
+								onStopOrdering={(target) => stopOrderingDialog?.open(target)}
 							/>
 							<Tooltip.Root>
 								<Tooltip.Trigger>
@@ -345,7 +365,7 @@
 
 <MarkOrderedDialog bind:this={orderDialog} />
 <SnoozeDialog bind:this={snoozeDialog} />
-<StopTrackingDialog bind:this={stopTrackingDialog} />
+<StopOrderingDialog bind:this={stopOrderingDialog} />
 
 <!-- Edit Remark -->
 <ActionModal
@@ -368,7 +388,7 @@
 				id="remark"
 				bind:value={remark}
 				rows={3}
-				placeholder="e.g. RM 32.00 per 100 · Pharmaniaga"
+				placeholder="e.g. RM 32.00 per 100"
 				{@attach caretAtEnd()}
 			/>
 		</Field.Field>

@@ -14,6 +14,7 @@ import { createItem, deleteItem, type OrderStatus } from './inventory'
 import { LEAD_DAYS, addDays, suggestedOrderQuantity, toIsoDate } from './lib/orders'
 import { parseUnitLabel, sameUnit } from './lib/units'
 import { inventoryDoc, stockBatchDoc } from './schema'
+import { supplierResolver } from './suppliers'
 import { requireUnitParts } from './units'
 
 function optionalText(value: string | null | undefined): string | undefined {
@@ -113,6 +114,8 @@ export const listBatches = query({
 
 const importRow = v.object({
 	item_name: v.string(),
+	/** Omitted when the sheet has no supplier column: suppliers are then left as they are */
+	supplier: v.optional(v.string()),
 	quantity: v.number(),
 	reorder_level: v.number(),
 	unit: v.string(),
@@ -141,6 +144,7 @@ export const importInventory = mutation({
 		const byName = new Map<string, Doc<'inventory'>>()
 		for (const item of existing) byName.set(item.item_name.trim().toLowerCase(), item)
 
+		const resolveSupplier = await supplierResolver(ctx)
 		const seen = new Set<string>()
 		let imported = 0
 		let updated = 0
@@ -153,6 +157,7 @@ export const importInventory = mutation({
 			assertNonNegativeQuantity(row.quantity)
 			const reorder_level = Number.isFinite(row.reorder_level) ? Math.max(0, row.reorder_level) : 0
 			const remark = row.remark ?? ''
+			const supplier = await resolveSupplier(row.supplier)
 			const unit = parseUnitLabel(row.unit)
 			if (!unit) {
 				throw new ConvexError({
@@ -176,6 +181,7 @@ export const importInventory = mutation({
 			if (!current) {
 				const id = await createItem(ctx, {
 					item_name,
+					supplier,
 					quantity: row.quantity,
 					reorder_level,
 					unit,
@@ -209,6 +215,8 @@ export const importInventory = mutation({
 				patch.pack_unit = checked.pack_unit
 			}
 			if (current.remark !== remark) patch.remark = remark
+			// An empty cell clears the supplier
+			if (row.supplier !== undefined && current.supplier !== supplier) patch.supplier = supplier
 			const currentOrderDate =
 				current.order_status?.kind === 'ordered' ? current.order_status.ordered_on : null
 			if (currentOrderDate !== order_date) patch.order_status = order_status

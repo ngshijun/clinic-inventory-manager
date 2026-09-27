@@ -21,6 +21,8 @@ const toItem = (doc: Doc<'inventory'>): InventoryItem => ({
 /** One row of an Excel import, as the sheet provides it */
 export interface InventoryImportRow {
 	item_name: string
+	/** Left out when the sheet has no supplier column */
+	supplier?: string
 	quantity: number
 	reorder_level: number
 	unit: string
@@ -71,9 +73,7 @@ class InventoryStore {
 	}
 
 	get outOfStockItems(): InventoryItem[] {
-		return this.items.filter(
-			(item) => !item.not_track && item.quantity === 0 && item.reorder_level !== -1,
-		)
+		return this.items.filter((item) => !item.not_track && item.quantity === 0)
 	}
 
 	// Runs a mutation with the shared loading/error bookkeeping
@@ -104,8 +104,9 @@ class InventoryStore {
 			convex.mutation(api.inventory.add, {
 				auth: authStore.token,
 				item_name: newItem.item_name,
+				supplier: newItem.supplier,
 				quantity: Math.max(0, Math.floor(newItem.quantity)),
-				reorder_level: Math.max(-1, newItem.reorder_level),
+				reorder_level: Math.max(0, newItem.reorder_level),
 				unit: newItem.unit,
 				remark: newItem.remark || '',
 				not_track: newItem.not_track || false,
@@ -199,6 +200,7 @@ class InventoryStore {
 				auth: authStore.token,
 				id: itemId,
 				item_name: item.item_name,
+				supplier: item.supplier,
 				unit: item.unit,
 				reorder_level: item.reorder_level,
 				remark: item.remark,
@@ -230,9 +232,15 @@ class InventoryStore {
 		return this.items.find((item) => item.id === itemId)
 	}
 
+	/** Matches the item name or the supplier */
 	searchItems = (query: string): InventoryItem[] => {
-		if (!query) return this.items
-		return this.items.filter((item) => item.item_name.toLowerCase().includes(query.toLowerCase()))
+		const text = query.trim().toLowerCase()
+		if (!text) return this.items
+		return this.items.filter(
+			(item) =>
+				item.item_name.toLowerCase().includes(text) ||
+				(item.supplier ?? '').toLowerCase().includes(text),
+		)
 	}
 
 	// Subscription lifecycle

@@ -15,6 +15,7 @@ export const ROUTE_ACCESS: Record<string, RouteAccess> = {
 	'/inventory': { requiresAuth: true, roles: ['manager'] },
 	'/price-list': { requiresAuth: true, roles: ['manager'] },
 	'/inventory/units': { requiresAuth: true, roles: ['manager'] },
+	'/inventory/suppliers': { requiresAuth: true, roles: ['manager'] },
 	'/stock-movements': { requiresAuth: true, roles: ['manager'] },
 	'/stock-approvals': { requiresAuth: true, roles: ['manager'] },
 	'/stock-requests': { requiresAuth: true, roles: ['requester'] },

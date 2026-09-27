@@ -15,6 +15,7 @@ export type SnoozedStatus = Extract<OrderStatus, { kind: 'snoozed' }>
 /** Fields the Add New Item form and the Excel import provide */
 export interface NewInventoryItem {
 	item_name: string
+	supplier?: string
 	quantity: number
 	reorder_level: number
 	unit: UnitParts
@@ -25,6 +26,8 @@ export interface NewInventoryItem {
 /** Fields that can be edited directly; stock only moves through batches */
 export interface InventoryItemUpdate {
 	item_name?: string
+	/** An empty name clears the supplier */
+	supplier?: string
 	unit?: UnitParts
 	reorder_level?: number
 	remark?: string

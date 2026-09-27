@@ -7,6 +7,7 @@
 	import * as XLSX from 'xlsx'
 	import ArrowDownToLineIcon from '@lucide/svelte/icons/arrow-down-to-line'
 	import ArrowUpFromLineIcon from '@lucide/svelte/icons/arrow-up-from-line'
+	import Building2Icon from '@lucide/svelte/icons/building-2'
 	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right'
 	import DownloadIcon from '@lucide/svelte/icons/download'
 	import EllipsisIcon from '@lucide/svelte/icons/ellipsis'
@@ -21,6 +22,8 @@
 	import XIcon from '@lucide/svelte/icons/x'
 	import { selectOnFocus } from '$lib/attachments/focus'
 	import ActionModal from '$lib/components/app/ActionModal.svelte'
+	import SupplierField from '$lib/components/app/SupplierField.svelte'
+	import SupplierFilter from '$lib/components/app/SupplierFilter.svelte'
 	import DialogSubject from '$lib/components/app/DialogSubject.svelte'
 	import DiscardDialog from '$lib/components/app/DiscardDialog.svelte'
 	import PageHeader from '$lib/components/app/PageHeader.svelte'
@@ -54,20 +57,21 @@
 	import { expiryNote } from '$lib/utils/expiry'
 	import Quantity from '$lib/components/app/Quantity.svelte'
 	import { cn } from '$lib/utils'
+	import { ALL_SUPPLIERS, activeSupplier, matchesSupplier } from '$lib/utils/supplier'
 	import { capsClass } from '$lib/utils/text'
 	import { emptyUnitForm, unitFormFrom, unitFormParts, type UnitForm } from '$lib/utils/units'
 	import { sameUnit } from '../../../convex/lib/units'
 
 	// ---------- Toolbar state ----------
-	type Filter = 'all' | 'low' | 'out' | 'ordered' | 'untracked'
-	type SortKey = 'item_name' | 'quantity' | 'reorder_level' | 'nearest_expiry'
+	type Filter = 'all' | 'low' | 'out' | 'ordered' | 'notordering'
+	type SortKey = 'item_name' | 'supplier' | 'quantity' | 'reorder_level' | 'nearest_expiry'
 
 	const FILTERS: Array<{ value: Filter; label: string }> = [
 		{ value: 'all', label: 'All' },
 		{ value: 'low', label: 'Low Stock' },
 		{ value: 'out', label: 'Out of Stock' },
 		{ value: 'ordered', label: 'On Order' },
-		{ value: 'untracked', label: 'Not Tracked' },
+		{ value: 'notordering', label: 'Not Ordering' },
 	]
 
 	let searchQuery = $state('')
@@ -77,6 +81,8 @@
 		FILTERS.some((option) => option.value === value)
 	const initialFilter = page.url.searchParams.get('filter')
 	let filter = $state<Filter>(isFilter(initialFilter) ? initialFilter : 'all')
+	let supplierChoice = $state(ALL_SUPPLIERS)
+	const supplier = $derived(activeSupplier(supplierChoice, inventoryStore.items))
 	let sort = $state<SortState<SortKey>>({ key: null, direction: 'asc' })
 	let fileInput = $state<HTMLInputElement | null>(null)
 
@@ -84,7 +90,7 @@
 	// In stock is the default and gets no mark; the other three are a badge
 	// after the name, as HealthOS marks only an inactive patient.
 	const stockStatus = (item: InventoryItem): { tone: Tone; text: string } | null => {
-		if (item.not_track) return { tone: 'neutral', text: 'Not tracked' }
+		if (item.not_track) return { tone: 'neutral', text: 'Not ordering' }
 		if (item.quantity === 0) return { tone: 'danger', text: 'Out of stock' }
 		if (item.quantity <= item.reorder_level) return { tone: 'warning', text: 'Low stock' }
 		return null
@@ -98,7 +104,7 @@
 				return !item.not_track && item.quantity === 0
 			case 'ordered':
 				return item.order_status?.kind === 'ordered'
-			case 'untracked':
+			case 'notordering':
 				return item.not_track
 			default:
 				return true
@@ -114,14 +120,17 @@
 
 	// ---------- Filtering and sorting ----------
 	const sortedItems = $derived.by((): InventoryItem[] => {
-		const items = inventoryStore.searchItems(searchQuery).filter(matchesFilter)
+		const items = inventoryStore
+			.searchItems(searchQuery)
+			.filter((item) => matchesFilter(item) && matchesSupplier(item, supplier))
 		const key = sort.key
 		if (!key) return items
 
 		const dir = sort.direction === 'asc' ? 1 : -1
 		const valueOf = (item: InventoryItem): string | number | null => {
 			if (key === 'nearest_expiry') return getNearestExpiry(item)
-			return item[key as 'item_name' | 'quantity' | 'reorder_level']
+			if (key === 'supplier') return item.supplier ?? null
+			return item[key]
 		}
 		return [...items].sort((a, b) => {
 			const av = valueOf(a)
@@ -152,15 +161,17 @@
 	$effect(() => {
 		void searchQuery
 		void filter
+		void supplier
 		void sort.key
 		void sort.direction
 		untrack(() => list.reset())
 	})
 
-	const isFiltered = $derived(searchQuery !== '' || filter !== 'all')
+	const isFiltered = $derived(searchQuery !== '' || filter !== 'all' || supplier !== ALL_SUPPLIERS)
 	const clearFilters = (): void => {
 		searchQuery = ''
 		filter = 'all'
+		supplierChoice = ALL_SUPPLIERS
 	}
 
 	// ⌥⌘F focuses the search field
@@ -187,19 +198,18 @@
 	// ---------- Add item ----------
 	interface NewItemForm {
 		item_name: string
+		supplier: string
 		unit: UnitForm
 		reorder_level: number
-		/** Low-stock alert on; off saves a reorder level of −1 */
-		alert: boolean
 		quantity: number
 		expiry_date: string
 		remark: string
 	}
 	const emptyNewItem = (): NewItemForm => ({
 		item_name: '',
+		supplier: '',
 		unit: emptyUnitForm(),
 		reorder_level: 0,
-		alert: true,
 		quantity: 0,
 		expiry_date: '',
 		remark: '',
@@ -213,7 +223,7 @@
 		newItem.item_name.trim() !== '' &&
 			unitFormParts(newItem.unit) !== null &&
 			Number(newItem.quantity) >= 0 &&
-			(!newItem.alert || Number(newItem.reorder_level) >= 0),
+			Number(newItem.reorder_level) >= 0,
 	)
 
 	const isNewItemDirty = $derived(JSON.stringify(newItem) !== JSON.stringify(emptyNewItem()))
@@ -234,9 +244,10 @@
 		if (!isNewItemValid || !unit) return
 		const payload: NewInventoryItem = {
 			item_name: newItem.item_name.trim(),
+			supplier: newItem.supplier.trim(),
 			unit,
 			quantity: Math.max(0, Math.floor(Number(newItem.quantity))),
-			reorder_level: newItem.alert ? Math.max(0, Math.floor(Number(newItem.reorder_level))) : -1,
+			reorder_level: Math.max(0, Math.floor(Number(newItem.reorder_level))),
 			remark: newItem.remark,
 		}
 		await inventoryStore.addItem(payload, newItem.expiry_date || null)
@@ -255,9 +266,9 @@
 	// ---------- Edit item ----------
 	interface EditItemForm {
 		item_name: string
+		supplier: string
 		unit: UnitForm
 		reorder_level: number
-		alert: boolean
 		remark: string
 		not_track: boolean
 	}
@@ -266,9 +277,9 @@
 	let editingItem = $state<InventoryItem | null>(null)
 	let editForm = $state<EditItemForm>({
 		item_name: '',
+		supplier: '',
 		unit: emptyUnitForm(),
 		reorder_level: 0,
-		alert: true,
 		remark: '',
 		not_track: false,
 	})
@@ -277,9 +288,9 @@
 		editingItem = item
 		editForm = {
 			item_name: item.item_name,
+			supplier: item.supplier ?? '',
 			unit: unitFormFrom(item),
-			reorder_level: Math.max(0, item.reorder_level),
-			alert: item.reorder_level >= 0,
+			reorder_level: item.reorder_level,
 			remark: item.remark,
 			not_track: item.not_track,
 		}
@@ -293,18 +304,15 @@
 
 	const editUnit = $derived(unitFormParts(editForm.unit))
 	const isEditValid = $derived(
-		editForm.item_name.trim() !== '' &&
-			editUnit !== null &&
-			(!editForm.alert || Number(editForm.reorder_level) >= 0),
+		editForm.item_name.trim() !== '' && editUnit !== null && Number(editForm.reorder_level) >= 0,
 	)
-	const editReorderLevel = $derived(
-		editForm.alert ? Math.max(0, Math.floor(Number(editForm.reorder_level))) : -1,
-	)
+	const editReorderLevel = $derived(Math.max(0, Math.floor(Number(editForm.reorder_level))))
 
 	const isEditChanged = $derived.by((): boolean => {
 		if (!editingItem) return false
 		return (
 			editForm.item_name.trim() !== editingItem.item_name ||
+			editForm.supplier.trim() !== (editingItem.supplier ?? '') ||
 			(editUnit !== null && !sameUnit(editUnit, editingItem)) ||
 			editReorderLevel !== editingItem.reorder_level ||
 			editForm.remark !== editingItem.remark ||
@@ -317,6 +325,7 @@
 		const item = editingItem
 		await inventoryStore.updateItem(item.id, {
 			item_name: editForm.item_name.trim(),
+			supplier: editForm.supplier.trim(),
 			unit: editUnit,
 			reorder_level: editReorderLevel,
 			remark: editForm.remark,
@@ -452,8 +461,11 @@
 	}
 
 	// ---------- Excel import and export ----------
+	// One sheet row. Empty cells arrive as '', and `supplier` is missing
+	// altogether when the sheet has no supplier column.
 	interface ExcelRow {
 		item_name: string
+		supplier?: string
 		quantity: number
 		reorder_level: number
 		unit: string
@@ -469,7 +481,7 @@
 					const data = new Uint8Array(e.target?.result as ArrayBuffer)
 					const workbook = XLSX.read(data, { type: 'array' })
 					const worksheet = workbook.Sheets[workbook.SheetNames[0]]
-					resolve(XLSX.utils.sheet_to_json(worksheet) as ExcelRow[])
+					resolve(XLSX.utils.sheet_to_json(worksheet, { defval: '' }) as ExcelRow[])
 				} catch {
 					reject(new Error('The file could not be read as an Excel sheet.'))
 				}
@@ -494,23 +506,20 @@
 					!row.item_name ||
 					typeof row.quantity !== 'number' ||
 					typeof row.reorder_level !== 'number' ||
-					!row.unit ||
-					!row.remark ||
-					!row.order_date
+					!row.unit
 				) {
-					throw new Error(
-						'Every row needs item_name, quantity, reorder_level, unit, remark and order_date.',
-					)
+					throw new Error('Every row needs item_name, quantity, reorder_level and unit.')
 				}
 			}
 			const result = await inventoryStore.importFromRows(
 				rows.map((row) => ({
 					item_name: String(row.item_name),
+					supplier: row.supplier === undefined ? undefined : String(row.supplier),
 					quantity: Math.max(0, row.quantity),
 					reorder_level: Math.max(0, row.reorder_level),
 					unit: String(row.unit),
-					remark: String(row.remark),
-					order_date: String(row.order_date),
+					remark: String(row.remark ?? ''),
+					order_date: String(row.order_date ?? ''),
 				})),
 			)
 			if (!result) throw new Error(inventoryStore.error || 'The import failed.')
@@ -537,6 +546,7 @@
 			const worksheet = XLSX.utils.json_to_sheet(
 				inventoryStore.items.map((item) => ({
 					item_name: item.item_name,
+					supplier: item.supplier ?? '',
 					quantity: item.quantity,
 					reorder_level: item.reorder_level,
 					unit: item.unit_label,
@@ -546,6 +556,7 @@
 			)
 			worksheet['!cols'] = [
 				{ wch: 50 },
+				{ wch: 25 },
 				{ wch: 12 },
 				{ wch: 22 },
 				{ wch: 25 },
@@ -576,8 +587,8 @@
 				bind:ref={searchInput}
 				bind:value={searchQuery}
 				type="search"
-				placeholder="Search by item name"
-				aria-label="Search by item name"
+				placeholder="Search by item or supplier"
+				aria-label="Search by item or supplier"
 			/>
 			{#if searchQuery}
 				<InputGroup.Addon align="inline-end">
@@ -603,6 +614,7 @@
 				<ToggleGroup.Item value={option.value}>{option.label}</ToggleGroup.Item>
 			{/each}
 		</ToggleGroup.Root>
+		<SupplierFilter bind:value={supplierChoice} items={inventoryStore.items} />
 	</div>
 	<DropdownMenu.Root>
 		<DropdownMenu.Trigger>
@@ -628,6 +640,10 @@
 				<DropdownMenu.Item onclick={() => goto('/inventory/units')}>
 					<RulerIcon />
 					Units
+				</DropdownMenu.Item>
+				<DropdownMenu.Item onclick={() => goto('/inventory/suppliers')}>
+					<Building2Icon />
+					Suppliers
 				</DropdownMenu.Item>
 			</DropdownMenu.Group>
 		</DropdownMenu.Content>
@@ -668,6 +684,7 @@
 		<Table.Header>
 			<Table.Row>
 				<Table.Head>Item</Table.Head>
+				<Table.Head>Supplier</Table.Head>
 				<Table.Head>In stock</Table.Head>
 				<Table.Head>Reorder level</Table.Head>
 				<Table.Head>Nearest expiry</Table.Head>
@@ -679,6 +696,7 @@
 			{#each { length: 8 } as _, i (i)}
 				<Table.Row>
 					<Table.Cell><Skeleton class="h-4 w-48" /></Table.Cell>
+					<Table.Cell><Skeleton class="h-4 w-24" /></Table.Cell>
 					<Table.Cell><Skeleton class="h-4 w-20" /></Table.Cell>
 					<Table.Cell><Skeleton class="h-4 w-16" /></Table.Cell>
 					<Table.Cell><Skeleton class="h-4 w-24" /></Table.Cell>
@@ -725,6 +743,7 @@
 			<Table.Row>
 				<Table.Head class="w-9"><span class="sr-only">Batches</span></Table.Head>
 				<SortHeader key="item_name" {sort} onsort={toggleSort}>Item</SortHeader>
+				<SortHeader key="supplier" {sort} onsort={toggleSort}>Supplier</SortHeader>
 				<SortHeader key="quantity" {sort} onsort={toggleSort}>In stock</SortHeader>
 				<SortHeader key="reorder_level" {sort} onsort={toggleSort}>Reorder level</SortHeader>
 				<SortHeader key="nearest_expiry" {sort} onsort={toggleSort}>Nearest expiry</SortHeader>
@@ -766,9 +785,16 @@
 							{/if}
 						</span>
 					</Table.Cell>
+					<Table.Cell class={capsClass(item.supplier)}>
+						{#if item.supplier}
+							{item.supplier}
+						{:else}
+							<span class="text-muted-foreground">—</span>
+						{/if}
+					</Table.Cell>
 					<Table.Cell><Quantity value={item.quantity} unit={item.unit_label} /></Table.Cell>
 					<Table.Cell>
-						{#if item.reorder_level < 0 || item.not_track}
+						{#if item.not_track}
 							<span class="text-muted-foreground">—</span>
 						{:else}
 							<Quantity value={item.reorder_level} unit={item.unit_label} pack={false} />
@@ -847,7 +873,7 @@
 					{#if itemBatches.length === 0}
 						<Table.Row>
 							<Table.Cell></Table.Cell>
-							<Table.Cell colspan={6}>
+							<Table.Cell colspan={7}>
 								<div class="flex items-center justify-between gap-3">
 									<span class="text-muted-foreground">Nothing in stock</span>
 									<Button variant="outline" size="sm" onclick={() => stockInDialog?.open(item)}>
@@ -877,6 +903,7 @@
 										</span>
 									</span>
 								</Table.Cell>
+								<Table.Cell></Table.Cell>
 								<Table.Cell class="tabular-nums">
 									{#if editing}
 										<Input
@@ -1000,9 +1027,10 @@
 					required
 				/>
 			</Field.Field>
+			<SupplierField id="add-supplier" bind:value={newItem.supplier} />
 			<UnitField id="add" bind:value={newItem.unit} />
 			<div class="grid grid-cols-2 gap-4">
-				<Field.Field data-disabled={!newItem.alert || undefined}>
+				<Field.Field>
 					<Field.Label for="add-reorder">Reorder level</Field.Label>
 					<Input
 						id="add-reorder"
@@ -1010,16 +1038,11 @@
 						type="number"
 						min={0}
 						step={1}
-						required={newItem.alert}
-						disabled={!newItem.alert}
+						required
 						{@attach selectOnFocus()}
 					/>
 				</Field.Field>
 			</div>
-			<Field.Field orientation="horizontal">
-				<Checkbox id="add-alert" bind:checked={newItem.alert} />
-				<Field.Label for="add-alert">Low-stock alert</Field.Label>
-			</Field.Field>
 			<div class="grid grid-cols-2 gap-4">
 				<Field.Field>
 					<Field.Label for="add-quantity">Initial quantity</Field.Label>
@@ -1050,7 +1073,7 @@
 					id="add-remark"
 					bind:value={newItem.remark}
 					rows={2}
-					placeholder="e.g. last purchase price, supplier"
+					placeholder="e.g. last purchase price"
 				/>
 			</Field.Field>
 		</Field.Group>
@@ -1086,9 +1109,10 @@
 				<Field.Label for="edit-name">Item name</Field.Label>
 				<Input id="edit-name" bind:value={editForm.item_name} required />
 			</Field.Field>
+			<SupplierField id="edit-supplier" bind:value={editForm.supplier} />
 			<UnitField id="edit" bind:value={editForm.unit} />
 			<div class="grid grid-cols-2 gap-4">
-				<Field.Field data-disabled={!editForm.alert || undefined}>
+				<Field.Field>
 					<Field.Label for="edit-reorder">Reorder level</Field.Label>
 					<Input
 						id="edit-reorder"
@@ -1096,23 +1120,18 @@
 						type="number"
 						min={0}
 						step={1}
-						required={editForm.alert}
-						disabled={!editForm.alert}
+						required
 						{@attach selectOnFocus()}
 					/>
 				</Field.Field>
 			</div>
-			<Field.Field orientation="horizontal">
-				<Checkbox id="edit-alert" bind:checked={editForm.alert} />
-				<Field.Label for="edit-alert">Low-stock alert</Field.Label>
-			</Field.Field>
 			<Field.Field>
 				<Field.Label for="edit-remark">Remark</Field.Label>
 				<Textarea id="edit-remark" bind:value={editForm.remark} rows={2} />
 			</Field.Field>
 			<Field.Field orientation="horizontal">
 				<Checkbox id="edit-not-track" bind:checked={editForm.not_track} />
-				<Field.Label for="edit-not-track">Not tracked</Field.Label>
+				<Field.Label for="edit-not-track">Not ordering</Field.Label>
 			</Field.Field>
 		</Field.Group>
 		<button type="submit" class="hidden" aria-hidden="true" tabindex="-1"></button>
