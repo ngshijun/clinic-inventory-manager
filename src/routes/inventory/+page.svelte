@@ -50,7 +50,6 @@
 	import { useErrorToast } from '$lib/composables/errorToast.svelte'
 	import { createLoadMore } from '$lib/composables/loadMore.svelte'
 	import { inventoryStore } from '$lib/stores/inventory.svelte'
-	import { suppliersStore } from '$lib/stores/suppliers.svelte'
 	import { stockBatchesStore } from '$lib/stores/stockBatches.svelte'
 	import type { InventoryItem, NewInventoryItem } from '$lib/types/inventory'
 	import { getExpiryStatus, todayIsoDate, type StockBatch } from '$lib/types/stockBatches'
@@ -241,11 +240,10 @@
 
 	const confirmAddItem = async (): Promise<void> => {
 		const unit = unitFormParts(newItem.unit)
-		const supplierName = suppliersStore.nameOf(newItem.supplier)
-		if (!isNewItemValid || !unit || supplierName === null) return
+		if (!isNewItemValid || !unit) return
 		const payload: NewInventoryItem = {
 			item_name: newItem.item_name.trim(),
-			supplier: supplierName,
+			supplier: newItem.supplier,
 			unit,
 			quantity: Math.max(0, Math.floor(Number(newItem.quantity))),
 			reorder_level: Math.max(0, Math.floor(Number(newItem.reorder_level))),
@@ -304,12 +302,8 @@
 	}
 
 	const editUnit = $derived(unitFormParts(editForm.unit))
-	const editSupplier = $derived(suppliersStore.nameOf(editForm.supplier))
 	const isEditValid = $derived(
-		editForm.item_name.trim() !== '' &&
-			editUnit !== null &&
-			editSupplier !== null &&
-			Number(editForm.reorder_level) >= 0,
+		editForm.item_name.trim() !== '' && editUnit !== null && Number(editForm.reorder_level) >= 0,
 	)
 	const editReorderLevel = $derived(Math.max(0, Math.floor(Number(editForm.reorder_level))))
 
@@ -317,7 +311,7 @@
 		if (!editingItem) return false
 		return (
 			editForm.item_name.trim() !== editingItem.item_name ||
-			editSupplier !== (editingItem.supplier ?? '') ||
+			editForm.supplier !== (editingItem.supplier ?? '') ||
 			(editUnit !== null && !sameUnit(editUnit, editingItem)) ||
 			editReorderLevel !== editingItem.reorder_level ||
 			editForm.remark !== editingItem.remark ||
@@ -326,11 +320,11 @@
 	})
 
 	const confirmEdit = async (): Promise<void> => {
-		if (!editingItem || !editUnit || editSupplier === null || !isEditValid || !isEditChanged) return
+		if (!editingItem || !editUnit || !isEditValid || !isEditChanged) return
 		const item = editingItem
 		await inventoryStore.updateItem(item.id, {
 			item_name: editForm.item_name.trim(),
-			supplier: editSupplier,
+			supplier: editForm.supplier,
 			unit: editUnit,
 			reorder_level: editReorderLevel,
 			remark: editForm.remark,
@@ -1019,7 +1013,7 @@
 	bind:open={showAddDialog}
 	title="Add Item"
 	loading={inventoryStore.loading}
-	disabled={!isNewItemValid || suppliersStore.nameOf(newItem.supplier) === null}
+	disabled={!isNewItemValid}
 	dirty={isNewItemDirty}
 	confirmText="Add Item"
 	onconfirm={confirmAddItem}

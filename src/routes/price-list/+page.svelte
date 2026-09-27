@@ -32,7 +32,6 @@
 	import { useErrorToast } from '$lib/composables/errorToast.svelte'
 	import { createLoadMore } from '$lib/composables/loadMore.svelte'
 	import { inventoryStore } from '$lib/stores/inventory.svelte'
-	import { suppliersStore } from '$lib/stores/suppliers.svelte'
 	import type { InventoryItem, InventoryItemUpdate } from '$lib/types/inventory'
 	import Quantity from '$lib/components/app/Quantity.svelte'
 	import { ALL_SUPPLIERS, activeSupplier, matchesSupplier } from '$lib/utils/supplier'
@@ -153,17 +152,14 @@
 	let editPrice = $state<PriceForm>({ amount: '', unit: '' })
 	let editRemark = $state('')
 
-	const supplierName = $derived(suppliersStore.nameOf(editSupplier))
-	const isEditValid = $derived(supplierName !== null && priceFormIsValid(editPrice))
+	const isEditValid = $derived(priceFormIsValid(editPrice))
 
 	// Only what changed is sent
 	const edits = $derived.by((): InventoryItemUpdate => {
 		const item = editingItem
 		if (!item) return {}
 		const changes: InventoryItemUpdate = {}
-		if (supplierName !== null && supplierName !== (item.supplier ?? '')) {
-			changes.supplier = supplierName
-		}
+		if (editSupplier !== (item.supplier ?? '')) changes.supplier = editSupplier
 		const price = priceFormValue(editPrice)
 		if (!samePrice(price, priceFormValue(priceFormFrom(item)))) changes.price = price
 		if (editRemark.trim() !== (item.remark || '').trim()) changes.remark = editRemark.trim()
@@ -373,7 +369,7 @@
 	title="Edit Price Details"
 	loading={inventoryStore.loading}
 	disabled={!isEdited || !isEditValid}
-	dirty={isEdited || supplierName === null}
+	dirty={isEdited}
 	confirmText="Save"
 	onconfirm={confirmEdit}
 	oncancel={closeEdit}
