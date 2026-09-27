@@ -46,6 +46,12 @@ export const unitParts = {
 	pack_unit: v.optional(v.string()),
 }
 
+/** What an item costs, as the purchaser typed it; see lib/price.ts. */
+export const price = v.object({
+	amount: v.number(),
+	unit: v.string(),
+})
+
 export const inventoryFields = {
 	item_name: v.string(),
 	/** Who the item is bought from: a name from the suppliers table, kept as text like the unit. Absent means none. */
@@ -53,6 +59,8 @@ export const inventoryFields = {
 	quantity: v.number(),
 	reorder_level: v.number(),
 	...unitParts,
+	/** The last price paid or quoted. Absent means not known. */
+	price: v.optional(price),
 	remark: v.string(),
 	order_status: v.optional(orderStatus),
 	not_track: v.boolean(),

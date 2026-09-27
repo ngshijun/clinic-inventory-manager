@@ -212,7 +212,7 @@
 							<!-- Only a supplier no item uses can go; one in use is combined into another instead -->
 							{#if count === 0}
 								<Button
-									variant="outline"
+									variant="destructive"
 									size="sm"
 									disabled={suppliersStore.loading}
 									onclick={() => openDelete(supplier)}

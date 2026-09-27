@@ -3,6 +3,7 @@
 	import { selectOnFocus } from '$lib/attachments/focus'
 	import ActionModal from '$lib/components/app/ActionModal.svelte'
 	import DialogSubject from '$lib/components/app/DialogSubject.svelte'
+	import PriceField from '$lib/components/app/PriceField.svelte'
 	import { Checkbox } from '$lib/components/ui/checkbox'
 	import * as Field from '$lib/components/ui/field'
 	import { Input } from '$lib/components/ui/input'
@@ -10,13 +11,21 @@
 	import { inventoryStore } from '$lib/stores/inventory.svelte'
 	import type { InventoryItem, OrderedStatus } from '$lib/types/inventory'
 	import { todayIsoDate } from '$lib/types/stockBatches'
+	import {
+		priceFormFrom,
+		priceFormIsValid,
+		priceFormValue,
+		samePrice,
+		type PriceForm,
+	} from '$lib/utils/price'
 	import { capsClass } from '$lib/utils/text'
 	import { LEAD_DAYS, addDays } from '../../../../convex/lib/orders'
 
 	/**
 	 * Marks an item as ordered, or changes an order already placed. The
 	 * quantity is in the item's unit, shown beside the field because the
-	 * supplier's unit is not always the shelf's. Shared by Price List and
+	 * supplier's unit is not always the shelf's. The price opens with the last
+	 * one and is saved on the item; left empty, the last price stays. Shared by Price List and
 	 * the Dashboard: hold a reference with `bind:this` and call `open(item)`.
 	 */
 	let item = $state<InventoryItem | null>(null)
@@ -26,6 +35,8 @@
 	let orderedOn = $state('')
 	let expectedBy = $state('')
 	let backOrder = $state(false)
+	let price = $state<PriceForm>({ amount: '', unit: '' })
+	let openedPrice = $state<PriceForm>({ amount: '', unit: '' })
 	let openedWith = $state({
 		quantity: '' as number | '',
 		orderedOn: '',
@@ -37,13 +48,15 @@
 		quantity !== openedWith.quantity ||
 			orderedOn !== openedWith.orderedOn ||
 			expectedBy !== openedWith.expectedBy ||
-			backOrder !== openedWith.backOrder,
+			backOrder !== openedWith.backOrder ||
+			!samePrice(priceFormValue(price), priceFormValue(openedPrice)),
 	)
 	const facts = $derived.by((): Array<{ label: string; value: string }> =>
 		item
 			? [
 					{ label: 'In stock', value: `${item.quantity} ${item.unit_label}` },
 					{ label: 'Reorder at', value: String(item.reorder_level) },
+					...(item.supplier ? [{ label: 'Supplier', value: item.supplier }] : []),
 				]
 			: [],
 	)
@@ -57,6 +70,8 @@
 		orderedOn = existing?.ordered_on ?? todayIsoDate()
 		backOrder = existing !== null && !existing.expected_by
 		expectedBy = existing?.expected_by ?? addDays(orderedOn, LEAD_DAYS)
+		price = priceFormFrom(target)
+		openedPrice = { ...price }
 		openedWith = { quantity, orderedOn, expectedBy, backOrder }
 		isOpen = true
 	}
@@ -76,7 +91,8 @@
 		Number.isInteger(Number(quantity)) &&
 			Number(quantity) > 0 &&
 			!!orderedOn &&
-			(backOrder || !!expectedBy),
+			(backOrder || !!expectedBy) &&
+			priceFormIsValid(price),
 	)
 
 	const confirm = async (): Promise<void> => {
@@ -87,6 +103,7 @@
 			Number(quantity),
 			orderedOn,
 			backOrder ? null : expectedBy,
+			priceFormValue(price),
 		)
 		if (!inventoryStore.error) {
 			toast.success(
@@ -147,6 +164,14 @@
 					</Field.Description>
 				{/if}
 			</Field.Field>
+			{#if item}
+				<PriceField
+					id="order-price"
+					bind:value={price}
+					parts={item}
+					quantity={Number(quantity) || 0}
+				/>
+			{/if}
 			<div class="grid grid-cols-2 gap-4">
 				<Field.Field>
 					<Field.Label for="order-date">Order date</Field.Label>

@@ -5,8 +5,9 @@ import type { Doc, Id } from './_generated/dataModel'
 import { requireRole } from './lib/auth'
 import { toIsoDate } from './lib/orders'
 import { applyStockIn, assertNonNegativeQuantity, requireItem } from './lib/stock'
+import { roundAmount, type Price } from './lib/price'
 import type { UnitParts } from './lib/units'
-import { inventoryDoc, orderStatus, unitParts } from './schema'
+import { inventoryDoc, orderStatus, price, unitParts } from './schema'
 import { supplierResolver } from './suppliers'
 import { requireUnitParts } from './units'
 
@@ -25,6 +26,21 @@ function requireIsoDate(value: string, label: string): string {
 	return date
 }
 
+/** Throws unless the amount is above zero and the unit is the item's unit or its contents. */
+export function requirePrice(parts: UnitParts, value: Price): Price {
+	const amount = roundAmount(value.amount)
+	if (!Number.isFinite(amount) || amount <= 0) {
+		throw new ConvexError({ code: 'INVALID_STATE', message: 'The price must be above zero' })
+	}
+	if (value.unit !== parts.unit && value.unit !== parts.pack_unit) {
+		throw new ConvexError({
+			code: 'INVALID_STATE',
+			message: `The price must be per ${parts.unit}${parts.pack_unit ? ` or per ${parts.pack_unit}` : ''}`,
+		})
+	}
+	return { amount, unit: value.unit }
+}
+
 export async function createItem(
 	ctx: MutationCtx,
 	args: {
@@ -34,6 +50,7 @@ export async function createItem(
 		quantity: number
 		reorder_level: number
 		unit: UnitParts
+		price?: Price
 		remark?: string
 		order_status?: OrderStatus
 		not_track?: boolean
@@ -53,6 +70,7 @@ export async function createItem(
 		quantity: 0,
 		reorder_level: Math.max(0, args.reorder_level),
 		...unit,
+		price: args.price && requirePrice(unit, args.price),
 		remark: args.remark ?? '',
 		not_track: args.not_track ?? false,
 		is_pinned: false,
@@ -114,7 +132,7 @@ export const add = mutation({
 		requireRole(args.auth, ['manager'])
 		return await createItem(ctx, {
 			item_name: args.item_name,
-			supplier: await (await supplierResolver(ctx))(args.supplier),
+			supplier: await (await supplierResolver(ctx, 'refuse'))(args.supplier),
 			quantity: args.quantity,
 			reorder_level: args.reorder_level,
 			unit: args.unit,
@@ -134,6 +152,8 @@ export const update = mutation({
 		/** An empty name clears the supplier */
 		supplier: v.optional(v.string()),
 		unit: v.optional(v.object(unitParts)),
+		/** null clears the price */
+		price: v.optional(v.union(price, v.null())),
 		reorder_level: v.optional(v.number()),
 		remark: v.optional(v.string()),
 		not_track: v.optional(v.boolean()),
@@ -153,7 +173,7 @@ export const update = mutation({
 			patch.item_name = name
 		}
 		if (args.supplier !== undefined) {
-			patch.supplier = await (await supplierResolver(ctx))(args.supplier)
+			patch.supplier = await (await supplierResolver(ctx, 'refuse'))(args.supplier)
 		}
 		if (args.unit !== undefined) {
 			const unit = await requireUnitParts(ctx, args.unit)
@@ -161,6 +181,12 @@ export const update = mutation({
 			patch.unit = unit.unit
 			patch.pack_size = unit.pack_size
 			patch.pack_unit = unit.pack_unit
+		}
+		if (args.price !== undefined) {
+			patch.price =
+				args.price === null
+					? undefined
+					: requirePrice(patch.unit === undefined ? item : (patch as UnitParts), args.price)
 		}
 		if (args.reorder_level !== undefined) {
 			if (!Number.isFinite(args.reorder_level)) {
@@ -215,6 +241,8 @@ export const markOrdered = mutation({
 		ordered_on: v.string(),
 		/** Omitted for a back-order: the supplier has not given a date. */
 		expected_by: v.optional(v.string()),
+		/** What this order costs. Omitted when not known: the last price then stays. */
+		price: v.optional(price),
 	},
 	returns: v.null(),
 	handler: async (ctx, args) => {
@@ -228,6 +256,7 @@ export const markOrdered = mutation({
 		}
 		const received = item.order_status?.kind === 'ordered' ? item.order_status.received : 0
 		await ctx.db.patch(item._id, {
+			...(args.price ? { price: requirePrice(item, args.price) } : {}),
 			order_status:
 				received >= args.quantity
 					? undefined

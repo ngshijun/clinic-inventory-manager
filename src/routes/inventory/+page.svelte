@@ -50,6 +50,7 @@
 	import { useErrorToast } from '$lib/composables/errorToast.svelte'
 	import { createLoadMore } from '$lib/composables/loadMore.svelte'
 	import { inventoryStore } from '$lib/stores/inventory.svelte'
+	import { suppliersStore } from '$lib/stores/suppliers.svelte'
 	import { stockBatchesStore } from '$lib/stores/stockBatches.svelte'
 	import type { InventoryItem, NewInventoryItem } from '$lib/types/inventory'
 	import { getExpiryStatus, todayIsoDate, type StockBatch } from '$lib/types/stockBatches'
@@ -241,10 +242,11 @@
 
 	const confirmAddItem = async (): Promise<void> => {
 		const unit = unitFormParts(newItem.unit)
-		if (!isNewItemValid || !unit) return
+		const supplierName = suppliersStore.nameOf(newItem.supplier)
+		if (!isNewItemValid || !unit || supplierName === null) return
 		const payload: NewInventoryItem = {
 			item_name: newItem.item_name.trim(),
-			supplier: newItem.supplier.trim(),
+			supplier: supplierName,
 			unit,
 			quantity: Math.max(0, Math.floor(Number(newItem.quantity))),
 			reorder_level: Math.max(0, Math.floor(Number(newItem.reorder_level))),
@@ -303,8 +305,12 @@
 	}
 
 	const editUnit = $derived(unitFormParts(editForm.unit))
+	const editSupplier = $derived(suppliersStore.nameOf(editForm.supplier))
 	const isEditValid = $derived(
-		editForm.item_name.trim() !== '' && editUnit !== null && Number(editForm.reorder_level) >= 0,
+		editForm.item_name.trim() !== '' &&
+			editUnit !== null &&
+			editSupplier !== null &&
+			Number(editForm.reorder_level) >= 0,
 	)
 	const editReorderLevel = $derived(Math.max(0, Math.floor(Number(editForm.reorder_level))))
 
@@ -312,7 +318,7 @@
 		if (!editingItem) return false
 		return (
 			editForm.item_name.trim() !== editingItem.item_name ||
-			editForm.supplier.trim() !== (editingItem.supplier ?? '') ||
+			editSupplier !== (editingItem.supplier ?? '') ||
 			(editUnit !== null && !sameUnit(editUnit, editingItem)) ||
 			editReorderLevel !== editingItem.reorder_level ||
 			editForm.remark !== editingItem.remark ||
@@ -321,11 +327,11 @@
 	})
 
 	const confirmEdit = async (): Promise<void> => {
-		if (!editingItem || !editUnit || !isEditValid || !isEditChanged) return
+		if (!editingItem || !editUnit || editSupplier === null || !isEditValid || !isEditChanged) return
 		const item = editingItem
 		await inventoryStore.updateItem(item.id, {
 			item_name: editForm.item_name.trim(),
-			supplier: editForm.supplier.trim(),
+			supplier: editSupplier,
 			unit: editUnit,
 			reorder_level: editReorderLevel,
 			remark: editForm.remark,
@@ -461,14 +467,16 @@
 	}
 
 	// ---------- Excel import and export ----------
-	// One sheet row. Empty cells arrive as '', and `supplier` is missing
-	// altogether when the sheet has no supplier column.
+	// One sheet row. Empty cells arrive as '', and `supplier` and `price` are
+	// missing altogether when the sheet has no such column.
 	interface ExcelRow {
 		item_name: string
 		supplier?: string
 		quantity: number
 		reorder_level: number
 		unit: string
+		price?: number | string
+		price_unit?: string
 		remark: string
 		order_date: string
 	}
@@ -510,6 +518,9 @@
 				) {
 					throw new Error('Every row needs item_name, quantity, reorder_level and unit.')
 				}
+				if (row.price !== undefined && row.price !== '' && typeof row.price !== 'number') {
+					throw new Error(`${row.item_name}: the price must be a number, such as 12.50.`)
+				}
 			}
 			const result = await inventoryStore.importFromRows(
 				rows.map((row) => ({
@@ -518,6 +529,8 @@
 					quantity: Math.max(0, row.quantity),
 					reorder_level: Math.max(0, row.reorder_level),
 					unit: String(row.unit),
+					price: row.price === undefined ? undefined : row.price === '' ? null : Number(row.price),
+					price_unit: row.price_unit === undefined ? undefined : String(row.price_unit),
 					remark: String(row.remark ?? ''),
 					order_date: String(row.order_date ?? ''),
 				})),
@@ -550,6 +563,8 @@
 					quantity: item.quantity,
 					reorder_level: item.reorder_level,
 					unit: item.unit_label,
+					price: item.price?.amount ?? '',
+					price_unit: item.price?.unit ?? '',
 					remark: item.remark,
 					order_date: item.order_status?.kind === 'ordered' ? item.order_status.ordered_on : '',
 				})),
@@ -560,6 +575,8 @@
 				{ wch: 12 },
 				{ wch: 22 },
 				{ wch: 25 },
+				{ wch: 12 },
+				{ wch: 12 },
 				{ wch: 50 },
 				{ wch: 25 },
 			]
@@ -1003,7 +1020,7 @@
 	bind:open={showAddDialog}
 	title="Add Item"
 	loading={inventoryStore.loading}
-	disabled={!isNewItemValid}
+	disabled={!isNewItemValid || suppliersStore.nameOf(newItem.supplier) === null}
 	dirty={isNewItemDirty}
 	confirmText="Add Item"
 	onconfirm={confirmAddItem}
@@ -1029,20 +1046,18 @@
 			</Field.Field>
 			<SupplierField id="add-supplier" bind:value={newItem.supplier} />
 			<UnitField id="add" bind:value={newItem.unit} />
-			<div class="grid grid-cols-2 gap-4">
-				<Field.Field>
-					<Field.Label for="add-reorder">Reorder level</Field.Label>
-					<Input
-						id="add-reorder"
-						bind:value={newItem.reorder_level}
-						type="number"
-						min={0}
-						step={1}
-						required
-						{@attach selectOnFocus()}
-					/>
-				</Field.Field>
-			</div>
+			<Field.Field>
+				<Field.Label for="add-reorder">Reorder level</Field.Label>
+				<Input
+					id="add-reorder"
+					bind:value={newItem.reorder_level}
+					type="number"
+					min={0}
+					step={1}
+					required
+					{@attach selectOnFocus()}
+				/>
+			</Field.Field>
 			<div class="grid grid-cols-2 gap-4">
 				<Field.Field>
 					<Field.Label for="add-quantity">Initial quantity</Field.Label>
@@ -1111,20 +1126,18 @@
 			</Field.Field>
 			<SupplierField id="edit-supplier" bind:value={editForm.supplier} />
 			<UnitField id="edit" bind:value={editForm.unit} />
-			<div class="grid grid-cols-2 gap-4">
-				<Field.Field>
-					<Field.Label for="edit-reorder">Reorder level</Field.Label>
-					<Input
-						id="edit-reorder"
-						bind:value={editForm.reorder_level}
-						type="number"
-						min={0}
-						step={1}
-						required
-						{@attach selectOnFocus()}
-					/>
-				</Field.Field>
-			</div>
+			<Field.Field>
+				<Field.Label for="edit-reorder">Reorder level</Field.Label>
+				<Input
+					id="edit-reorder"
+					bind:value={editForm.reorder_level}
+					type="number"
+					min={0}
+					step={1}
+					required
+					{@attach selectOnFocus()}
+				/>
+			</Field.Field>
 			<Field.Field>
 				<Field.Label for="edit-remark">Remark</Field.Label>
 				<Textarea id="edit-remark" bind:value={editForm.remark} rows={2} />

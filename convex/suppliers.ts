@@ -20,14 +20,16 @@ function requireName(value: string): string {
 }
 
 /**
- * Turns the supplier typed on an item, or written in a sheet, into a name
+ * Turns the supplier chosen on an item, or written in a sheet, into a name
  * from the Suppliers list. A name that matches one on the list in any letter
- * case becomes that spelling; a new name joins the list, so the first fill
+ * case becomes that spelling. A new name is refused from a form, where a
+ * supplier is picked, and joins the list from a sheet, so the first fill
  * from Excel needs no setting up. An empty name means no supplier. The list
  * is read once, so one import resolves every row from the same copy.
  */
 export async function supplierResolver(
 	ctx: MutationCtx,
+	newName: 'refuse' | 'add',
 ): Promise<(value: string | null | undefined) => Promise<string | undefined>> {
 	const known = new Map<string, string>()
 	for (const supplier of await allSuppliers(ctx)) {
@@ -39,6 +41,12 @@ export async function supplierResolver(
 		const key = name.toLowerCase()
 		const spelling = known.get(key)
 		if (spelling) return spelling
+		if (newName === 'refuse') {
+			throw new ConvexError({
+				code: 'NOT_FOUND',
+				message: `${name} is not on the Suppliers list`,
+			})
+		}
 		await ctx.db.insert('suppliers', { name, updated_at: Date.now() })
 		known.set(key, name)
 		return name

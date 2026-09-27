@@ -90,6 +90,7 @@
 			<Field.Field>
 				<Field.Label for="snooze-until">Show again on</Field.Label>
 				<ToggleGroup.Root
+					class="grid w-full auto-cols-fr grid-flow-col"
 					type="single"
 					variant="outline"
 					size="sm"

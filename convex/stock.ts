@@ -10,9 +10,9 @@ import {
 	recomputeItemQuantity,
 	requireItem,
 } from './lib/stock'
-import { createItem, deleteItem, type OrderStatus } from './inventory'
+import { createItem, deleteItem, requirePrice, type OrderStatus } from './inventory'
 import { LEAD_DAYS, addDays, suggestedOrderQuantity, toIsoDate } from './lib/orders'
-import { parseUnitLabel, sameUnit } from './lib/units'
+import { normalizeUnitName, parseUnitLabel, sameUnit } from './lib/units'
 import { inventoryDoc, stockBatchDoc } from './schema'
 import { supplierResolver } from './suppliers'
 import { requireUnitParts } from './units'
@@ -119,6 +119,10 @@ const importRow = v.object({
 	quantity: v.number(),
 	reorder_level: v.number(),
 	unit: v.string(),
+	/** Omitted when the sheet has no price column: prices are then left as they are. null clears. */
+	price: v.optional(v.union(v.number(), v.null())),
+	/** Empty means the item's own unit */
+	price_unit: v.optional(v.string()),
 	remark: v.optional(v.string()),
 	order_date: v.optional(v.union(v.string(), v.null())),
 })
@@ -144,7 +148,7 @@ export const importInventory = mutation({
 		const byName = new Map<string, Doc<'inventory'>>()
 		for (const item of existing) byName.set(item.item_name.trim().toLowerCase(), item)
 
-		const resolveSupplier = await supplierResolver(ctx)
+		const resolveSupplier = await supplierResolver(ctx, 'add')
 		const seen = new Set<string>()
 		let imported = 0
 		let updated = 0
@@ -165,6 +169,13 @@ export const importInventory = mutation({
 					message: `${item_name}: the unit "${row.unit}" cannot be read. Write it like BOX (30 TAB).`,
 				})
 			}
+			const price =
+				row.price === undefined || row.price === null
+					? undefined
+					: requirePrice(unit, {
+							amount: row.price,
+							unit: normalizeUnitName(row.price_unit ?? '') || unit.unit,
+						})
 			// The sheet's order_date column: a date marks the item ordered on that day
 			const order_date = toIsoDate(row.order_date)
 			const order_status: OrderStatus | undefined = order_date
@@ -185,6 +196,7 @@ export const importInventory = mutation({
 					quantity: row.quantity,
 					reorder_level,
 					unit,
+					price,
 					remark,
 					order_status,
 					initial_remark: 'Excel import',
@@ -217,6 +229,13 @@ export const importInventory = mutation({
 			if (current.remark !== remark) patch.remark = remark
 			// An empty cell clears the supplier
 			if (row.supplier !== undefined && current.supplier !== supplier) patch.supplier = supplier
+			// An empty cell clears the price
+			if (
+				row.price !== undefined &&
+				(current.price?.amount !== price?.amount || current.price?.unit !== price?.unit)
+			) {
+				patch.price = price
+			}
 			const currentOrderDate =
 				current.order_status?.kind === 'ordered' ? current.order_status.ordered_on : null
 			if (currentOrderDate !== order_date) patch.order_status = order_status

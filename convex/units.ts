@@ -104,6 +104,7 @@ export const rename = mutation({
 			const patch: Partial<Doc<'inventory'>> = {}
 			if (item.unit === unit.name) patch.unit = name
 			if (item.pack_unit === unit.name) patch.pack_unit = name
+			if (item.price?.unit === unit.name) patch.price = { ...item.price, unit: name }
 			if (Object.keys(patch).length === 0) continue
 			await ctx.db.patch(item._id, patch)
 			items++

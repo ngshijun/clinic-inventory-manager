@@ -21,6 +21,16 @@ class SuppliersStore {
 		return this.suppliers.map((supplier) => supplier.name)
 	}
 
+	/**
+	 * The name a Supplier field holds, in the list's spelling: empty for no
+	 * supplier, null while the text is not a supplier on the list.
+	 */
+	nameOf = (text: string): string | null => {
+		const typed = text.trim().toLowerCase()
+		if (typed === '') return ''
+		return this.names.find((name) => name.toLowerCase() === typed) ?? null
+	}
+
 	#run = async <T>(fallback: string, work: () => Promise<T>): Promise<T | undefined> => {
 		this.#loadingCount++
 		this.error = null

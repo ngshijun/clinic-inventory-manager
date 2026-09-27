@@ -209,7 +209,7 @@
 							<!-- Only a unit nothing uses can go; one in use is combined into another instead -->
 							{#if count === 0}
 								<Button
-									variant="outline"
+									variant="destructive"
 									size="sm"
 									disabled={unitsStore.loading}
 									onclick={() => openDelete(unit)}
