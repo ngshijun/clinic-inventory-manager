@@ -10,7 +10,6 @@
 	import { stockRequestsStore } from '$lib/stores/stockRequests.svelte'
 	import type { StockRequest } from '$lib/types/stockRequests'
 	import { withUnit } from '$lib/utils/requests'
-	import { capsClass } from '$lib/utils/text'
 
 	/*
 	 * Edit Request, shared by Stock Approvals and Stock Requests. Opened with
@@ -93,7 +92,7 @@
 						{@attach selectOnFocus()}
 					/>
 					<InputGroup.Addon align="inline-end">
-						<InputGroup.Text class={capsClass(unit)}>{unit}</InputGroup.Text>
+						<InputGroup.Text class="tracking-wide">{unit}</InputGroup.Text>
 					</InputGroup.Addon>
 				</InputGroup.Root>
 				{#if overStock}

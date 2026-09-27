@@ -5,7 +5,6 @@
 	import type { InventoryItem } from '$lib/types/inventory'
 	import { cn } from '$lib/utils'
 	import { ALL_SUPPLIERS, NO_SUPPLIER, activeSupplier, supplierCounts } from '$lib/utils/supplier'
-	import { capsClass } from '$lib/utils/text'
 
 	/*
 	 * One dropdown that narrows a list to a single supplier, so the purchaser
@@ -52,7 +51,7 @@
 				disabled={suppliers.length === 0}
 				class={cn(
 					'bg-input/50 focus-visible:border-ring focus-visible:ring-ring/30 flex h-9 w-56 items-center justify-between gap-1.5 rounded-3xl border border-transparent px-3 py-2 text-sm whitespace-nowrap outline-none focus-visible:ring-3 disabled:cursor-not-allowed disabled:opacity-50',
-					capsClass(label),
+					shown !== ALL_SUPPLIERS && shown !== NO_SUPPLIER && 'tracking-wide',
 				)}
 			>
 				<span class="truncate">{label}</span>
@@ -80,7 +79,7 @@
 						<Command.Item
 							value={supplier.name}
 							data-checked={shown === supplier.name}
-							class={capsClass(supplier.name)}
+							class="tracking-wide"
 							onSelect={() => choose(supplier.name)}
 						>
 							<span class="truncate">{supplier.name}</span>

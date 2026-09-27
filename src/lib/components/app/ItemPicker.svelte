@@ -7,7 +7,6 @@
 	import { Input } from '$lib/components/ui/input'
 	import type { InventoryItem } from '$lib/types/inventory'
 	import { cn } from '$lib/utils'
-	import { capsClass } from '$lib/utils/text'
 
 	/*
 	 * One text field that finds and holds an item, after HealthOS's patient
@@ -123,7 +122,7 @@
 			onclick={clear}
 		>
 			<SearchIcon class="text-muted-foreground mt-0.5 size-4 shrink-0" />
-			<span class={cn('min-w-0 flex-1 font-medium', capsClass(selected.item_name))}>
+			<span class="min-w-0 flex-1 font-medium tracking-wide">
 				{selected.item_name}
 			</span>
 			<XIcon class="text-muted-foreground mt-0.5 size-4 shrink-0" />
@@ -191,7 +190,7 @@
 						onmouseenter={() => (highlighted = index)}
 						onclick={() => choose(item)}
 					>
-						<span class={cn('min-w-0 flex-1', capsClass(item.item_name))}>{item.item_name}</span>
+						<span class="min-w-0 flex-1 tracking-wide">{item.item_name}</span>
 						{#if showInStock}
 							<Quantity
 								value={item.quantity}

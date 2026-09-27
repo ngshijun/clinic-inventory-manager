@@ -35,9 +35,7 @@
 	import { suppliersStore } from '$lib/stores/suppliers.svelte'
 	import type { InventoryItem, InventoryItemUpdate } from '$lib/types/inventory'
 	import Quantity from '$lib/components/app/Quantity.svelte'
-	import { cn } from '$lib/utils'
 	import { ALL_SUPPLIERS, activeSupplier, matchesSupplier } from '$lib/utils/supplier'
-	import { capsClass } from '$lib/utils/text'
 	import {
 		priceFormFrom,
 		priceFormIsValid,
@@ -295,7 +293,7 @@
 			{#each list.visible as item (item.id)}
 				{@const status = stockStatus(item)}
 				<Table.Row>
-					<Table.Cell class={cn('font-medium', capsClass(item.item_name))}>
+					<Table.Cell class="font-medium tracking-wide">
 						<span class="inline-flex items-center gap-2">
 							{item.item_name}
 							{#if status}
@@ -303,7 +301,7 @@
 							{/if}
 						</span>
 					</Table.Cell>
-					<Table.Cell class={capsClass(item.supplier)}>
+					<Table.Cell class="tracking-wide">
 						{#if item.supplier}
 							{item.supplier}
 						{:else}

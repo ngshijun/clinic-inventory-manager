@@ -45,7 +45,6 @@
 	} from '$lib/utils/requests'
 	import Quantity from '$lib/components/app/Quantity.svelte'
 	import { cn } from '$lib/utils'
-	import { capsClass } from '$lib/utils/text'
 
 	// ---------- Toolbar state ----------
 	type SortKey = 'item_name' | 'created_at' | 'quantity' | 'status'
@@ -324,9 +323,7 @@
 			{#each list.visible as request (request.id)}
 				{@const pending = request.status === 'Pending'}
 				<Table.Row>
-					<Table.Cell class={cn('font-medium', capsClass(request.item_name))}
-						>{request.item_name}</Table.Cell
-					>
+					<Table.Cell class="font-medium tracking-wide">{request.item_name}</Table.Cell>
 					<Table.Cell class="tabular-nums">
 						{requestedDay(request)}
 						<span class="text-muted-foreground ms-1 text-xs">{formatTime(request.created_at)}</span>
@@ -459,7 +456,7 @@
 					/>
 					{#if newItem}
 						<InputGroup.Addon align="inline-end">
-							<InputGroup.Text class={capsClass(newUnit)}>{newUnit}</InputGroup.Text>
+							<InputGroup.Text class="tracking-wide">{newUnit}</InputGroup.Text>
 						</InputGroup.Addon>
 					{/if}
 				</InputGroup.Root>

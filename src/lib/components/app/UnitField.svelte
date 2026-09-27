@@ -5,8 +5,6 @@
 	import { selectOnFocus } from '$lib/attachments/focus'
 	import { unitsStore } from '$lib/stores/units.svelte'
 	import type { UnitForm } from '$lib/utils/units'
-	import { cn } from '$lib/utils'
-	import { capsClass } from '$lib/utils/text'
 
 	/*
 	 * An item's unit, read left to right as a sentence: "BOX contains 30 TAB".
@@ -24,7 +22,7 @@
 	<Field.Label for="{id}-unit">Unit</Field.Label>
 	<div class="grid grid-cols-[minmax(0,1fr)_auto_5rem_minmax(0,1fr)] items-center gap-2">
 		<Select.Root type="single" bind:value={value.unit}>
-			<Select.Trigger id="{id}-unit" class={cn('w-full', capsClass(value.unit))}>
+			<Select.Trigger id="{id}-unit" class="w-full tracking-wide">
 				{#if value.unit}
 					{value.unit}
 				{:else}
@@ -34,7 +32,7 @@
 			<Select.Content>
 				<Select.Group>
 					{#each unitsStore.names as name (name)}
-						<Select.Item value={name} label={name} class={capsClass(name)} />
+						<Select.Item value={name} label={name} class="tracking-wide" />
 					{/each}
 				</Select.Group>
 			</Select.Content>
@@ -53,7 +51,7 @@
 		<Select.Root type="single" bind:value={value.pack_unit} disabled={!hasContents}>
 			<Select.Trigger
 				id="{id}-pack-unit"
-				class={cn('w-full', capsClass(value.pack_unit))}
+				class="w-full tracking-wide"
 				aria-label="What the unit contains"
 			>
 				{#if hasContents && value.pack_unit}
@@ -65,7 +63,7 @@
 			<Select.Content>
 				<Select.Group>
 					{#each unitsStore.names as name (name)}
-						<Select.Item value={name} label={name} class={capsClass(name)} />
+						<Select.Item value={name} label={name} class="tracking-wide" />
 					{/each}
 				</Select.Group>
 			</Select.Content>

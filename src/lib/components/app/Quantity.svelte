@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { cn } from '$lib/utils'
-	import { capsClass } from '$lib/utils/text'
 
 	/*
 	 * A stock figure a person reads at a glance: the number in the normal ink,
@@ -32,9 +31,9 @@
 <span class={cn('inline-flex items-baseline gap-1 whitespace-nowrap tabular-nums', className)}>
 	<span class={cn('font-medium', valueClass)}>{value}</span>
 	{#if parts.code}
-		<span class={cn('text-muted-foreground', capsClass(parts.code))}>{parts.code}</span>
+		<span class="text-muted-foreground tracking-wide">{parts.code}</span>
 	{/if}
 	{#if pack && parts.pack}
-		<span class={cn('text-muted-foreground text-xs', capsClass(parts.pack))}>{parts.pack}</span>
+		<span class="text-muted-foreground text-xs tracking-wide">{parts.pack}</span>
 	{/if}
 </span>

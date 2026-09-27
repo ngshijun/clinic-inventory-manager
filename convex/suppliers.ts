@@ -3,16 +3,15 @@ import { mutation, query } from './_generated/server'
 import type { MutationCtx } from './_generated/server'
 import type { Doc } from './_generated/dataModel'
 import { requireRole } from './lib/auth'
+import { capitalName } from './lib/names'
 import { supplierDoc } from './schema'
 
 /** Bounded: a few dozen suppliers. */
 const allSuppliers = (ctx: MutationCtx): Promise<Doc<'suppliers'>[]> =>
 	ctx.db.query('suppliers').withIndex('by_name').collect()
 
-const sameName = (a: string, b: string): boolean => a.toLowerCase() === b.toLowerCase()
-
 function requireName(value: string): string {
-	const name = value.trim()
+	const name = capitalName(value)
 	if (name.length === 0) {
 		throw new ConvexError({ code: 'INVALID_STATE', message: 'Supplier name cannot be empty' })
 	}
@@ -21,8 +20,8 @@ function requireName(value: string): string {
 
 /**
  * Turns the supplier chosen on an item, or written in a sheet, into a name
- * from the Suppliers list. A name that matches one on the list in any letter
- * case becomes that spelling. A new name is refused from a form, where a
+ * from the Suppliers list, in capitals as the list keeps them. A new name
+ * is refused from a form, where a
  * supplier is picked, and joins the list from a sheet, so the first fill
  * from Excel needs no setting up. An empty name means no supplier. The list
  * is read once, so one import resolves every row from the same copy.
@@ -31,16 +30,11 @@ export async function supplierResolver(
 	ctx: MutationCtx,
 	newName: 'refuse' | 'add',
 ): Promise<(value: string | null | undefined) => Promise<string | undefined>> {
-	const known = new Map<string, string>()
-	for (const supplier of await allSuppliers(ctx)) {
-		known.set(supplier.name.toLowerCase(), supplier.name)
-	}
+	const known = new Set((await allSuppliers(ctx)).map((supplier) => supplier.name))
 	return async (value) => {
-		const name = value?.trim() ?? ''
+		const name = capitalName(value ?? '')
 		if (name.length === 0) return undefined
-		const key = name.toLowerCase()
-		const spelling = known.get(key)
-		if (spelling) return spelling
+		if (known.has(name)) return name
 		if (newName === 'refuse') {
 			throw new ConvexError({
 				code: 'NOT_FOUND',
@@ -48,7 +42,7 @@ export async function supplierResolver(
 			})
 		}
 		await ctx.db.insert('suppliers', { name, updated_at: Date.now() })
-		known.set(key, name)
+		known.add(name)
 		return name
 	}
 }
@@ -69,7 +63,7 @@ export const add = mutation({
 	handler: async (ctx, args) => {
 		requireRole(args.auth, ['manager'])
 		const name = requireName(args.name)
-		const existing = (await allSuppliers(ctx)).find((supplier) => sameName(supplier.name, name))
+		const existing = (await allSuppliers(ctx)).find((supplier) => supplier.name === name)
 		if (existing) {
 			throw new ConvexError({
 				code: 'INVALID_STATE',
@@ -83,7 +77,7 @@ export const add = mutation({
 
 /**
  * Renames a supplier on the list and on every item that uses it. A name
- * that matches another supplier, in any letter case, combines the two: the
+ * that matches another supplier combines the two: the
  * items move to that supplier and this one leaves the list.
  */
 export const rename = mutation({
@@ -97,7 +91,7 @@ export const rename = mutation({
 		if (typed === supplier.name) return { name: typed, combined: false, items: 0 }
 
 		const target = (await allSuppliers(ctx)).find(
-			(other) => other._id !== supplier._id && sameName(other.name, typed),
+			(other) => other._id !== supplier._id && other.name === typed,
 		)
 		const name = target?.name ?? typed
 		if (target) await ctx.db.delete(supplier._id)

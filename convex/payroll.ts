@@ -2,6 +2,7 @@ import { ConvexError, v } from 'convex/values'
 import { mutation, query } from './_generated/server'
 import type { Doc } from './_generated/dataModel'
 import { requireRole } from './lib/auth'
+import { capitalName } from './lib/names'
 import { payrollDoc } from './schema'
 
 function assertMoney(value: number, name: string): void {
@@ -36,7 +37,7 @@ export const add = mutation({
 		requireRole(args.auth, ['manager'])
 		assertMoney(args.basic_salary, 'Basic salary')
 		assertMoney(args.epf_employer, 'EPF employer')
-		const name = args.name.trim()
+		const name = capitalName(args.name)
 		if (name.length === 0) {
 			throw new ConvexError({ code: 'INVALID_STATE', message: 'Name cannot be empty' })
 		}
@@ -66,7 +67,7 @@ export const update = mutation({
 		if (!employee) throw new ConvexError({ code: 'NOT_FOUND', message: 'Employee not found' })
 		const patch: Partial<Doc<'payroll'>> = { updated_at: Date.now() }
 		if (args.name !== undefined) {
-			const name = args.name.trim()
+			const name = capitalName(args.name)
 			if (name.length === 0) {
 				throw new ConvexError({ code: 'INVALID_STATE', message: 'Name cannot be empty' })
 			}

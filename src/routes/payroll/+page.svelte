@@ -48,7 +48,6 @@
 	import { formatDate } from '$lib/utils/date'
 	import { formatAmount, formatRM } from '$lib/utils/money'
 	import { cn } from '$lib/utils'
-	import { capsClass } from '$lib/utils/text'
 
 	const MONTHS = [
 		'January',
@@ -740,9 +739,7 @@
 			<Table.Body>
 				{#each sortedEmployees as employee (employee.id)}
 					<Table.Row>
-						<Table.Cell class={cn('font-medium', capsClass(employee.name))}
-							>{employee.name}</Table.Cell
-						>
+						<Table.Cell class="font-medium tracking-wide">{employee.name}</Table.Cell>
 						<Table.Cell
 							class={cn('text-end tabular-nums', !showSalaries && 'text-muted-foreground')}
 						>
@@ -870,8 +867,9 @@
 					<Input
 						id="employee-name"
 						bind:ref={nameInput}
-						bind:value={form.name}
-						placeholder="e.g. Chong Mei Ling"
+						bind:value={() => form.name, (text) => (form.name = text.toUpperCase())}
+						class="tracking-wide placeholder:tracking-normal"
+						placeholder="e.g. CHONG MEI LING"
 						autocomplete="off"
 					/>
 				</Field.Field>
