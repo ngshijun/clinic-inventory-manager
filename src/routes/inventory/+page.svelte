@@ -38,6 +38,7 @@
 	import * as Alert from '$lib/components/ui/alert'
 	import { Button } from '$lib/components/ui/button'
 	import { Checkbox } from '$lib/components/ui/checkbox'
+	import DateInput from '$lib/components/app/DateInput.svelte'
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu'
 	import * as Empty from '$lib/components/ui/empty'
 	import * as Field from '$lib/components/ui/field'
@@ -205,13 +206,15 @@
 
 	let showAddDialog = $state(false)
 	let newItem = $state<NewItemForm>(emptyNewItem())
+	let newExpiryInvalid = $state(false)
 	let newItemNameInput = $state<HTMLInputElement | null>(null)
 
 	const isNewItemValid = $derived(
 		newItem.item_name.trim() !== '' &&
 			unitFormParts(newItem.unit) !== null &&
 			Number(newItem.quantity) >= 0 &&
-			Number(newItem.reorder_level) >= 0,
+			Number(newItem.reorder_level) >= 0 &&
+			!newExpiryInvalid,
 	)
 
 	const isNewItemDirty = $derived(JSON.stringify(newItem) !== JSON.stringify(emptyNewItem()))
@@ -373,6 +376,7 @@
 	// The item whose rows collapse once the unsaved batch edit is discarded, if any.
 	let collapseAfterDiscard: string | null = null
 
+	let batchExpiryInvalid = $state(false)
 	const editingBatch = $derived(
 		editingBatchId
 			? (stockBatchesStore.batches.find((batch) => batch.id === editingBatchId) ?? null)
@@ -428,7 +432,7 @@
 	}
 
 	const confirmSaveBatch = async (): Promise<void> => {
-		if (!editingBatch || !isBatchChanged || stockBatchesStore.loading) return
+		if (!editingBatch || !isBatchChanged || batchExpiryInvalid || stockBatchesStore.loading) return
 		const quantity = Math.floor(Number(batchForm.quantity) || 0)
 		if (quantity < 0) return
 		await stockBatchesStore.updateBatch(editingBatch.id, quantity, batchForm.expiry_date || null)
@@ -919,11 +923,11 @@
 								<Table.Cell></Table.Cell>
 								<Table.Cell class="tabular-nums">
 									{#if editing}
-										<Input
-											type="date"
+										<DateInput
+											label="Expiry date"
 											bind:value={batchForm.expiry_date}
-											class="h-8 w-40"
-											aria-label="Expiry date"
+											bind:invalid={batchExpiryInvalid}
+											class="h-8 w-44"
 											onkeydown={onBatchKeydown}
 										/>
 									{:else if batch.expiry_date}
@@ -956,7 +960,9 @@
 											</Button>
 											<Button
 												size="sm"
-												disabled={!isBatchChanged || stockBatchesStore.loading}
+												disabled={!isBatchChanged ||
+													batchExpiryInvalid ||
+													stockBatchesStore.loading}
 												onclick={confirmSaveBatch}
 											>
 												{#if stockBatchesStore.loading}
@@ -1052,10 +1058,11 @@
 				</Field.Field>
 				<Field.Field data-disabled={Number(newItem.quantity) <= 0 || undefined}>
 					<Field.Label for="add-expiry">Expiry date</Field.Label>
-					<Input
+					<DateInput
 						id="add-expiry"
+						label="Expiry date"
 						bind:value={newItem.expiry_date}
-						type="date"
+						bind:invalid={newExpiryInvalid}
 						min={todayIsoDate()}
 						disabled={Number(newItem.quantity) <= 0}
 					/>

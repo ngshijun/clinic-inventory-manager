@@ -3,9 +3,9 @@
 	import ActionModal from '$lib/components/app/ActionModal.svelte'
 	import DialogSubject from '$lib/components/app/DialogSubject.svelte'
 	import * as Field from '$lib/components/ui/field'
-	import { Input } from '$lib/components/ui/input'
 	import * as Select from '$lib/components/ui/select'
 	import * as ToggleGroup from '$lib/components/ui/toggle-group'
+	import DateInput from '$lib/components/app/DateInput.svelte'
 	import { SNOOZE_CHIPS, SNOOZE_REASONS } from '$lib/constants/snoozeReasons'
 	import { inventoryStore } from '$lib/stores/inventory.svelte'
 	import type { InventoryItem } from '$lib/types/inventory'
@@ -94,17 +94,24 @@
 					type="single"
 					variant="outline"
 					size="sm"
-					value={chip}
-					onValueChange={(value) => {
-						if (value) until = addDays(today, Number(value))
-					}}
+					bind:value={
+						() => chip,
+						(value) => {
+							if (value) until = addDays(today, Number(value))
+						}
+					}
 					aria-label="How long to snooze"
 				>
 					{#each SNOOZE_CHIPS as option (option.days)}
 						<ToggleGroup.Item value={String(option.days)}>{option.label}</ToggleGroup.Item>
 					{/each}
 				</ToggleGroup.Root>
-				<Input id="snooze-until" bind:value={until} type="date" min={addDays(today, 1)} required />
+				<DateInput
+					id="snooze-until"
+					label="Show again on"
+					bind:value={until}
+					min={addDays(today, 1)}
+				/>
 				<Field.Description
 					>Hidden from To Order until then. It comes back by itself.</Field.Description
 				>

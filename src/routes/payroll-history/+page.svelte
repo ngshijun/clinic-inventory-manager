@@ -384,8 +384,12 @@
 					class="grid auto-cols-fr grid-flow-col"
 					type="single"
 					variant="outline"
-					value={String(year)}
-					onValueChange={(value) => (chosenYear = value ? Number(value) : null)}
+					bind:value={
+						() => String(year),
+						(value) => {
+							if (value) chosenYear = Number(value)
+						}
+					}
 					aria-label="Year"
 				>
 					{#each years as option (option)}

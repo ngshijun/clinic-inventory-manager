@@ -1,4 +1,17 @@
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+export const MONTHS = [
+	'Jan',
+	'Feb',
+	'Mar',
+	'Apr',
+	'May',
+	'Jun',
+	'Jul',
+	'Aug',
+	'Sep',
+	'Oct',
+	'Nov',
+	'Dec',
+]
 
 const toDate = (value: string | number | Date): Date | null => {
 	// A bare YYYY-MM-DD is a calendar date, not an instant; read it in local time.

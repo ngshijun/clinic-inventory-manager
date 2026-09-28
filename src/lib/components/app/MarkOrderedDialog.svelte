@@ -5,6 +5,7 @@
 	import DialogSubject from '$lib/components/app/DialogSubject.svelte'
 	import PriceField from '$lib/components/app/PriceField.svelte'
 	import { Checkbox } from '$lib/components/ui/checkbox'
+	import DateInput from '$lib/components/app/DateInput.svelte'
 	import * as Field from '$lib/components/ui/field'
 	import { Input } from '$lib/components/ui/input'
 	import * as InputGroup from '$lib/components/ui/input-group'
@@ -90,7 +91,7 @@
 		Number.isInteger(Number(quantity)) &&
 			Number(quantity) > 0 &&
 			!!orderedOn &&
-			(backOrder || !!expectedBy) &&
+			(backOrder || (!!expectedBy && expectedBy >= orderedOn)) &&
 			priceFormIsValid(price),
 	)
 
@@ -172,23 +173,21 @@
 			<div class="grid grid-cols-2 gap-4">
 				<Field.Field>
 					<Field.Label for="order-date">Order date</Field.Label>
-					<Input
+					<DateInput
 						id="order-date"
+						label="Order date"
 						bind:value={orderedOn}
-						type="date"
-						required
 						onchange={onOrderedOnChange}
 					/>
 				</Field.Field>
 				<Field.Field>
 					<Field.Label for="order-expected">Expected by</Field.Label>
-					<Input
+					<DateInput
 						id="order-expected"
+						label="Expected by"
 						bind:value={expectedBy}
-						type="date"
 						min={orderedOn}
 						disabled={backOrder}
-						required={!backOrder}
 					/>
 				</Field.Field>
 			</div>

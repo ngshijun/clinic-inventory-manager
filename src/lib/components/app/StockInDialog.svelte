@@ -5,6 +5,7 @@
 	import DialogSubject from '$lib/components/app/DialogSubject.svelte'
 	import Quantity from '$lib/components/app/Quantity.svelte'
 	import { Checkbox } from '$lib/components/ui/checkbox'
+	import DateInput from '$lib/components/app/DateInput.svelte'
 	import * as Field from '$lib/components/ui/field'
 	import { Input } from '$lib/components/ui/input'
 	import { inventoryStore } from '$lib/stores/inventory.svelte'
@@ -21,6 +22,7 @@
 	let isOpen = $state(false)
 	let quantity = $state(1)
 	let expiryDate = $state('')
+	let expiryInvalid = $state(false)
 	let keepNotOrdering = $state(true)
 
 	const status = $derived(item?.order_status)
@@ -64,7 +66,7 @@
 	}
 
 	const confirm = async (): Promise<void> => {
-		if (!item || Number(quantity) <= 0) return
+		if (!item || Number(quantity) <= 0 || expiryInvalid) return
 		const target = item
 		await inventoryStore.stockIn(target.id, Number(quantity), keepNotOrdering, expiryDate || null)
 		if (!inventoryStore.error) {
@@ -78,7 +80,7 @@
 	bind:open={isOpen}
 	title="Stock In"
 	loading={inventoryStore.loading}
-	disabled={Number(quantity) <= 0}
+	disabled={Number(quantity) <= 0 || expiryInvalid}
 	{dirty}
 	confirmText="Stock In"
 	onconfirm={confirm}
@@ -116,7 +118,13 @@
 					<Field.Label for="stock-in-expiry">
 						Expiry date <span class="text-muted-foreground font-normal">optional</span>
 					</Field.Label>
-					<Input id="stock-in-expiry" bind:value={expiryDate} type="date" min={todayIsoDate()} />
+					<DateInput
+						id="stock-in-expiry"
+						label="Expiry date"
+						bind:value={expiryDate}
+						bind:invalid={expiryInvalid}
+						min={todayIsoDate()}
+					/>
 				</Field.Field>
 			</div>
 			{#if item?.not_track}

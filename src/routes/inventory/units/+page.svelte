@@ -14,6 +14,7 @@
 	import { Input } from '$lib/components/ui/input'
 	import { Skeleton } from '$lib/components/ui/skeleton'
 	import { Switch } from '$lib/components/ui/switch'
+	import { Checkbox } from '$lib/components/ui/checkbox'
 	import * as Table from '$lib/components/ui/table'
 	import { useErrorToast } from '$lib/composables/errorToast.svelte'
 	import { inventoryStore } from '$lib/stores/inventory.svelte'
@@ -314,13 +315,16 @@
 				{/if}
 			</Field.Field>
 			<Field.Field orientation="horizontal">
+				<Checkbox id="unit-add-priced" bind:checked={addPriced} />
 				<Field.Content>
-					<Field.Label for="unit-add-priced">Suppliers price by this unit</Field.Label>
+					<Field.Label for="unit-add-priced" class="font-normal">
+						Suppliers price by this unit
+					</Field.Label>
 					<Field.Description>
-						On for a pack such as BOX or BTL. Off for an amount inside a pack, such as TAB or ML.
+						Tick for a pack such as BOX or BTL. Leave empty for an amount inside a pack, such as TAB
+						or ML.
 					</Field.Description>
 				</Field.Content>
-				<Switch id="unit-add-priced" bind:checked={addPriced} />
 			</Field.Field>
 		</Field.Group>
 		<button type="submit" class="hidden" aria-hidden="true" tabindex="-1"></button>

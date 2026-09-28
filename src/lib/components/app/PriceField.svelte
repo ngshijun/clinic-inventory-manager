@@ -48,10 +48,12 @@
 			type="single"
 			variant="outline"
 			size="sm"
-			value={value.unit}
-			onValueChange={(unit) => {
-				if (unit) value.unit = unit
-			}}
+			bind:value={
+				() => value.unit,
+				(unit) => {
+					if (unit) value.unit = unit
+				}
+			}
 			aria-label="What the price is for"
 		>
 			{#each units as unit (unit)}

@@ -36,8 +36,12 @@
 	class="grid auto-cols-fr grid-flow-col"
 	type="single"
 	variant="outline"
-	value={mode}
-	onValueChange={(value) => (mode = (value || 'today') as DayMode)}
+	bind:value={
+		() => mode,
+		(value) => {
+			if (value) mode = value as DayMode
+		}
+	}
 	aria-label="Which day to show"
 >
 	<ToggleGroup.Item value="today">Today</ToggleGroup.Item>

@@ -343,8 +343,12 @@
 			class="grid auto-cols-fr grid-flow-col"
 			type="single"
 			variant="outline"
-			value={typeFilter}
-			onValueChange={(value) => (typeFilter = (value || 'all') as TypeFilter)}
+			bind:value={
+				() => typeFilter,
+				(value) => {
+					if (value) typeFilter = value as TypeFilter
+				}
+			}
 			aria-label="Filter by movement type"
 		>
 			{#each TYPE_FILTERS as option (option.value)}

@@ -93,14 +93,17 @@
 	let searchQuery = $state('')
 	let searchInput = $state<HTMLInputElement | null>(null)
 	let showSalaries = $state(false)
+	let showInactive = $state(false)
 	let sort = $state<SortState<SortKey>>({ key: null, direction: 'asc' })
 
 	const sortedEmployees = $derived.by((): Employee[] => {
 		const query = searchQuery.trim().toLowerCase()
-		const rows = employees.filter((e) => !query || e.name.toLowerCase().includes(query))
+		const rows = (showInactive ? employees : activeEmployees).filter(
+			(e) => !query || e.name.toLowerCase().includes(query),
+		)
 		const key = sort.key
 		const dir = sort.direction === 'asc' ? 1 : -1
-		// Deactivated employees always sit below the ones still on the payroll
+		// When shown, deactivated employees sit below the ones still on the payroll
 		return [...rows].sort((a, b) => {
 			const byActive = Number(isActive(b)) - Number(isActive(a))
 			if (byActive !== 0 || !key) return byActive
@@ -108,6 +111,9 @@
 			return dir * (a.basic_salary - b.basic_salary)
 		})
 	})
+
+	const hiddenCount = $derived(showInactive ? 0 : inactiveCount)
+	const listedCount = $derived(employees.length - hiddenCount)
 
 	const toggleSort = (key: SortKey): void => {
 		if (sort.key === key) {
@@ -664,6 +670,12 @@
 				<Switch id="show-salaries" bind:checked={showSalaries} />
 				<Label for="show-salaries">Show Salaries</Label>
 			</div>
+			{#if inactiveCount > 0}
+				<div class="flex items-center gap-2">
+					<Switch id="show-inactive" bind:checked={showInactive} />
+					<Label for="show-inactive">Show Inactive ({inactiveCount})</Label>
+				</div>
+			{/if}
 		</div>
 		<Button variant="outline" onclick={openAdd}>
 			<PlusIcon data-icon="inline-start" />
@@ -704,14 +716,27 @@
 				<Empty.Media variant="icon">
 					<UsersIcon />
 				</Empty.Media>
-				<Empty.Title>{searchQuery ? 'No employees match' : 'No employees yet'}</Empty.Title>
+				<Empty.Title>
+					{searchQuery
+						? 'No employees match'
+						: employees.length > 0
+							? 'No active employees'
+							: 'No employees yet'}
+				</Empty.Title>
 				<Empty.Description>
 					{searchQuery
-						? 'Try another name or clear the search.'
-						: 'Add the first employee to run a payroll.'}
+						? hiddenCount > 0
+							? 'Try another name, or show inactive employees.'
+							: 'Try another name or clear the search.'
+						: employees.length > 0
+							? 'Everyone on the list is inactive.'
+							: 'Add the first employee to run a payroll.'}
 				</Empty.Description>
 			</Empty.Header>
 			<Empty.Content>
+				{#if hiddenCount > 0}
+					<Button variant="outline" onclick={() => (showInactive = true)}>Show Inactive</Button>
+				{/if}
 				{#if searchQuery}
 					<Button variant="outline" onclick={() => (searchQuery = '')}>Clear Search</Button>
 				{:else}
@@ -789,11 +814,13 @@
 		</Table.Root>
 		<div class="text-muted-foreground text-sm">
 			{#if searchQuery}
-				Showing {sortedEmployees.length} of {plural(employees.length, 'employee')}
+				Showing {sortedEmployees.length} of {plural(listedCount, 'employee')}
 			{:else}
-				{plural(employees.length, 'employee')}
+				{plural(listedCount, 'employee')}
 			{/if}
-			{#if inactiveCount > 0}
+			{#if hiddenCount > 0}
+				· {hiddenCount} inactive hidden
+			{:else if inactiveCount > 0}
 				· {inactiveCount} inactive
 			{/if}
 		</div>

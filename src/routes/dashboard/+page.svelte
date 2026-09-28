@@ -22,9 +22,9 @@
 	import ToneBadge from '$lib/components/app/ToneBadge.svelte'
 	import { Button } from '$lib/components/ui/button'
 	import * as Card from '$lib/components/ui/card'
-	import { Checkbox } from '$lib/components/ui/checkbox'
 	import * as Empty from '$lib/components/ui/empty'
 	import { Label } from '$lib/components/ui/label'
+	import { Switch } from '$lib/components/ui/switch'
 	import { Skeleton } from '$lib/components/ui/skeleton'
 	import * as Table from '$lib/components/ui/table'
 	import * as Tabs from '$lib/components/ui/tabs'
@@ -247,8 +247,8 @@
 			<div class="flex flex-wrap items-center justify-between gap-2">
 				<SupplierFilter bind:value={supplierChoice} items={toOrderAll} />
 				<div class="flex items-center gap-2">
-					<Checkbox id="show-snoozed" bind:checked={showSnoozed} />
-					<Label for="show-snoozed" class="font-normal">Show snoozed ({snoozed.length})</Label>
+					<Switch id="show-snoozed" bind:checked={showSnoozed} />
+					<Label for="show-snoozed">Show Snoozed ({snoozed.length})</Label>
 				</div>
 			</div>
 		{:else if queue === 'expiring'}
