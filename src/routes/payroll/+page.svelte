@@ -236,7 +236,8 @@
 	}
 
 	// ---------- Delete employee ----------
-	// Only a deactivated employee can be deleted, and it cannot be undone.
+	// Only an employee who is in no saved payroll can be deleted, such as one
+	// added by mistake. It cannot be undone.
 	let deleteTarget = $state<Employee | null>(null)
 	let showDelete = $state(false)
 
@@ -879,11 +880,14 @@
 		oncancel={closeEmployeeDialog}
 	>
 		{#snippet leading()}
-			{#if editing && isActive(editing)}
-				<Button variant="outline" onclick={() => setActive(false)}>Deactivate Employee</Button>
-			{:else if editing}
-				<Button variant="destructive" onclick={askDelete}>Delete Employee</Button>
-				<Button variant="outline" onclick={() => setActive(true)}>Reactivate Employee</Button>
+			{#if editing}
+				{@const active = isActive(editing)}
+				{#if !editing.in_history}
+					<Button variant="destructive" onclick={askDelete}>Delete…</Button>
+				{/if}
+				<Button variant="outline" onclick={() => setActive(!active)}>
+					{active ? 'Deactivate' : 'Reactivate'}
+				</Button>
 			{/if}
 		{/snippet}
 		<form
@@ -969,11 +973,11 @@
 		</form>
 	</ActionModal>
 
-	<!-- Delete a deactivated employee -->
+	<!-- Delete an employee who is in no saved payroll -->
 	<ActionModal
 		bind:open={showDelete}
 		title={`Delete ${deleteTarget?.name ?? 'Employee'}?`}
-		description="This removes the employee for good. Saved payroll records keep their figures."
+		description="This removes the employee for good. This cannot be undone."
 		loading={payrollStore.loading}
 		confirmText="Delete Employee"
 		onconfirm={confirmDelete}

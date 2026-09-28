@@ -6,7 +6,7 @@ import type { PayrollData } from '$lib/types/payroll'
 import { errorMessage, withLegacy, type WithLegacy } from '$lib/types/legacy'
 import { authStore } from './auth.svelte'
 
-type Employee = WithLegacy<Doc<'payroll'>>
+type Employee = WithLegacy<Doc<'payroll'> & { in_history: boolean }>
 type EmployeeId = Id<'payroll'>
 interface EmployeeInsert {
 	name: string

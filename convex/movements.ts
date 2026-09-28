@@ -190,6 +190,38 @@ export const updateRemark = mutation({
 	},
 })
 
+const RENAME_BATCH = 500
+
+/**
+ * Gives an item's movements the item's current name, a page per mutation, so
+ * a long history never exceeds the per-mutation limits. Scheduled when an
+ * item is renamed.
+ */
+export const syncItemName = internalMutation({
+	args: { item_id: v.id('inventory'), cursor: v.optional(v.string()) },
+	returns: v.null(),
+	handler: async (ctx, args) => {
+		const item = await ctx.db.get(args.item_id)
+		if (!item) return null
+		const page = await ctx.db
+			.query('stock_movements')
+			.withIndex('by_item', (q) => q.eq('item_id', item._id))
+			.paginate({ numItems: RENAME_BATCH, cursor: args.cursor ?? null })
+		for (const movement of page.page) {
+			if (movement.item_name !== item.item_name) {
+				await ctx.db.patch(movement._id, { item_name: item.item_name })
+			}
+		}
+		if (!page.isDone) {
+			await ctx.scheduler.runAfter(0, internal.movements.syncItemName, {
+				item_id: item._id,
+				cursor: page.continueCursor,
+			})
+		}
+		return null
+	},
+})
+
 const NAMESPACES = ['stock_in', 'stock_out'] as const
 const CLEAR_BATCH = 100
 

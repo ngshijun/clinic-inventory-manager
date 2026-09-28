@@ -92,7 +92,7 @@
 
 		<Dialog.Footer>
 			{#if leading}
-				<div class="sm:me-auto">
+				<div class="flex flex-col-reverse gap-2 sm:me-auto sm:flex-row">
 					{@render leading()}
 				</div>
 			{/if}

@@ -169,7 +169,12 @@ export const stockRequestDoc = v.object({
 	...systemFields('stock_requests'),
 	...stockRequestFields,
 })
-export const payrollDoc = v.object({ ...systemFields('payroll'), ...payrollFields })
+export const payrollDoc = v.object({
+	...systemFields('payroll'),
+	...payrollFields,
+	/** In a saved payroll, so the employee cannot be deleted */
+	in_history: v.boolean(),
+})
 export const payrollRunDoc = v.object({ ...systemFields('payroll_runs'), ...payrollRunFields })
 export const payrollRunItemDoc = v.object({
 	...systemFields('payroll_run_items'),
@@ -202,5 +207,7 @@ export default defineSchema({
 
 	payroll_runs: defineTable(payrollRunFields).index('by_period', ['year', 'month']),
 
-	payroll_run_items: defineTable(payrollRunItemFields).index('by_run', ['run_id']),
+	payroll_run_items: defineTable(payrollRunItemFields)
+		.index('by_run', ['run_id'])
+		.index('by_employee', ['employee_id']),
 })

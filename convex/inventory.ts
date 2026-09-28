@@ -1,5 +1,6 @@
 import { ConvexError, v, type Infer } from 'convex/values'
 import { mutation, query } from './_generated/server'
+import { internal } from './_generated/api'
 import type { MutationCtx } from './_generated/server'
 import type { Doc, Id } from './_generated/dataModel'
 import { requireRole } from './lib/auth'
@@ -207,13 +208,16 @@ export const update = mutation({
 		await ctx.db.patch(item._id, patch)
 
 		if (patch.item_name !== undefined && patch.item_name !== item.item_name) {
-			// Bounded: a handful of requests per item. Movements keep their snapshot.
+			// Requests and movements show the item's current name. Bounded: a handful
+			// of requests per item. Movements can be many, so they go page by page.
+			await ctx.scheduler.runAfter(0, internal.movements.syncItemName, { item_id: item._id })
 			const requests = await ctx.db
 				.query('stock_requests')
 				.withIndex('by_item', (q) => q.eq('item_id', item._id))
 				.collect()
+			// updated_at is left alone: it is when the request was approved or rejected
 			for (const request of requests) {
-				await ctx.db.patch(request._id, { item_name: patch.item_name, updated_at: now })
+				await ctx.db.patch(request._id, { item_name: patch.item_name })
 			}
 		}
 		return null
