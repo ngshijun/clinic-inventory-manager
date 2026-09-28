@@ -47,7 +47,7 @@
 	import { pricePerUnit } from '../../../convex/lib/price'
 
 	// ---------- Toolbar state ----------
-	type SortKey = 'item_name' | 'supplier' | 'quantity' | 'price' | 'order_status'
+	type SortKey = 'item_name' | 'supplier' | 'quantity' | 'price'
 
 	let searchQuery = $state('')
 	let searchInput = $state<HTMLInputElement | null>(null)
@@ -57,13 +57,6 @@
 	let sort = $state<SortState<SortKey>>({ key: null, direction: 'asc' })
 
 	useErrorToast(() => inventoryStore.error)
-
-	// On order first, then snoozed, then nothing; within each, by date
-	const orderStatusValue = (item: InventoryItem): string | null => {
-		const status = item.order_status
-		if (!status) return null
-		return status.kind === 'ordered' ? `0 ${status.ordered_on}` : `1 ${status.until}`
-	}
 
 	// In stock is the default and gets no mark, as on Inventory
 	const stockStatus = (item: InventoryItem): { tone: Tone; text: string } | null => {
@@ -85,7 +78,6 @@
 
 		const dir = sort.direction === 'asc' ? 1 : -1
 		const valueOf = (item: InventoryItem): string | number | null => {
-			if (key === 'order_status') return orderStatusValue(item)
 			if (key === 'supplier') return item.supplier ?? null
 			// By what one of the item's unit costs, so a price per bottle sorts with prices per bundle
 			if (key === 'price') {
@@ -283,7 +275,7 @@
 				<SortHeader key="supplier" {sort} onsort={toggleSort}>Supplier</SortHeader>
 				<SortHeader key="quantity" {sort} onsort={toggleSort}>In stock</SortHeader>
 				<SortHeader key="price" {sort} onsort={toggleSort}>Price</SortHeader>
-				<SortHeader key="order_status" {sort} onsort={toggleSort}>Order status</SortHeader>
+				<Table.Head>Order status</Table.Head>
 				<Table.Head><span class="sr-only">Actions</span></Table.Head>
 			</Table.Row>
 		</Table.Header>

@@ -45,7 +45,7 @@
 	import { cn } from '$lib/utils'
 
 	// ---------- Toolbar state ----------
-	type SortKey = 'item_name' | 'created_at' | 'quantity' | 'status'
+	type SortKey = 'item_name' | 'created_at' | 'status'
 
 	let searchQuery = $state('')
 	let searchInput = $state<HTMLInputElement | null>(null)
@@ -92,7 +92,6 @@
 			if (key === 'item_name') {
 				return dir * a.item_name.toLowerCase().localeCompare(b.item_name.toLowerCase())
 			}
-			if (key === 'quantity') return dir * (a.quantity - b.quantity)
 			if (key === 'created_at') return dir * a.created_at.localeCompare(b.created_at)
 			return dir * (STATUS_RANK[a.status] - STATUS_RANK[b.status])
 		})
@@ -374,7 +373,7 @@
 				</Table.Head>
 				<SortHeader key="item_name" {sort} onsort={toggleSort}>Item</SortHeader>
 				<SortHeader key="created_at" {sort} onsort={toggleSort}>Requested</SortHeader>
-				<SortHeader key="quantity" {sort} onsort={toggleSort}>Quantity</SortHeader>
+				<Table.Head>Quantity</Table.Head>
 				<Table.Head>In stock</Table.Head>
 				<Table.Head class="w-[26%]">Remark</Table.Head>
 				<SortHeader key="status" {sort} onsort={toggleSort}>Status</SortHeader>

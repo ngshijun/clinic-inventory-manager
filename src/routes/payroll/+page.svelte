@@ -85,7 +85,7 @@
 	const periodLabel = $derived(period ? formatPeriod(period) : '')
 
 	// ---------- Employee list ----------
-	type SortKey = 'name' | 'basic_salary' | 'epf_employer' | 'lindung_24_jam'
+	type SortKey = 'name' | 'basic_salary'
 
 	let searchQuery = $state('')
 	let searchInput = $state<HTMLInputElement | null>(null)
@@ -100,9 +100,7 @@
 		const dir = sort.direction === 'asc' ? 1 : -1
 		return [...rows].sort((a, b) => {
 			if (key === 'name') return dir * a.name.toLowerCase().localeCompare(b.name.toLowerCase())
-			if (key === 'lindung_24_jam')
-				return dir * (Number(a.lindung_24_jam) - Number(b.lindung_24_jam))
-			return dir * (a[key] - b[key])
+			return dir * (a.basic_salary - b.basic_salary)
 		})
 	})
 
@@ -729,10 +727,8 @@
 					<SortHeader key="basic_salary" {sort} onsort={toggleSort} align="end">
 						Basic salary
 					</SortHeader>
-					<SortHeader key="epf_employer" {sort} onsort={toggleSort} align="end">
-						EPF employer
-					</SortHeader>
-					<SortHeader key="lindung_24_jam" {sort} onsort={toggleSort}>Lindung 24 Jam</SortHeader>
+					<Table.Head class="text-end">EPF employer</Table.Head>
+					<Table.Head>Lindung 24 Jam</Table.Head>
 					<Table.Head><span class="sr-only">Actions</span></Table.Head>
 				</Table.Row>
 			</Table.Header>

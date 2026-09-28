@@ -67,7 +67,7 @@
 	import { sameUnit } from '../../../convex/lib/units'
 
 	// ---------- Toolbar state ----------
-	type SortKey = 'item_name' | 'supplier' | 'quantity' | 'reorder_level' | 'nearest_expiry'
+	type SortKey = 'item_name' | 'supplier' | 'quantity' | 'nearest_expiry'
 
 	let searchQuery = $state('')
 	let searchInput = $state<HTMLInputElement | null>(null)
@@ -743,7 +743,7 @@
 				<SortHeader key="item_name" {sort} onsort={toggleSort}>Item</SortHeader>
 				<SortHeader key="supplier" {sort} onsort={toggleSort}>Supplier</SortHeader>
 				<SortHeader key="quantity" {sort} onsort={toggleSort}>In stock</SortHeader>
-				<SortHeader key="reorder_level" {sort} onsort={toggleSort}>Reorder level</SortHeader>
+				<Table.Head>Reorder level</Table.Head>
 				<SortHeader key="nearest_expiry" {sort} onsort={toggleSort}>Nearest expiry</SortHeader>
 				<Table.Head>Order</Table.Head>
 				<Table.Head><span class="sr-only">Actions</span></Table.Head>
