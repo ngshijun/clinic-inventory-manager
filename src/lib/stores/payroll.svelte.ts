@@ -35,6 +35,11 @@ class PayrollStore {
 	}
 
 	// Getters (computed)
+	/** Employees still on the payroll; deactivated ones keep their records but are not paid. */
+	get activeEmployees(): Employee[] {
+		return this.employees.filter((employee) => employee.deactivated_at === undefined)
+	}
+
 	get totalEmployees(): number {
 		return this.employees.length
 	}
@@ -72,6 +77,28 @@ class PayrollStore {
 		} catch (err) {
 			this.error = errorMessage(err, 'An error occurred while updating employee')
 			console.error('Error updating employee:', err)
+			return false
+		} finally {
+			this.loadingCount--
+		}
+	}
+
+	setEmployeeActive = async (employeeId: EmployeeId, active: boolean): Promise<boolean> => {
+		this.loadingCount++
+		this.error = null
+		try {
+			await convex.mutation(api.payroll.setActive, {
+				auth: authStore.token,
+				id: employeeId,
+				active,
+			})
+			return true
+		} catch (err) {
+			this.error = errorMessage(
+				err,
+				`An error occurred while ${active ? 'reactivating' : 'deactivating'} employee`,
+			)
+			console.error('Error setting employee active:', err)
 			return false
 		} finally {
 			this.loadingCount--
@@ -263,7 +290,7 @@ class PayrollStore {
 	generatePayrollData = (period: { year: number; month: number }): PayrollData[] => {
 		const lindung24Applies = this.isLindung24Applicable(period.year, period.month)
 
-		return this.employees.map((employee) => {
+		return this.activeEmployees.map((employee) => {
 			const epf = this.calculateEPF(employee.basic_salary)
 			const socso = this.calculateSOCSO(employee.basic_salary)
 			const eis = this.calculateEIS(employee.basic_salary)
