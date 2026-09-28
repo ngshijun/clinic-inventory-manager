@@ -117,6 +117,8 @@ export const payrollFields = {
 	basic_salary: v.number(),
 	epf_employer: v.number(),
 	lindung_24_jam: v.boolean(),
+	/** Set when the employee leaves; they drop out of new payroll runs but keep their history. */
+	deactivated_at: v.optional(v.number()),
 	...commonFields,
 }
 

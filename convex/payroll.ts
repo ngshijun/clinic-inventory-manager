@@ -87,6 +87,23 @@ export const update = mutation({
 	},
 })
 
+export const setActive = mutation({
+	args: { auth: v.string(), id: v.id('payroll'), active: v.boolean() },
+	returns: v.null(),
+	handler: async (ctx, args) => {
+		requireRole(args.auth, ['manager'])
+		const employee = await ctx.db.get(args.id)
+		if (!employee) throw new ConvexError({ code: 'NOT_FOUND', message: 'Employee not found' })
+		const now = Date.now()
+		await ctx.db.patch(employee._id, {
+			deactivated_at: args.active ? undefined : now,
+			updated_at: now,
+		})
+		return null
+	},
+})
+
+/** Only a deactivated employee can be deleted, so nobody is deleted by mistake. */
 export const remove = mutation({
 	args: { auth: v.string(), id: v.id('payroll') },
 	returns: v.null(),
@@ -94,6 +111,12 @@ export const remove = mutation({
 		requireRole(args.auth, ['manager'])
 		const employee = await ctx.db.get(args.id)
 		if (!employee) throw new ConvexError({ code: 'NOT_FOUND', message: 'Employee not found' })
+		if (employee.deactivated_at === undefined) {
+			throw new ConvexError({
+				code: 'INVALID_STATE',
+				message: 'Deactivate the employee before deleting them',
+			})
+		}
 		await ctx.db.delete(employee._id)
 		return null
 	},

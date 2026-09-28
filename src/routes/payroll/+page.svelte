@@ -3,7 +3,6 @@
 	import { goto } from '$app/navigation'
 	import { page } from '$app/state'
 	import { toast } from 'svelte-sonner'
-	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right'
 	import CircleCheckIcon from '@lucide/svelte/icons/circle-check'
 	import FileTextIcon from '@lucide/svelte/icons/file-text'
 	import LockIcon from '@lucide/svelte/icons/lock'
@@ -19,6 +18,7 @@
 	import ActionModal from '$lib/components/app/ActionModal.svelte'
 	import PageHeader from '$lib/components/app/PageHeader.svelte'
 	import SortHeader from '$lib/components/app/SortHeader.svelte'
+	import ToneBadge from '$lib/components/app/ToneBadge.svelte'
 	import type { SortState } from '$lib/components/app/sort'
 	import * as Alert from '$lib/components/ui/alert'
 	import { Button } from '$lib/components/ui/button'
@@ -68,6 +68,9 @@
 	useErrorToast(() => payrollRecordsStore.error)
 
 	const employees = $derived(payrollStore.employees)
+	const activeEmployees = $derived(payrollStore.activeEmployees)
+	const inactiveCount = $derived(employees.length - activeEmployees.length)
+	const isActive = (employee: Employee): boolean => employee.deactivated_at === undefined
 	const initialLoading = $derived(payrollStore.loading && employees.length === 0)
 
 	const plural = (count: number, noun: string): string =>
@@ -96,9 +99,11 @@
 		const query = searchQuery.trim().toLowerCase()
 		const rows = employees.filter((e) => !query || e.name.toLowerCase().includes(query))
 		const key = sort.key
-		if (!key) return rows
 		const dir = sort.direction === 'asc' ? 1 : -1
+		// Deactivated employees always sit below the ones still on the payroll
 		return [...rows].sort((a, b) => {
+			const byActive = Number(isActive(b)) - Number(isActive(a))
+			if (byActive !== 0 || !key) return byActive
 			if (key === 'name') return dir * a.name.toLowerCase().localeCompare(b.name.toLowerCase())
 			if (key === 'lindung_24_jam')
 				return dir * (Number(a.lindung_24_jam) - Number(b.lindung_24_jam))
@@ -125,11 +130,6 @@
 
 	const MASK = '••••••'
 	const money = (amount: number): string => (showSalaries ? formatAmount(amount) : MASK)
-
-	// The newest saved record, for the banner on the list
-	const latestRun = $derived(
-		[...payrollRecordsStore.runs].sort((a, b) => b.updated_at - a.updated_at)[0],
-	)
 
 	// ---------- Employee form (add and edit share it) ----------
 	interface EmployeeForm {
@@ -215,30 +215,47 @@
 		}
 	}
 
-	// ---------- Delete employee ----------
-	// Saved payroll records keep their frozen figures, and the employee can be
-	// added straight back, so deleting takes an undo toast rather than a
-	// confirmation. Delete skips the discard guard: losing the edits is the point.
-	const deleteEmployee = async (): Promise<void> => {
+	// ---------- Deactivate / reactivate employee ----------
+	// A leaver is deactivated rather than deleted, so their details stay. It is
+	// reversible, so it takes an undo toast rather than a confirmation, and skips
+	// the discard guard: losing the edits is the point.
+	const setActive = async (active: boolean): Promise<void> => {
 		if (!editing) return
 		const target = editing
-		if (!(await payrollStore.deleteEmployee(target.id))) return
+		if (!(await payrollStore.setEmployeeActive(target.id, active))) return
 		closeEmployeeDialog()
-		toast.success(`Deleted ${target.name}`, {
+		toast.success(`${active ? 'Reactivated' : 'Deactivated'} ${target.name}`, {
 			duration: 8000,
 			action: {
 				label: 'Undo',
 				onClick: async () => {
-					const ok = await payrollStore.addEmployee({
-						name: target.name,
-						basic_salary: target.basic_salary,
-						epf_employer: target.epf_employer,
-						lindung_24_jam: target.lindung_24_jam,
-					})
-					if (ok) toast.success(`Restored ${target.name}`)
+					if (await payrollStore.setEmployeeActive(target.id, !active)) {
+						toast.success(`Undid the change to ${target.name}`)
+					}
 				},
 			},
 		})
+	}
+
+	// ---------- Delete employee ----------
+	// Only a deactivated employee can be deleted, and it cannot be undone.
+	let deleteTarget = $state<Employee | null>(null)
+	let showDelete = $state(false)
+
+	const askDelete = (): void => {
+		if (!editing) return
+		deleteTarget = editing
+		closeEmployeeDialog()
+		showDelete = true
+	}
+
+	const confirmDelete = async (): Promise<void> => {
+		if (!deleteTarget) return
+		const target = deleteTarget
+		if (!(await payrollStore.deleteEmployee(target.id))) return
+		showDelete = false
+		deleteTarget = null
+		toast.success(`Deleted ${target.name}`)
 	}
 
 	// ---------- Run payroll dialog ----------
@@ -260,6 +277,9 @@
 	const runExisting = $derived(
 		runPeriod ? payrollRecordsStore.getRunByPeriod(runPeriod.year, runPeriod.month) : undefined,
 	)
+	const isSaved = (year: number, month: number): boolean =>
+		payrollRecordsStore.getRunByPeriod(year, month) !== undefined
+	const isYearSaved = (year: number): boolean => MONTHS.every((_, i) => isSaved(year, i + 1))
 
 	const openRun = (): void => {
 		runMonth = String(period?.month ?? now.getMonth() + 1)
@@ -284,7 +304,7 @@
 	$effect(() => {
 		const key = periodKey
 		const current = period
-		const count = employees.length
+		const count = activeEmployees.length
 		untrack(async () => {
 			if (!current) {
 				payrollData = []
@@ -650,29 +670,11 @@
 			<PlusIcon data-icon="inline-start" />
 			Add Employee…
 		</Button>
-		<Button onclick={openRun} disabled={employees.length === 0}>
+		<Button onclick={openRun} disabled={activeEmployees.length === 0}>
 			<WalletIcon data-icon="inline-start" />
 			Run Payroll…
 		</Button>
 	</PageHeader>
-
-	{#if latestRun}
-		<Alert.Root
-			class="bg-success-soft border-success/40 flex flex-wrap items-center gap-x-3 gap-y-2"
-		>
-			<CircleCheckIcon class="text-success" />
-			<Alert.Description class="text-foreground">
-				<span class="font-medium">
-					{formatPeriod({ month: latestRun.month, year: latestRun.year })} payroll saved
-				</span>
-				on {formatDate(latestRun.updated_at)}. Payslips are in Payroll History.
-			</Alert.Description>
-			<Button variant="ghost" size="sm" href="/payroll-history" class="ms-auto">
-				Open Payroll History
-				<ChevronRightIcon data-icon="inline-end" />
-			</Button>
-		</Alert.Root>
-	{/if}
 
 	{#if initialLoading}
 		<Table.Root>
@@ -738,8 +740,15 @@
 			</Table.Header>
 			<Table.Body>
 				{#each sortedEmployees as employee (employee.id)}
-					<Table.Row>
-						<Table.Cell class="font-medium tracking-wide">{employee.name}</Table.Cell>
+					<Table.Row class={cn(!isActive(employee) && 'text-muted-foreground')}>
+						<Table.Cell class="font-medium tracking-wide">
+							<div class="flex items-center gap-2">
+								{employee.name}
+								{#if !isActive(employee)}
+									<ToneBadge class="tracking-normal">Inactive</ToneBadge>
+								{/if}
+							</div>
+						</Table.Cell>
 						<Table.Cell
 							class={cn('text-end tabular-nums', !showSalaries && 'text-muted-foreground')}
 						>
@@ -787,6 +796,9 @@
 			{:else}
 				{plural(employees.length, 'employee')}
 			{/if}
+			{#if inactiveCount > 0}
+				· {inactiveCount} inactive
+			{/if}
 		</div>
 	{/if}
 
@@ -810,7 +822,17 @@
 						<Select.Content>
 							<Select.Group>
 								{#each MONTHS as name, i (name)}
-									<Select.Item value={String(i + 1)} label={name} />
+									{@const saved = runYear !== '' && isSaved(Number(runYear), i + 1)}
+									<Select.Item
+										value={String(i + 1)}
+										label={name}
+										class={cn(saved && 'text-muted-foreground')}
+									>
+										{name}
+										{#if saved}
+											<span class="ms-auto text-xs font-normal">Saved</span>
+										{/if}
+									</Select.Item>
 								{/each}
 							</Select.Group>
 						</Select.Content>
@@ -823,7 +845,17 @@
 						<Select.Content>
 							<Select.Group>
 								{#each yearOptions as year (year)}
-									<Select.Item value={String(year)} label={String(year)} />
+									{@const saved = isYearSaved(year)}
+									<Select.Item
+										value={String(year)}
+										label={String(year)}
+										class={cn(saved && 'text-muted-foreground')}
+									>
+										{year}
+										{#if saved}
+											<span class="ms-auto text-xs font-normal">All saved</span>
+										{/if}
+									</Select.Item>
 								{/each}
 							</Select.Group>
 						</Select.Content>
@@ -851,8 +883,11 @@
 		oncancel={closeEmployeeDialog}
 	>
 		{#snippet leading()}
-			{#if editing}
-				<Button variant="destructive" onclick={deleteEmployee}>Delete Employee</Button>
+			{#if editing && isActive(editing)}
+				<Button variant="outline" onclick={() => setActive(false)}>Deactivate Employee</Button>
+			{:else if editing}
+				<Button variant="destructive" onclick={askDelete}>Delete Employee</Button>
+				<Button variant="outline" onclick={() => setActive(true)}>Reactivate Employee</Button>
 			{/if}
 		{/snippet}
 		<form
@@ -862,6 +897,16 @@
 			}}
 		>
 			<Field.Group>
+				{#if editing?.deactivated_at !== undefined}
+					<p class="text-muted-foreground text-sm">
+						Deactivated on {formatDate(editing.deactivated_at)}. Not included when you run payroll.
+					</p>
+				{:else if editing}
+					<p class="text-muted-foreground text-sm">
+						When someone leaves, deactivate them after their last payroll is saved. Their details
+						stay here.
+					</p>
+				{/if}
 				<Field.Field>
 					<Field.Label for="employee-name">Name</Field.Label>
 					<Input
@@ -927,4 +972,18 @@
 			<button type="submit" class="hidden" aria-hidden="true" tabindex="-1"></button>
 		</form>
 	</ActionModal>
+
+	<!-- Delete a deactivated employee -->
+	<ActionModal
+		bind:open={showDelete}
+		title={`Delete ${deleteTarget?.name ?? 'Employee'}?`}
+		description="This removes the employee for good. Saved payroll records keep their figures."
+		loading={payrollStore.loading}
+		confirmText="Delete Employee"
+		onconfirm={confirmDelete}
+		oncancel={() => {
+			showDelete = false
+			deleteTarget = null
+		}}
+	/>
 {/if}
