@@ -12,8 +12,8 @@
 
 	/**
 	 * The one date entry field: day, month, year, in that order on every
-	 * computer. Numbers are typed ("28092027") and the month reads as a word
-	 * ("28 Sep 2027"); the button at the end opens a calendar. The value is a
+	 * computer. The field shows what is typed, "28/09/2027", as the Mac's own date
+	 * field does; the button at the end opens a calendar. The value is a
 	 * YYYY-MM-DD string, empty until the date is whole.
 	 */
 	let {
@@ -84,12 +84,9 @@
 		if (text >= '1900') onchange?.(text)
 	}
 
-	// The month reads as a word, and a year being typed reads "20", not "0020"
-	const shown = (part: string, text: string): string => {
-		if (part === 'month') return MONTHS[Number(text) - 1] ?? 'mmm'
-		if (part === 'year') return text.replace(/^0+(?=\d)/, '')
-		return text
-	}
+	// A year being typed reads "20", not "0020"
+	const shown = (part: string, text: string): string =>
+		part === 'year' ? text.replace(/^0+(?=\d)/, '') : text
 
 	// Enter saves the dialog, as it does from any other field
 	const onkeydown = (event: KeyboardEvent): void => {
@@ -125,7 +122,7 @@
 			{#snippet children({ segments })}
 				{#each segments as segment, index (index)}
 					{#if segment.part === 'literal'}
-						<span class="w-1" aria-hidden="true"></span>
+						<span class="text-muted-foreground" aria-hidden="true">{segment.value}</span>
 					{:else}
 						{@const filled = /^\d+$/.test(segment.value)}
 						<DateField.Segment
