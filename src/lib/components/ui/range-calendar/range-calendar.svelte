@@ -15,6 +15,7 @@
 		buttonVariant = 'ghost',
 		captionLayout = 'label',
 		locale = 'en-MY',
+		weekStartsOn = 0,
 		months: monthsProp,
 		years,
 		monthFormat: monthFormatProp,
@@ -50,6 +51,7 @@
 		className,
 	)}
 	{locale}
+	{weekStartsOn}
 	{monthFormat}
 	{yearFormat}
 	{...restProps}

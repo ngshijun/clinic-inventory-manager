@@ -15,6 +15,7 @@
 		buttonVariant = 'ghost',
 		captionLayout = 'label',
 		locale = 'en-MY',
+		weekStartsOn = 0,
 		months: monthsProp,
 		years,
 		monthFormat: monthFormatProp,
@@ -54,6 +55,7 @@ get along, so we shut typescript up by casting `value` to `never`.
 		className,
 	)}
 	{locale}
+	{weekStartsOn}
 	{monthFormat}
 	{yearFormat}
 	{...restProps}
