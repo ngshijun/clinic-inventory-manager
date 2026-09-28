@@ -220,6 +220,19 @@
 	[data-slot='table-container']::-webkit-scrollbar-thumb:hover {
 		background: var(--muted-foreground);
 	}
+	/*
+	 * A toast's close button shows while the pointer is over the toast or the
+	 * button has keyboard focus. A touch screen has no hover, so it always shows.
+	 */
+	@media (hover: hover) {
+		[data-sonner-toast] [data-close-button] {
+			opacity: 0;
+		}
+		[data-sonner-toast]:hover [data-close-button],
+		[data-sonner-toast] [data-close-button]:focus-visible {
+			opacity: 1;
+		}
+	}
 	/* Respect the OS reduce-motion setting: keep state changes, drop the choreography. */
 	@media (prefers-reduced-motion: reduce) {
 		*,

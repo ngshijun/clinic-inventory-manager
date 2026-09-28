@@ -27,7 +27,7 @@
 	 * The count of items is a link to Inventory held to that supplier.
 	 * Names are kept in capitals, so the fields raise the letters as typed.
 	 */
-	useErrorToast(() => suppliersStore.error)
+	useErrorToast(suppliersStore)
 
 	const plural = (count: number, noun: string): string =>
 		`${count} ${count === 1 ? noun : `${noun}s`}`

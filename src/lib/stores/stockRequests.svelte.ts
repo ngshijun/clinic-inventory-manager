@@ -15,6 +15,8 @@ class StockRequestsStore {
 	requests = $state<StockRequest[]>([])
 	#loadingCount = $state(0)
 	error = $state<string | null>(null)
+	/** A failed load, which the user can do nothing about; `error` is a failed action */
+	loadError = $state<string | null>(null)
 	#unsubscribe: (() => void) | null = null
 	#settle: (() => void) | null = null
 	#isInitialized = false
@@ -131,11 +133,11 @@ class StockRequestsStore {
 			{ auth: authStore.token },
 			(docs) => {
 				this.requests = docs.map(withLegacy)
-				this.error = null
+				this.loadError = null
 				settle()
 			},
 			(err) => {
-				this.error = errorMessage(err, 'An error occurred while fetching requests')
+				this.loadError = errorMessage(err, 'An error occurred while fetching requests')
 				console.error('Requests subscription error:', err)
 				settle()
 			},
@@ -155,6 +157,7 @@ class StockRequestsStore {
 		this.#unsubscribe = null
 		this.requests = []
 		this.error = null
+		this.loadError = null
 		this.#isInitialized = false
 	}
 }

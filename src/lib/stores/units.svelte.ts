@@ -9,6 +9,8 @@ class UnitsStore {
 	units = $state<Unit[]>([])
 	#loadingCount = $state(0)
 	error = $state<string | null>(null)
+	/** A failed load, which the user can do nothing about; `error` is a failed action */
+	loadError = $state<string | null>(null)
 	#unsubscribe: (() => void) | null = null
 	#settle: (() => void) | null = null
 	#isInitialized = false
@@ -85,11 +87,11 @@ class UnitsStore {
 			{ auth: authStore.token },
 			(docs) => {
 				this.units = docs.map(withLegacy)
-				this.error = null
+				this.loadError = null
 				settle()
 			},
 			(err) => {
-				this.error = errorMessage(err, 'An error occurred while fetching units')
+				this.loadError = errorMessage(err, 'An error occurred while fetching units')
 				console.error('Units subscription error:', err)
 				settle()
 			},
@@ -109,6 +111,7 @@ class UnitsStore {
 		this.#unsubscribe = null
 		this.units = []
 		this.error = null
+		this.loadError = null
 		this.#isInitialized = false
 	}
 }

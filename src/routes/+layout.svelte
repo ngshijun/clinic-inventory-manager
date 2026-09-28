@@ -109,7 +109,7 @@
 </script>
 
 <ModeWatcher />
-<Toaster richColors position="top-right" />
+<Toaster richColors closeButton pauseWhenPageIsHidden position="top-right" />
 
 {#if authStore.isAuthenticated && authStore.user}
 	<Sidebar.Provider class="h-svh overflow-hidden">

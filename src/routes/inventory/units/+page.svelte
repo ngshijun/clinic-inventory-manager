@@ -32,7 +32,7 @@
 	 * offers both. TAB is off: it is an amount inside a pack, and the Price
 	 * field never offers "Per TAB".
 	 */
-	useErrorToast(() => unitsStore.error)
+	useErrorToast(unitsStore)
 
 	const plural = (count: number, noun: string): string =>
 		`${count} ${count === 1 ? noun : `${noun}s`}`

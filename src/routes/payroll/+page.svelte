@@ -64,8 +64,8 @@
 		'December',
 	]
 
-	useErrorToast(() => payrollStore.error)
-	useErrorToast(() => payrollRecordsStore.error)
+	useErrorToast(payrollStore)
+	useErrorToast(payrollRecordsStore)
 
 	const employees = $derived(payrollStore.employees)
 	const initialLoading = $derived(payrollStore.loading && employees.length === 0)
@@ -223,7 +223,7 @@
 		if (!(await payrollStore.deleteEmployee(target.id))) return
 		closeEmployeeDialog()
 		toast.success(`Deleted ${target.name}`, {
-			duration: 8000,
+			duration: 10000,
 			action: {
 				label: 'Undo',
 				onClick: async () => {
@@ -352,7 +352,7 @@
 			toast.success('Excel downloaded')
 		} catch (error) {
 			console.error('Excel export failed:', error)
-			toast.error('The export failed. Try again.', { duration: Infinity })
+			toast.error('The export failed. Try again.', { duration: 10000 })
 		}
 	}
 

@@ -55,8 +55,8 @@
 	const NOT_MOVING_DAYS = 30
 	const QUEUE_PAGE = 8
 
-	useErrorToast(() => inventoryStore.error)
-	useErrorToast(() => stockBatchesStore.error)
+	useErrorToast(inventoryStore)
+	useErrorToast(stockBatchesStore)
 
 	const items = $derived(inventoryStore.items)
 	const initialLoading = $derived(inventoryStore.loading && items.length === 0)

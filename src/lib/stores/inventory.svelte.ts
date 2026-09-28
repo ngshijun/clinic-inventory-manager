@@ -51,6 +51,8 @@ class InventoryStore {
 	items = $state<InventoryItem[]>([])
 	#loadingCount = $state(0)
 	error = $state<string | null>(null)
+	/** A failed load, which the user can do nothing about; `error` is a failed action */
+	loadError = $state<string | null>(null)
 	#unsubscribe: (() => void) | null = null
 	#settle: (() => void) | null = null
 	#isInitialized = false
@@ -96,13 +98,6 @@ class InventoryStore {
 	}
 
 	// Actions
-	fetchItems = async (): Promise<void> => {
-		await this.#run('An error occurred while fetching items', async () => {
-			const docs = await convex.query(api.inventory.list, { auth: authStore.token })
-			this.items = docs.map(toItem)
-		})
-	}
-
 	addItem = async (newItem: NewInventoryItem, expiryDate?: string | null): Promise<void> => {
 		await this.#run('An error occurred while adding item', () =>
 			convex.mutation(api.inventory.add, {
@@ -269,11 +264,11 @@ class InventoryStore {
 			{ auth: authStore.token },
 			(docs) => {
 				this.items = docs.map(toItem)
-				this.error = null
+				this.loadError = null
 				settle()
 			},
 			(err) => {
-				this.error = errorMessage(err, 'An error occurred while fetching items')
+				this.loadError = errorMessage(err, 'An error occurred while fetching items')
 				console.error('Inventory subscription error:', err)
 				settle()
 			},
@@ -295,6 +290,7 @@ class InventoryStore {
 		this.#unsubscribe = null
 		this.items = []
 		this.error = null
+		this.loadError = null
 		this.#isInitialized = false
 	}
 }

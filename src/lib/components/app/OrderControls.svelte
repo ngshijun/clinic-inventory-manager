@@ -33,7 +33,7 @@
 		await inventoryStore.clearOrderStatus(id)
 		if (inventoryStore.error) return
 		toast.success(message, {
-			duration: 8000,
+			duration: 10000,
 			action: {
 				label: 'Undo',
 				onClick: async () => {

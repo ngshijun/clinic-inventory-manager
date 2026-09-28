@@ -180,11 +180,8 @@
 	let importing = $state(false)
 	let importError = $state<string | null>(null)
 
-	useErrorToast(
-		() => inventoryStore.error,
-		() => importing,
-	)
-	useErrorToast(() => stockBatchesStore.error)
+	useErrorToast(inventoryStore, () => importing)
+	useErrorToast(stockBatchesStore)
 
 	// ---------- Add item ----------
 	interface NewItemForm {
@@ -570,7 +567,7 @@
 			XLSX.writeFile(workbook, `inventory_export_${todayIsoDate()}.xlsx`)
 		} catch (error) {
 			console.error('Export failed:', error)
-			toast.error('The export failed. Try again.', { duration: Infinity })
+			toast.error('The export failed. Try again.', { duration: 10000 })
 		}
 	}
 

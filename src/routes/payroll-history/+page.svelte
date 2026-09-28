@@ -40,7 +40,7 @@
 	import { formatAmount, formatRM } from '$lib/utils/money'
 	import { cn } from '$lib/utils'
 
-	useErrorToast(() => payrollRecordsStore.error)
+	useErrorToast(payrollRecordsStore)
 
 	const runs = $derived(payrollRecordsStore.runs)
 	const initialLoading = $derived(payrollRecordsStore.loading && runs.length === 0)

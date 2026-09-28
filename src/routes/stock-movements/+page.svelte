@@ -78,7 +78,7 @@
 		itemId: null,
 	})
 
-	useErrorToast(() => stockMovementsStore.error)
+	useErrorToast(stockMovementsStore)
 
 	// Typing in the search box must not hit the server on every keystroke
 	let debouncedSearch = $state('')

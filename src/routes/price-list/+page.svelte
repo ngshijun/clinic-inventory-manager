@@ -56,7 +56,7 @@
 	const supplier = $derived(activeSupplier(supplierChoice, inventoryStore.items))
 	let sort = $state<SortState<SortKey>>({ key: null, direction: 'asc' })
 
-	useErrorToast(() => inventoryStore.error)
+	useErrorToast(inventoryStore)
 
 	// In stock is the default and gets no mark, as on Inventory
 	const stockStatus = (item: InventoryItem): { tone: Tone; text: string } | null => {

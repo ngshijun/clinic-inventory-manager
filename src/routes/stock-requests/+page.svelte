@@ -55,8 +55,8 @@
 	let dayDate = $state(todayIsoDate())
 	let sort = $state<SortState<SortKey>>({ key: null, direction: 'asc' })
 
-	useErrorToast(() => stockRequestsStore.error)
-	useErrorToast(() => inventoryStore.error)
+	useErrorToast(stockRequestsStore)
+	useErrorToast(inventoryStore)
 
 	const requests = $derived(stockRequestsStore.requests)
 	const todayKey = $derived(todayIsoDate())
@@ -189,7 +189,7 @@
 		await stockRequestsStore.removeRequest(request.id)
 		if (stockRequestsStore.error) return
 		toast.success(`Removed the request for ${request.item_name}`, {
-			duration: 8000,
+			duration: 10000,
 			action: {
 				label: 'Undo',
 				onClick: async () => {

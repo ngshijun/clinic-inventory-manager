@@ -24,6 +24,8 @@ class PayrollStore {
 	employees = $state<Employee[]>([])
 	private loadingCount = $state(0)
 	error = $state<string | null>(null)
+	/** A failed load, which the user can do nothing about; `error` is a failed action */
+	loadError = $state<string | null>(null)
 	private unsubscribe: (() => void) | null = null
 	private settleFirst: (() => void) | null = null
 	private isInitialized = false
@@ -42,20 +44,6 @@ class PayrollStore {
 	}
 
 	// Actions
-	fetchEmployees = async (): Promise<void> => {
-		this.loadingCount++
-		this.error = null
-		try {
-			const docs = await convex.query(api.payroll.list, { auth: authStore.token })
-			this.employees = docs.map(withLegacy)
-		} catch (err) {
-			this.error = errorMessage(err, 'An error occurred while fetching employees')
-			console.error('Error fetching employees:', err)
-		} finally {
-			this.loadingCount--
-		}
-	}
-
 	addEmployee = async (newEmployee: EmployeeInsert): Promise<boolean> => {
 		this.loadingCount++
 		this.error = null
@@ -331,11 +319,11 @@ class PayrollStore {
 			{ auth: authStore.token },
 			(docs) => {
 				this.employees = docs.map(withLegacy)
-				this.error = null
+				this.loadError = null
 				settle()
 			},
 			(err) => {
-				this.error = errorMessage(err, 'An error occurred while fetching employees')
+				this.loadError = errorMessage(err, 'An error occurred while fetching employees')
 				console.error('Payroll subscription error:', err)
 				settle()
 			},
@@ -357,6 +345,7 @@ class PayrollStore {
 		this.unsubscribe = null
 		this.employees = []
 		this.error = null
+		this.loadError = null
 		this.isInitialized = false
 	}
 }

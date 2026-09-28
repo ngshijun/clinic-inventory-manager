@@ -53,8 +53,8 @@
 	let dayDate = $state(todayIsoDate())
 	let sort = $state<SortState<SortKey>>({ key: null, direction: 'asc' })
 
-	useErrorToast(() => stockRequestsStore.error)
-	useErrorToast(() => inventoryStore.error)
+	useErrorToast(stockRequestsStore)
+	useErrorToast(inventoryStore)
 
 	const requests = $derived(stockRequestsStore.requests)
 
