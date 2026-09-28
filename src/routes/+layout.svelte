@@ -152,10 +152,11 @@
 				{/if}
 			</header>
 
-			<!-- A size container, so a page can size itself to the visible region with cqh. -->
+			<!-- A size container, so a page can size itself to the visible region with cqh; tables read --page-header. -->
 			<div
 				bind:this={scroller}
 				class="[container-type:size] flex min-h-0 flex-1 flex-col overflow-y-auto"
+				style:--page-header="{scrollRegion.headerHeight}px"
 				onscroll={() => (scrollRegion.scrolled = (scroller?.scrollTop ?? 0) > 0)}
 			>
 				<div class="flex flex-1 flex-col gap-4 p-4 sm:p-6">
