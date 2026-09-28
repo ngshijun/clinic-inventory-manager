@@ -30,7 +30,7 @@
 		if (inventoryStore.error) return
 		close()
 		toast.success(`Stopped ordering ${name}`, {
-			duration: 8000,
+			duration: 10000,
 			action: {
 				label: 'Undo',
 				onClick: async () => {

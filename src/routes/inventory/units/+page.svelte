@@ -6,6 +6,8 @@
 	import ActionModal from '$lib/components/app/ActionModal.svelte'
 	import DialogSubject from '$lib/components/app/DialogSubject.svelte'
 	import PageHeader from '$lib/components/app/PageHeader.svelte'
+	import SortHeader from '$lib/components/app/SortHeader.svelte'
+	import type { SortState } from '$lib/components/app/sort'
 	import { Button } from '$lib/components/ui/button'
 	import * as Empty from '$lib/components/ui/empty'
 	import * as Field from '$lib/components/ui/field'
@@ -30,7 +32,7 @@
 	 * offers both. TAB is off: it is an amount inside a pack, and the Price
 	 * field never offers "Per TAB".
 	 */
-	useErrorToast(() => unitsStore.error)
+	useErrorToast(unitsStore)
 
 	const plural = (count: number, noun: string): string =>
 		`${count} ${count === 1 ? noun : `${noun}s`}`
@@ -47,6 +49,30 @@
 		return counts
 	})
 	const usedBy = (name: string): number => usage.get(name) ?? 0
+
+	// The list arrives by name; a column head sorts it by name or by how many items use it
+	type SortKey = 'name' | 'used_by'
+	let sort = $state<SortState<SortKey>>({ key: null, direction: 'asc' })
+
+	const sortedUnits = $derived.by((): Unit[] => {
+		const rows = unitsStore.units
+		const key = sort.key
+		if (!key) return rows
+		const dir = sort.direction === 'asc' ? 1 : -1
+		return [...rows].sort((a, b) =>
+			key === 'name'
+				? dir * a.name.localeCompare(b.name)
+				: dir * (usedBy(a.name) - usedBy(b.name)) || a.name.localeCompare(b.name),
+		)
+	})
+
+	const toggleSort = (key: SortKey): void => {
+		if (sort.key === key) {
+			sort.direction = sort.direction === 'asc' ? 'desc' : 'asc'
+		} else {
+			sort = { key, direction: 'asc' }
+		}
+	}
 
 	// A unit is one word in capitals, so the field keeps only letters
 	const clean = (text: string): string => text.toUpperCase().replace(/[^A-Z]/g, '')
@@ -188,14 +214,14 @@
 	<Table.Root>
 		<Table.Header>
 			<Table.Row>
-				<Table.Head>Unit</Table.Head>
-				<Table.Head>Used by</Table.Head>
+				<SortHeader key="name" {sort} onsort={toggleSort}>Unit</SortHeader>
+				<SortHeader key="used_by" {sort} onsort={toggleSort}>Used by</SortHeader>
 				<Table.Head>Suppliers price by this unit</Table.Head>
 				<Table.Head><span class="sr-only">Actions</span></Table.Head>
 			</Table.Row>
 		</Table.Header>
 		<Table.Body>
-			{#each unitsStore.units as unit (unit.id)}
+			{#each sortedUnits as unit (unit.id)}
 				{@const count = usedBy(unit.name)}
 				<Table.Row>
 					<Table.Cell class="font-medium tracking-wide">{unit.name}</Table.Cell>

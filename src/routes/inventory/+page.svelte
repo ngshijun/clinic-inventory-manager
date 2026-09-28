@@ -23,6 +23,7 @@
 	import { selectOnFocus } from '$lib/attachments/focus'
 	import ActionModal from '$lib/components/app/ActionModal.svelte'
 	import SupplierField from '$lib/components/app/SupplierField.svelte'
+	import StatusFilter from '$lib/components/app/StatusFilter.svelte'
 	import SupplierFilter from '$lib/components/app/SupplierFilter.svelte'
 	import DialogSubject from '$lib/components/app/DialogSubject.svelte'
 	import DiscardDialog from '$lib/components/app/DiscardDialog.svelte'
@@ -46,7 +47,6 @@
 	import { Spinner } from '$lib/components/ui/spinner'
 	import * as Table from '$lib/components/ui/table'
 	import { Textarea } from '$lib/components/ui/textarea'
-	import * as ToggleGroup from '$lib/components/ui/toggle-group'
 	import { useErrorToast } from '$lib/composables/errorToast.svelte'
 	import { createLoadMore } from '$lib/composables/loadMore.svelte'
 	import { inventoryStore } from '$lib/stores/inventory.svelte'
@@ -57,29 +57,23 @@
 	import { expiryNote } from '$lib/utils/expiry'
 	import Quantity from '$lib/components/app/Quantity.svelte'
 	import { cn } from '$lib/utils'
+	import {
+		isStatusFilter,
+		matchesStatus,
+		type StatusFilter as StatusFilterValue,
+	} from '$lib/utils/statusFilter'
 	import { ALL_SUPPLIERS, activeSupplier, matchesSupplier } from '$lib/utils/supplier'
 	import { emptyUnitForm, unitFormFrom, unitFormParts, type UnitForm } from '$lib/utils/units'
 	import { sameUnit } from '../../../convex/lib/units'
 
 	// ---------- Toolbar state ----------
-	type Filter = 'all' | 'low' | 'out' | 'ordered' | 'notordering'
-	type SortKey = 'item_name' | 'supplier' | 'quantity' | 'reorder_level' | 'nearest_expiry'
-
-	const FILTERS: Array<{ value: Filter; label: string }> = [
-		{ value: 'all', label: 'All' },
-		{ value: 'low', label: 'Low Stock' },
-		{ value: 'out', label: 'Out of Stock' },
-		{ value: 'ordered', label: 'On Order' },
-		{ value: 'notordering', label: 'Not Ordering' },
-	]
+	type SortKey = 'item_name' | 'supplier' | 'quantity' | 'nearest_expiry'
 
 	let searchQuery = $state('')
 	let searchInput = $state<HTMLInputElement | null>(null)
 	// The dashboard links here with ?filter=low, ?filter=out and so on
-	const isFilter = (value: string | null): value is Filter =>
-		FILTERS.some((option) => option.value === value)
 	const initialFilter = page.url.searchParams.get('filter')
-	let filter = $state<Filter>(isFilter(initialFilter) ? initialFilter : 'all')
+	let filter = $state<StatusFilterValue>(isStatusFilter(initialFilter) ? initialFilter : 'all')
 	// The Suppliers page links here with ?supplier=NAME
 	let supplierChoice = $state(page.url.searchParams.get('supplier') ?? ALL_SUPPLIERS)
 	const supplier = $derived(activeSupplier(supplierChoice, inventoryStore.items))
@@ -101,21 +95,6 @@
 		return null
 	}
 
-	const matchesFilter = (item: InventoryItem): boolean => {
-		switch (filter) {
-			case 'low':
-				return !item.not_track && item.quantity > 0 && item.quantity <= item.reorder_level
-			case 'out':
-				return !item.not_track && item.quantity === 0
-			case 'ordered':
-				return item.order_status?.kind === 'ordered'
-			case 'notordering':
-				return item.not_track
-			default:
-				return true
-		}
-	}
-
 	// ---------- Expiry helpers ----------
 	const getNearestExpiry = (item: InventoryItem): string | null =>
 		stockBatchesStore.nearestExpiryByItem.get(item.id) ?? null
@@ -127,7 +106,10 @@
 	const sortedItems = $derived.by((): InventoryItem[] => {
 		const items = inventoryStore
 			.searchItems(searchQuery)
-			.filter((item) => matchesFilter(item) && matchesSupplier(item, supplier) && matchesUnit(item))
+			.filter(
+				(item) =>
+					matchesStatus(item, filter) && matchesSupplier(item, supplier) && matchesUnit(item),
+			)
 		const key = sort.key
 		if (!key) return items
 
@@ -198,11 +180,8 @@
 	let importing = $state(false)
 	let importError = $state<string | null>(null)
 
-	useErrorToast(
-		() => inventoryStore.error,
-		() => importing,
-	)
-	useErrorToast(() => stockBatchesStore.error)
+	useErrorToast(inventoryStore, () => importing)
+	useErrorToast(stockBatchesStore)
 
 	// ---------- Add item ----------
 	interface NewItemForm {
@@ -588,7 +567,7 @@
 			XLSX.writeFile(workbook, `inventory_export_${todayIsoDate()}.xlsx`)
 		} catch (error) {
 			console.error('Export failed:', error)
-			toast.error('The export failed. Try again.', { duration: Infinity })
+			toast.error('The export failed. Try again.', { duration: 10000 })
 		}
 	}
 
@@ -622,18 +601,7 @@
 				</InputGroup.Addon>
 			{/if}
 		</InputGroup.Root>
-		<ToggleGroup.Root
-			class="grid auto-cols-fr grid-flow-col"
-			type="single"
-			variant="outline"
-			value={filter}
-			onValueChange={(value) => (filter = (value || 'all') as Filter)}
-			aria-label="Filter by status"
-		>
-			{#each FILTERS as option (option.value)}
-				<ToggleGroup.Item value={option.value}>{option.label}</ToggleGroup.Item>
-			{/each}
-		</ToggleGroup.Root>
+		<StatusFilter bind:value={filter} />
 		<SupplierFilter bind:value={supplierChoice} items={inventoryStore.items} />
 		{#if unitFilter}
 			<Button variant="secondary" onclick={() => (unitFilter = '')}>
@@ -772,7 +740,7 @@
 				<SortHeader key="item_name" {sort} onsort={toggleSort}>Item</SortHeader>
 				<SortHeader key="supplier" {sort} onsort={toggleSort}>Supplier</SortHeader>
 				<SortHeader key="quantity" {sort} onsort={toggleSort}>In stock</SortHeader>
-				<SortHeader key="reorder_level" {sort} onsort={toggleSort}>Reorder level</SortHeader>
+				<Table.Head>Reorder level</Table.Head>
 				<SortHeader key="nearest_expiry" {sort} onsort={toggleSort}>Nearest expiry</SortHeader>
 				<Table.Head>Order</Table.Head>
 				<Table.Head><span class="sr-only">Actions</span></Table.Head>

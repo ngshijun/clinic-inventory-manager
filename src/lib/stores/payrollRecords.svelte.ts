@@ -22,6 +22,8 @@ class PayrollRecordsStore {
 	itemsByRun = $state<Record<string, PayrollRunItem[]>>({})
 	#loadingCount = $state(0)
 	error = $state<string | null>(null)
+	/** A failed load, which the user can do nothing about; `error` is a failed action */
+	loadError = $state<string | null>(null)
 	#unsubscribeRuns: (() => void) | null = null
 	#settle: (() => void) | null = null
 	#itemSubscriptions = new Map<string, () => void>()
@@ -43,26 +45,12 @@ class PayrollRecordsStore {
 	getItems = (runId: string): PayrollRunItem[] => this.itemsByRun[runId] || []
 
 	// Actions
-	fetchRuns = async (): Promise<void> => {
-		this.#loadingCount++
-		this.error = null
-		try {
-			const docs = await convex.query(api.payrollRuns.list, { auth: authStore.token })
-			this.runs = docs.map(withLegacy)
-		} catch (err) {
-			this.error = errorMessage(err, 'An error occurred while fetching payroll records')
-			console.error('Error fetching payroll runs:', err)
-		} finally {
-			this.#loadingCount--
-		}
-	}
-
 	/** Load a run's items and keep them live. Resolves with the first result. */
 	fetchRunItems = async (runId: PayrollRunId): Promise<PayrollRunItem[]> => {
 		if (this.#itemSubscriptions.has(runId)) return this.getItems(runId)
 
 		this.#loadingCount++
-		this.error = null
+		this.loadError = null
 		return await new Promise<PayrollRunItem[]>((resolve) => {
 			let settled = false
 			const settle = (items: PayrollRunItem[]) => {
@@ -81,7 +69,10 @@ class PayrollRecordsStore {
 					settle(items)
 				},
 				(err) => {
-					this.error = errorMessage(err, 'An error occurred while fetching payroll record items')
+					this.loadError = errorMessage(
+						err,
+						'An error occurred while fetching payroll record items',
+					)
 					console.error('Error fetching payroll run items:', err)
 					settle([])
 				},
@@ -186,11 +177,11 @@ class PayrollRecordsStore {
 				for (const runId of [...this.#itemSubscriptions.keys()]) {
 					if (!live.has(runId)) this.#dropItems(runId)
 				}
-				this.error = null
+				this.loadError = null
 				settle()
 			},
 			(err) => {
-				this.error = errorMessage(err, 'An error occurred while fetching payroll records')
+				this.loadError = errorMessage(err, 'An error occurred while fetching payroll records')
 				console.error('Payroll runs subscription error:', err)
 				settle()
 			},
@@ -215,6 +206,7 @@ class PayrollRecordsStore {
 		this.runs = []
 		this.itemsByRun = {}
 		this.error = null
+		this.loadError = null
 		this.#isInitialized = false
 	}
 }

@@ -14,6 +14,8 @@ class StockBatchesStore {
 	batches = $state<StockBatch[]>([])
 	#loadingCount = $state(0)
 	error = $state<string | null>(null)
+	/** A failed load, which the user can do nothing about; `error` is a failed action */
+	loadError = $state<string | null>(null)
 	#unsubscribe: (() => void) | null = null
 	#settle: (() => void) | null = null
 	#isInitialized = false
@@ -93,11 +95,11 @@ class StockBatchesStore {
 			{ auth: authStore.token },
 			(docs) => {
 				this.batches = docs.map(withLegacy)
-				this.error = null
+				this.loadError = null
 				settle()
 			},
 			(err) => {
-				this.error = errorMessage(err, 'An error occurred while fetching batches')
+				this.loadError = errorMessage(err, 'An error occurred while fetching batches')
 				console.error('Batches subscription error:', err)
 				settle()
 			},
@@ -117,6 +119,7 @@ class StockBatchesStore {
 		this.#unsubscribe = null
 		this.batches = []
 		this.error = null
+		this.loadError = null
 		this.#isInitialized = false
 	}
 }

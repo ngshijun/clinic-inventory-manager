@@ -9,6 +9,8 @@ class SuppliersStore {
 	suppliers = $state<Supplier[]>([])
 	#loadingCount = $state(0)
 	error = $state<string | null>(null)
+	/** A failed load, which the user can do nothing about; `error` is a failed action */
+	loadError = $state<string | null>(null)
 	#unsubscribe: (() => void) | null = null
 	#settle: (() => void) | null = null
 	#isInitialized = false
@@ -74,11 +76,11 @@ class SuppliersStore {
 			{ auth: authStore.token },
 			(docs) => {
 				this.suppliers = docs.map(withLegacy)
-				this.error = null
+				this.loadError = null
 				settle()
 			},
 			(err) => {
-				this.error = errorMessage(err, 'An error occurred while fetching suppliers')
+				this.loadError = errorMessage(err, 'An error occurred while fetching suppliers')
 				console.error('Suppliers subscription error:', err)
 				settle()
 			},
@@ -98,6 +100,7 @@ class SuppliersStore {
 		this.#unsubscribe = null
 		this.suppliers = []
 		this.error = null
+		this.loadError = null
 		this.#isInitialized = false
 	}
 }

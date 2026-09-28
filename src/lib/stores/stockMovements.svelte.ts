@@ -37,6 +37,8 @@ class StockMovementsStore {
 	countIsExact = $state(true)
 	#loadingCount = $state(0)
 	error = $state<string | null>(null)
+	/** A failed load, which the user can do nothing about; `error` is a failed action */
+	loadError = $state<string | null>(null)
 
 	#query: MovementsQuery | null = null
 	#unsubscribeCount: (() => void) | null = null
@@ -131,11 +133,11 @@ class StockMovementsStore {
 					isDone: result.isDone,
 					continueCursor: result.continueCursor,
 				})
-				this.error = null
+				this.loadError = null
 				settle()
 			},
 			(err) => {
-				this.error = errorMessage(err, 'An error occurred while fetching movements')
+				this.loadError = errorMessage(err, 'An error occurred while fetching movements')
 				console.error('Movements subscription error:', err)
 				settle()
 			},
@@ -226,6 +228,7 @@ class StockMovementsStore {
 		this.totalCount = 0
 		this.countIsExact = true
 		this.error = null
+		this.loadError = null
 	}
 }
 

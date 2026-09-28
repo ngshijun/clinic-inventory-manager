@@ -1,18 +1,30 @@
 import { untrack } from 'svelte'
 import { toast } from 'svelte-sonner'
 
+interface ErrorSource {
+	readonly error: string | null
+	readonly loadError: string | null
+}
+
 /**
- * Shows every new store error as a toast that stays until dismissed.
- * `unless` lets a page keep an error out of the toast while it shows it
- * inline instead (for example an import failure).
+ * Shows a store's errors as toasts. A failed action lasts 10 seconds, the
+ * longest of any toast, as the user has to do it again. A failed load leaves
+ * the user nothing to do, so it goes after 8 seconds.
  *
- * Must be called during component initialisation, as it creates an effect.
+ * `unless` lets a page keep a failed action out of the toast while it shows
+ * it inline instead (for example an import failure).
+ *
+ * Must be called during component initialisation, as it creates effects.
  */
-export function useErrorToast(getError: () => string | null, unless?: () => boolean): void {
+export function useErrorToast(store: ErrorSource, unless?: () => boolean): void {
 	$effect(() => {
-		const message = getError()
+		const message = store.error
 		if (!message) return
 		if (unless && untrack(unless)) return
-		toast.error(message, { duration: Infinity })
+		toast.error(message, { duration: 10000 })
+	})
+	$effect(() => {
+		const message = store.loadError
+		if (message) toast.error(message, { duration: 8000 })
 	})
 }

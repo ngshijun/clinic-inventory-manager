@@ -199,6 +199,40 @@
 	input[type='search']::-webkit-search-cancel-button {
 		appearance: none;
 	}
+	/*
+	 * A table's scroll bars are always drawn, also on a Mac, which otherwise
+	 * hides them until the pointer scrolls: a plain mouse wheel cannot scroll
+	 * sideways, so the bar has to be there to drag.
+	 */
+	[data-slot='table-container']::-webkit-scrollbar {
+		width: 14px;
+		height: 14px;
+	}
+	[data-slot='table-container']::-webkit-scrollbar-track,
+	[data-slot='table-container']::-webkit-scrollbar-corner {
+		background: var(--muted);
+	}
+	[data-slot='table-container']::-webkit-scrollbar-thumb {
+		border: 3px solid var(--muted);
+		border-radius: 999px;
+		background: var(--border-strong);
+	}
+	[data-slot='table-container']::-webkit-scrollbar-thumb:hover {
+		background: var(--muted-foreground);
+	}
+	/*
+	 * A toast's close button shows while the pointer is over the toast or the
+	 * button has keyboard focus. A touch screen has no hover, so it always shows.
+	 */
+	@media (hover: hover) {
+		[data-sonner-toast] [data-close-button] {
+			opacity: 0;
+		}
+		[data-sonner-toast]:hover [data-close-button],
+		[data-sonner-toast] [data-close-button]:focus-visible {
+			opacity: 1;
+		}
+	}
 	/* Respect the OS reduce-motion setting: keep state changes, drop the choreography. */
 	@media (prefers-reduced-motion: reduce) {
 		*,

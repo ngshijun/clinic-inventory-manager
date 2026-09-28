@@ -47,7 +47,7 @@
 	import { cn } from '$lib/utils'
 
 	// ---------- Toolbar state ----------
-	type SortKey = 'item_name' | 'created_at' | 'quantity' | 'status'
+	type SortKey = 'item_name' | 'created_at' | 'status'
 
 	let searchQuery = $state('')
 	let searchInput = $state<HTMLInputElement | null>(null)
@@ -55,8 +55,8 @@
 	let dayDate = $state(todayIsoDate())
 	let sort = $state<SortState<SortKey>>({ key: null, direction: 'asc' })
 
-	useErrorToast(() => stockRequestsStore.error)
-	useErrorToast(() => inventoryStore.error)
+	useErrorToast(stockRequestsStore)
+	useErrorToast(inventoryStore)
 
 	const requests = $derived(stockRequestsStore.requests)
 	const todayKey = $derived(todayIsoDate())
@@ -80,7 +80,6 @@
 			if (key === 'item_name') {
 				return dir * a.item_name.toLowerCase().localeCompare(b.item_name.toLowerCase())
 			}
-			if (key === 'quantity') return dir * (a.quantity - b.quantity)
 			if (key === 'created_at') return dir * a.created_at.localeCompare(b.created_at)
 			return dir * (STATUS_RANK[a.status] - STATUS_RANK[b.status])
 		})
@@ -190,7 +189,7 @@
 		await stockRequestsStore.removeRequest(request.id)
 		if (stockRequestsStore.error) return
 		toast.success(`Removed the request for ${request.item_name}`, {
-			duration: 8000,
+			duration: 10000,
 			action: {
 				label: 'Undo',
 				onClick: async () => {
@@ -313,7 +312,7 @@
 			<Table.Row>
 				<SortHeader key="item_name" {sort} onsort={toggleSort}>Item</SortHeader>
 				<SortHeader key="created_at" {sort} onsort={toggleSort}>Requested</SortHeader>
-				<SortHeader key="quantity" {sort} onsort={toggleSort}>Quantity</SortHeader>
+				<Table.Head>Quantity</Table.Head>
 				<Table.Head class="w-[30%]">Remark</Table.Head>
 				<SortHeader key="status" {sort} onsort={toggleSort}>Status</SortHeader>
 				<Table.Head><span class="sr-only">Actions</span></Table.Head>
