@@ -57,128 +57,124 @@ const slugify = (value: string): string =>
 // A4 in millimetres
 const PAGE_WIDTH = 210
 const MARGIN = 18
-const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2
 const RIGHT = PAGE_WIDTH - MARGIN
+const AMOUNT_WIDTH = 25
+const ROW_HEIGHT = 8.2
+
+type Colour = [number, number, number]
+
+// One colour, used for the employer name, the section headings and net pay
+const TEAL: Colour = [15, 92, 110]
+const TINT: Colour = [231, 241, 243]
+const INK: Colour = [17, 17, 17]
+const MUTED: Colour = [106, 106, 106]
+const RULE: Colour = [200, 200, 200]
+const HAIRLINE: Colour = [227, 230, 231]
 
 const drawPayslip = (doc: jsPDF, employee: PayslipEmployee, period: PayslipPeriod): void => {
-	let y = MARGIN
-
-	// Header
-	doc.setFont('helvetica', 'bold')
-	doc.setFontSize(16)
-	doc.text(EMPLOYER_NAME, PAGE_WIDTH / 2, y, { align: 'center' })
-
-	y += 7
-	doc.setFontSize(11)
-	doc.setFont('helvetica', 'normal')
-	doc.text('Payslip', PAGE_WIDTH / 2, y, { align: 'center' })
-
-	y += 6
-	doc.setFontSize(10)
-	doc.text(`For the month of ${formatPeriod(period)}`, PAGE_WIDTH / 2, y, { align: 'center' })
-
-	y += 6
-	doc.setDrawColor(150, 150, 150)
-	doc.line(MARGIN, y, RIGHT, y)
-
-	// Employee
-	y += 8
-	doc.setFont('helvetica', 'bold')
-	doc.setFontSize(10)
-	doc.text('Employee', MARGIN, y)
-	doc.setFont('helvetica', 'normal')
-	doc.text(employee.name, MARGIN + 32, y)
-
-	y += 6
-	doc.setFont('helvetica', 'bold')
-	doc.text('Pay period', MARGIN, y)
-	doc.setFont('helvetica', 'normal')
-	doc.text(formatPeriod(period), MARGIN + 32, y)
-
-	// Section helpers -------------------------------------------------------
-	const sectionHeading = (label: string) => {
-		y += 10
-		doc.setFillColor(240, 240, 240)
-		doc.rect(MARGIN, y - 4.5, CONTENT_WIDTH, 6.5, 'F')
-		doc.setFont('helvetica', 'bold')
-		doc.setFontSize(10)
-		doc.text(label, MARGIN + 2, y)
-		doc.text('Amount (RM)', RIGHT - 2, y, { align: 'right' })
-		y += 3
+	const write = (
+		text: string,
+		x: number,
+		y: number,
+		size: number,
+		style: 'normal' | 'bold' | 'italic',
+		colour: Colour,
+		align: 'left' | 'right' = 'left',
+	) => {
+		doc.setFont('helvetica', style)
+		doc.setFontSize(size)
+		doc.setTextColor(...colour)
+		doc.text(text, x, y, { align })
 	}
 
-	const row = (label: string, amount: number, bold = false) => {
-		y += 6
-		doc.setFont('helvetica', bold ? 'bold' : 'normal')
-		doc.setFontSize(10)
-		doc.text(label, MARGIN + 2, y)
-		doc.text(formatAmount(amount), RIGHT - 2, y, { align: 'right' })
-	}
-
-	const rule = () => {
-		y += 2.5
-		doc.setDrawColor(200, 200, 200)
+	const rule = (y: number, colour: Colour, width: number) => {
+		doc.setDrawColor(...colour)
+		doc.setLineWidth(width)
 		doc.line(MARGIN, y, RIGHT, y)
 	}
 
-	// Earnings
-	sectionHeading('Earnings')
-	row('Basic Salary', employee.basicSalary)
-	rule()
-	row('Gross Pay', employee.basicSalary, true)
+	// Letterhead
+	let y = MARGIN + 5
+	write(EMPLOYER_NAME, MARGIN, y, 15, 'bold', TEAL)
+	write('Payslip', RIGHT, y - 5.5, 8, 'normal', MUTED, 'right')
+	write(formatPeriod(period), RIGHT, y, 12, 'bold', INK, 'right')
+	y += 4
+	rule(y, TEAL, 0.6)
 
-	// Deductions
-	const totalDeductions =
-		employee.epfEmployee +
-		employee.socsoEmployee +
-		employee.eisEmployee +
-		employee.lindung24 +
-		employee.pcb +
-		employee.cp38
+	// Employee, with net pay beside the name as the first figure read
+	const netPay = `RM ${formatAmount(employee.netSalary)}`
+	doc.setFont('helvetica', 'bold')
+	doc.setFontSize(21)
+	const boxWidth = Math.max(53, doc.getTextWidth(netPay) + 10)
+	const boxLeft = RIGHT - boxWidth
+	const boxTop = y + 5
+	const boxHeight = 20
+	doc.setFillColor(...TINT)
+	doc.roundedRect(boxLeft, boxTop, boxWidth, boxHeight, 1.8, 1.8, 'F')
+	write('Net pay', RIGHT - 5, boxTop + 6, 8, 'normal', MUTED, 'right')
+	write(netPay, RIGHT - 5, boxTop + 15.5, 21, 'bold', TEAL, 'right')
 
-	sectionHeading('Deductions')
-	row('EPF (Employee)', employee.epfEmployee)
-	row('SOCSO (Employee)', employee.socsoEmployee)
-	row('EIS (Employee)', employee.eisEmployee)
+	doc.setFont('helvetica', 'bold')
+	doc.setFontSize(12.5)
+	doc.setTextColor(...INK)
+	const nameLines: string[] = doc.splitTextToSize(employee.name, boxLeft - MARGIN - 6)
+	doc.text(nameLines, MARGIN, boxTop + boxHeight / 2 + 1.5 - (nameLines.length - 1) * 2.6)
+	y = boxTop + boxHeight + 6
+
+	// Section helpers -------------------------------------------------------
+	const heading = (label: string, unit = false) => {
+		write(label, MARGIN, y + 4, 10, 'bold', TEAL)
+		if (unit) write('RM', RIGHT, y + 4, 8, 'normal', MUTED, 'right')
+		y += 6.5
+		rule(y, RULE, 0.2)
+	}
+
+	const row = (label: string, amount: number) => {
+		write(label, MARGIN, y + 5.4, 10, 'normal', INK)
+		write(formatAmount(amount), RIGHT, y + 5.4, 10, 'normal', INK, 'right')
+		y += ROW_HEIGHT
+		rule(y, HAIRLINE, 0.1)
+	}
+
+	// A total sits under a thin dark rule, its label beside the amount
+	const total = (label: string, amount: number) => {
+		rule(y, INK, 0.2)
+		write(label, RIGHT - AMOUNT_WIDTH, y + 5.4, 10, 'bold', INK, 'right')
+		write(formatAmount(amount), RIGHT, y + 5.4, 10, 'bold', INK, 'right')
+		y += ROW_HEIGHT + 5
+	}
+
+	heading('Earnings', true)
+	row('Basic salary', employee.basicSalary)
+	total('Total earnings', employee.basicSalary)
+
+	heading('Deductions')
+	row('Employee EPF', employee.epfEmployee)
+	row('Employee SOCSO', employee.socsoEmployee)
+	row('Employee EIS', employee.eisEmployee)
 	if (employee.lindung24 > 0) row('Lindung 24 Jam (SKBBK)', employee.lindung24)
 	if (employee.pcb > 0) row('PCB', employee.pcb)
 	if (employee.cp38 > 0) row('CP38', employee.cp38)
-	rule()
-	row('Total Deductions', totalDeductions, true)
+	total(
+		'Total deductions',
+		employee.epfEmployee +
+			employee.socsoEmployee +
+			employee.eisEmployee +
+			employee.lindung24 +
+			employee.pcb +
+			employee.cp38,
+	)
 
-	// Net pay
-	y += 10
-	doc.setFillColor(232, 240, 254)
-	doc.rect(MARGIN, y - 5, CONTENT_WIDTH, 9, 'F')
-	doc.setFont('helvetica', 'bold')
-	doc.setFontSize(11)
-	doc.text('Net Pay', MARGIN + 2, y + 1)
-	doc.text(`RM ${formatAmount(employee.netSalary)}`, RIGHT - 2, y + 1, { align: 'right' })
-	y += 4
-
-	// Employer contributions, shown for information only
-	sectionHeading('Employer Contributions (not deducted from employee)')
-	row('EPF (Employer)', employee.epfEmployer)
-	row('SOCSO (Employer)', employee.socsoEmployer)
-	row('EIS (Employer)', employee.eisEmployer)
-	rule()
-	row(
-		'Total Employer Contributions',
+	heading('Employer contributions')
+	row('EPF', employee.epfEmployer)
+	row('SOCSO', employee.socsoEmployer)
+	row('EIS', employee.eisEmployer)
+	total(
+		'Total employer contributions',
 		employee.epfEmployer + employee.socsoEmployer + employee.eisEmployer,
-		true,
 	)
 
-	// Footer
-	doc.setFont('helvetica', 'italic')
-	doc.setFontSize(8)
-	doc.setTextColor(110, 110, 110)
-	doc.text(
-		'This is a computer generated payslip and does not require a signature.',
-		PAGE_WIDTH / 2,
-		280,
-		{ align: 'center' },
-	)
-	doc.setTextColor(0, 0, 0)
+	write('Computer generated. No signature needed.', MARGIN, y + 4, 8, 'italic', MUTED)
 }
 
 /**
