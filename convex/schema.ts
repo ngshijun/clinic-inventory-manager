@@ -98,6 +98,7 @@ export const stockMovementFields = {
 	quantity: v.number(),
 	movement_type: movementType,
 	remark: v.string(),
+	// May dangle after the batch is merged into another of the same expiry date.
 	batch_id: v.optional(v.id('stock_batches')),
 	expiry_date: v.optional(v.string()),
 	...commonFields,

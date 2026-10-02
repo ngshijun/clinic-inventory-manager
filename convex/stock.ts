@@ -7,6 +7,7 @@ import {
 	applyStockIn,
 	applyStockOut,
 	assertNonNegativeQuantity,
+	batchWithExpiry,
 	insertMovement,
 	recomputeItemQuantity,
 	requireItem,
@@ -83,7 +84,15 @@ export const updateBatch = mutation({
 
 		const now = Date.now()
 		const expiry_date = optionalText(args.expiry_date)
-		await ctx.db.patch(batch._id, { quantity: args.quantity, expiry_date, updated_at: now })
+		// A date changed to another batch's makes the two one batch
+		const twin =
+			args.quantity > 0 ? await batchWithExpiry(ctx, item._id, expiry_date, batch._id) : undefined
+		if (twin) {
+			await ctx.db.patch(twin._id, { quantity: twin.quantity + args.quantity, updated_at: now })
+			await ctx.db.delete(batch._id)
+		} else {
+			await ctx.db.patch(batch._id, { quantity: args.quantity, expiry_date, updated_at: now })
+		}
 
 		const delta = args.quantity - batch.quantity
 		if (delta !== 0) {
@@ -93,7 +102,7 @@ export const updateBatch = mutation({
 				quantity: Math.abs(delta),
 				movement_type: delta > 0 ? 'stock_in' : 'stock_out',
 				remark: args.remark ?? 'Batch adjustment',
-				batch_id: batch._id,
+				batch_id: (twin ?? batch)._id,
 				expiry_date,
 				updated_at: now,
 			})

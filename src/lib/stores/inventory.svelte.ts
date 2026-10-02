@@ -114,8 +114,9 @@ class InventoryStore {
 		)
 	}
 
-	// Stock In: creates a batch (with optional expiry date), increments the
-	// quantity and logs the movement, all in one server transaction.
+	// Stock In: adds to the batch of that expiry date (opening one when there is
+	// none), increments the quantity and logs the movement, all in one server
+	// transaction.
 	stockIn = async (
 		itemId: InventoryId,
 		quantity: number,

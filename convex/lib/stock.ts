@@ -66,8 +66,28 @@ export async function recomputeItemQuantity(
 }
 
 /**
- * Adds a batch and counts it against the item's order: the order closes once
- * the whole quantity has come in. A snoozed item is back in play once it has
+ * The item's batch holding stock of this expiry date. A batch is the stock
+ * that shares one expiry date, so stock coming in joins it instead of opening
+ * a second one. Stock with no expiry date shares one batch the same way.
+ */
+export async function batchWithExpiry(
+	ctx: MutationCtx,
+	item_id: Id<'inventory'>,
+	expiry_date: string | undefined,
+	except?: Id<'stock_batches'>,
+): Promise<Doc<'stock_batches'> | undefined> {
+	// Bounded: one item has a handful of batches.
+	const batches = await ctx.db
+		.query('stock_batches')
+		.withIndex('by_item', (q) => q.eq('item_id', item_id))
+		.collect()
+	return batches.find((b) => b.quantity > 0 && b.expiry_date === expiry_date && b._id !== except)
+}
+
+/**
+ * Adds the stock to the batch of its expiry date, opening one when there is
+ * none, and counts it against the item's order: the order closes once the
+ * whole quantity has come in. A snoozed item is back in play once it has
  * stock.
  */
 export async function applyStockIn(
@@ -84,12 +104,21 @@ export async function applyStockIn(
 	const item = await requireItem(ctx, args.item_id)
 	const now = Date.now()
 
-	const batch_id = await ctx.db.insert('stock_batches', {
-		item_id: item._id,
-		quantity: args.quantity,
-		expiry_date: args.expiry_date,
-		updated_at: now,
-	})
+	const existing = await batchWithExpiry(ctx, item._id, args.expiry_date)
+	if (existing) {
+		await ctx.db.patch(existing._id, {
+			quantity: existing.quantity + args.quantity,
+			updated_at: now,
+		})
+	}
+	const batch_id =
+		existing?._id ??
+		(await ctx.db.insert('stock_batches', {
+			item_id: item._id,
+			quantity: args.quantity,
+			expiry_date: args.expiry_date,
+			updated_at: now,
+		}))
 
 	const patch: Partial<WithoutSystemFields<Doc<'inventory'>>> = { updated_at: now }
 	const status = item.order_status
