@@ -198,37 +198,3 @@ export const syncNames = internalMutation({
 		return null
 	},
 })
-
-/*
- * One-off: joins the batches of one item that share an expiry date, as stock
- * in now does. The oldest keeps the stock and the others are deleted. Item
- * totals do not change.
- *
- *   npx convex run migration:mergeBatches '{}' [--prod]
- */
-export const mergeBatches = internalMutation({
-	args: {},
-	returns: v.object({ merged: v.number() }),
-	handler: async (ctx) => {
-		const kept = new Map<string, { id: Id<'stock_batches'>; quantity: number; grew: boolean }>()
-		let merged = 0
-		for (const batch of await ctx.db.query('stock_batches').order('asc').collect()) {
-			if (batch.quantity <= 0) continue
-			const key = `${batch.item_id}|${batch.expiry_date ?? ''}`
-			const first = kept.get(key)
-			if (!first) {
-				kept.set(key, { id: batch._id, quantity: batch.quantity, grew: false })
-				continue
-			}
-			first.quantity += batch.quantity
-			first.grew = true
-			await ctx.db.delete(batch._id)
-			merged++
-		}
-		const now = Date.now()
-		for (const { id, quantity, grew } of kept.values()) {
-			if (grew) await ctx.db.patch(id, { quantity, updated_at: now })
-		}
-		return { merged }
-	},
-})
