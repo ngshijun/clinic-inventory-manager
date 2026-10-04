@@ -15,7 +15,8 @@ export interface EmployeeUpdate {
 
 // Payroll processing types
 export interface PayrollData {
-	employeeId: string
+	/** Null for a saved row tied to no employee */
+	employeeId: string | null
 	employeeName: string
 	basicSalary: number
 	pcb: number

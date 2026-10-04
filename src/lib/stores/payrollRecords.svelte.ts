@@ -18,6 +18,8 @@ type PayrollRunId = Id<'payroll_runs'>
 class PayrollRecordsStore {
 	// State
 	runs = $state<PayrollRun[]>([])
+	/** The list of runs has arrived, so a month can be told saved from unsaved */
+	runsLoaded = $state(false)
 	// Items are loaded on demand, keyed by run id
 	itemsByRun = $state<Record<string, PayrollRunItem[]>>({})
 	#loadingCount = $state(0)
@@ -81,6 +83,23 @@ class PayrollRecordsStore {
 		})
 	}
 
+	/** A saved month's figures in the shape Run Payroll edits, so it can be corrected and saved again. */
+	savedPayrollData = async (runId: PayrollRunId): Promise<PayrollData[]> =>
+		(await this.fetchRunItems(runId)).map((item) => ({
+			employeeId: item.employee_id ?? null,
+			employeeName: item.employee_name,
+			basicSalary: item.basic_salary,
+			pcb: item.pcb,
+			cp38: item.cp38,
+			epfEmployee: item.epf_employee,
+			epfEmployer: item.epf_employer,
+			socsoEmployee: item.socso_employee,
+			socsoEmployer: item.socso_employer,
+			eisEmployee: item.eis_employee,
+			eisEmployer: item.eis_employer,
+			lindung24: item.lindung_24_jam,
+		}))
+
 	/**
 	 * Freeze a month's payroll. Re-saving an already saved period replaces its
 	 * items in one server transaction, so a correction can be made without
@@ -96,7 +115,7 @@ class PayrollRecordsStore {
 		this.error = null
 		try {
 			const items = payrollData.map((item) => ({
-				employee_id: item.employeeId as Id<'payroll'>,
+				employee_id: item.employeeId as Id<'payroll'> | null,
 				employee_name: item.employeeName,
 				basic_salary: item.basicSalary,
 				epf_employee: item.epfEmployee,
@@ -178,6 +197,7 @@ class PayrollRecordsStore {
 					if (!live.has(runId)) this.#dropItems(runId)
 				}
 				this.loadError = null
+				this.runsLoaded = true
 				settle()
 			},
 			(err) => {
@@ -204,6 +224,7 @@ class PayrollRecordsStore {
 		this.#itemSubscriptions.forEach((unsubscribe) => unsubscribe())
 		this.#itemSubscriptions.clear()
 		this.runs = []
+		this.runsLoaded = false
 		this.itemsByRun = {}
 		this.error = null
 		this.loadError = null

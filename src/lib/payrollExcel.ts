@@ -1,16 +1,26 @@
 import * as XLSX from 'xlsx'
-import type { PayrollData } from '$lib/types/payroll'
+import type { PayslipEmployee } from '$lib/payslip'
 
 export interface PayrollPeriod {
 	month: number
 	year: number
 }
 
-/*
- * The accountant's journal: one Excel sheet of accrual entries for the month,
- * grouped by salary, EPF, SOCSO / EIS / Lindung 24 Jam, and PCB / CP38. The
- * account codes are the clinic's own chart of accounts.
- */
+const MONTH_NAMES = [
+	'JANUARY',
+	'FEBRUARY',
+	'MARCH',
+	'APRIL',
+	'MAY',
+	'JUNE',
+	'JULY',
+	'AUGUST',
+	'SEPTEMBER',
+	'OCTOBER',
+	'NOVEMBER',
+	'DECEMBER',
+]
+
 // Helper function to get account code and description based on employee name
 const getEmployeeAccountInfo = (employeeName: string) => {
 	const nameLower = employeeName.toLowerCase()
@@ -42,28 +52,19 @@ const getEmployeeAccountInfo = (employeeName: string) => {
 	}
 }
 
-export const exportPayrollExcel = (
-	payrollData: PayrollData[],
-	period: PayrollPeriod,
-	netSalaryOf: (item: PayrollData) => number,
-): void => {
-	const wb = XLSX.utils.book_new()
-	const monthNames = [
-		'JANUARY',
-		'FEBRUARY',
-		'MARCH',
-		'APRIL',
-		'MAY',
-		'JUNE',
-		'JULY',
-		'AUGUST',
-		'SEPTEMBER',
-		'OCTOBER',
-		'NOVEMBER',
-		'DECEMBER',
-	]
-	const monthName = monthNames[period.month - 1]
-	const year = period.year
+type ContributionField =
+	'epfEmployer' | 'epfEmployee' | 'socsoEmployer' | 'socsoEmployee' | 'eisEmployer' | 'eisEmployee'
+
+/*
+ * The accountant's journal: one sheet of accrual entries for the month,
+ * grouped by salary, EPF, SOCSO / EIS / Lindung 24 Jam, and PCB / CP38. The
+ * account codes are the clinic's own chart of accounts.
+ */
+const journalSheet = (
+	employees: PayslipEmployee[],
+	monthName: string,
+	year: number,
+): XLSX.WorkSheet => {
 	const excelData: (string | number)[][] = []
 
 	// Helper to add section
@@ -82,17 +83,17 @@ export const exportPayrollExcel = (
 	// Helper to create employee rows
 	const createEmployeeRows = (
 		type: string,
-		field: keyof PayrollData,
+		field: ContributionField,
 		codeType: 'salaryCode' | 'epfCode' | 'socsoCode' | 'eisCode',
 	) => {
-		return payrollData.map((emp) => {
-			const info = getEmployeeAccountInfo(emp.employeeName)
-			const value = emp[field] as number
+		return employees.map((emp) => {
+			const info = getEmployeeAccountInfo(emp.name)
+			const value = emp[field]
 			const code = info[codeType] as string[]
 			return [
 				code[0],
 				code[1],
-				`${type} - ${monthName} ${year} (${emp.employeeName})`,
+				`${type} - ${monthName} ${year} (${emp.name})`,
 				value.toFixed(2),
 				'0.00',
 			]
@@ -100,18 +101,17 @@ export const exportPayrollExcel = (
 	}
 
 	// Salary section
-	const salaryRows = payrollData.map((emp) => {
-		const info = getEmployeeAccountInfo(emp.employeeName)
-		const netSalary = netSalaryOf(emp)
+	const salaryRows = employees.map((emp) => {
+		const info = getEmployeeAccountInfo(emp.name)
 		return [
 			info.salaryCode[0],
 			info.salaryCode[1],
-			`SALARIES - ${monthName} ${year} (${emp.employeeName})`,
-			netSalary.toFixed(2),
+			`SALARIES - ${monthName} ${year} (${emp.name})`,
+			emp.netSalary.toFixed(2),
 			'0.00',
 		]
 	})
-	const totalSalary = payrollData.reduce((sum, emp) => sum + netSalaryOf(emp), 0)
+	const totalSalary = employees.reduce((sum, emp) => sum + emp.netSalary, 0)
 	addSection(`BEING ACCRUAL SALARY FOR ${monthName} ${year}`, salaryRows, [
 		'410-010',
 		'ACCRUALS - SALARY',
@@ -123,7 +123,7 @@ export const exportPayrollExcel = (
 	// EPF section
 	const epfEmployerRows = createEmployeeRows('EPF EMPLOYER', 'epfEmployer', 'epfCode')
 	const epfEmployeeRows = createEmployeeRows('EPF EMPLOYEE', 'epfEmployee', 'salaryCode')
-	const totalEpf = payrollData.reduce((sum, emp) => sum + emp.epfEmployer + emp.epfEmployee, 0)
+	const totalEpf = employees.reduce((sum, emp) => sum + emp.epfEmployer + emp.epfEmployee, 0)
 	addSection(
 		`BEING ACCRUAL KWSP FOR ${monthName} ${year}`,
 		[...epfEmployerRows, ...epfEmployeeRows],
@@ -139,31 +139,28 @@ export const exportPayrollExcel = (
 	// SOCSO section
 	const socsoEmployerRows = createEmployeeRows('SOCSO EMPLOYER', 'socsoEmployer', 'socsoCode')
 	const socsoEmployeeRows = createEmployeeRows('SOCSO EMPLOYEE', 'socsoEmployee', 'salaryCode')
-	const totalSocso = payrollData.reduce(
-		(sum, emp) => sum + emp.socsoEmployer + emp.socsoEmployee,
-		0,
-	)
+	const totalSocso = employees.reduce((sum, emp) => sum + emp.socsoEmployer + emp.socsoEmployee, 0)
 
 	// EIS rows
 	const eisEmployerRows = createEmployeeRows('EIS EMPLOYER', 'eisEmployer', 'eisCode')
 	const eisEmployeeRows = createEmployeeRows('EIS EMPLOYEE', 'eisEmployee', 'salaryCode')
-	const totalEis = payrollData.reduce((sum, emp) => sum + emp.eisEmployer + emp.eisEmployee, 0)
+	const totalEis = employees.reduce((sum, emp) => sum + emp.eisEmployer + emp.eisEmployee, 0)
 
 	// Lindung 24 Jam (SKBBK) rows - employee-only, so it is charged to the employee's salary
 	// account and accrued to PERKESO alongside SOCSO & EIS.
-	const lindung24Rows = payrollData
+	const lindung24Rows = employees
 		.filter((emp) => emp.lindung24 > 0)
 		.map((emp) => {
-			const info = getEmployeeAccountInfo(emp.employeeName)
+			const info = getEmployeeAccountInfo(emp.name)
 			return [
 				info.salaryCode[0],
 				info.salaryCode[1],
-				`LINDUNG 24 JAM - ${monthName} ${year} (${emp.employeeName})`,
+				`LINDUNG 24 JAM - ${monthName} ${year} (${emp.name})`,
 				emp.lindung24.toFixed(2),
 				'0.00',
 			]
 		})
-	const totalLindung24 = payrollData.reduce((sum, emp) => sum + (emp.lindung24 || 0), 0)
+	const totalLindung24 = employees.reduce((sum, emp) => sum + (emp.lindung24 || 0), 0)
 
 	addSection(
 		`BEING ACCRUAL SOCSO & EIS${lindung24Rows.length ? ' & LINDUNG 24 JAM' : ''} FOR ${monthName} ${year}`,
@@ -202,32 +199,32 @@ export const exportPayrollExcel = (
 	}
 
 	// PCB section
-	const pcbRows = payrollData
+	const pcbRows = employees
 		.filter((emp) => emp.pcb > 0)
 		.map((emp) => {
-			const info = getEmployeeAccountInfo(emp.employeeName)
+			const info = getEmployeeAccountInfo(emp.name)
 			return [
 				info.salaryCode[0],
 				info.salaryCode[1],
-				`PCB - ${monthName} ${year} (${emp.employeeName})`,
+				`PCB - ${monthName} ${year} (${emp.name})`,
 				emp.pcb.toFixed(2),
 				'0.00',
 			]
 		})
-	const cp38Rows = payrollData
+	const cp38Rows = employees
 		.filter((emp) => emp.cp38 > 0)
 		.map((emp) => {
-			const info = getEmployeeAccountInfo(emp.employeeName)
+			const info = getEmployeeAccountInfo(emp.name)
 			return [
 				info.salaryCode[0],
 				info.salaryCode[1],
-				`PCB - ${monthName} ${year} (${emp.employeeName}) - CP38`,
+				`PCB - ${monthName} ${year} (${emp.name}) - CP38`,
 				emp.cp38.toFixed(2),
 				'0.00',
 			]
 		})
-	const totalPcb = payrollData.reduce((sum, emp) => sum + (emp.pcb || 0), 0)
-	const totalCp38 = payrollData.reduce((sum, emp) => sum + (emp.cp38 || 0), 0)
+	const totalPcb = employees.reduce((sum, emp) => sum + (emp.pcb || 0), 0)
+	const totalCp38 = employees.reduce((sum, emp) => sum + (emp.cp38 || 0), 0)
 
 	addSection(
 		`BEING ACCRUAL PCB FOR ${monthName} ${year}`,
@@ -260,7 +257,74 @@ export const exportPayrollExcel = (
 
 	// Apply merges to worksheet
 	ws['!merges'] = merges
+	return ws
+}
 
-	XLSX.utils.book_append_sheet(wb, ws, 'Payroll')
-	XLSX.writeFile(wb, `Payroll_${monthName}_${year}.xlsx`)
+/** The summary's amount columns, in the order Payroll History shows them. */
+const SUMMARY_COLUMNS: [string, (employee: PayslipEmployee) => number][] = [
+	['Basic Salary', (employee) => employee.basicSalary],
+	['EPF Employer', (employee) => employee.epfEmployer],
+	['EPF Employee', (employee) => employee.epfEmployee],
+	['SOCSO Employer', (employee) => employee.socsoEmployer],
+	['SOCSO Employee', (employee) => employee.socsoEmployee],
+	['EIS Employer', (employee) => employee.eisEmployer],
+	['EIS Employee', (employee) => employee.eisEmployee],
+	['Lindung 24 Jam', (employee) => employee.lindung24],
+	['PCB', (employee) => employee.pcb],
+	['CP38', (employee) => employee.cp38],
+	['Net Pay', (employee) => employee.netSalary],
+]
+
+/*
+ * The month as a table: one row per employee and a total row. The amounts
+ * are numbers, not text, so the sheet can be summed and filtered.
+ */
+const summarySheet = (employees: PayslipEmployee[]): XLSX.WorkSheet => {
+	const header = ['Employee', ...SUMMARY_COLUMNS.map(([label]) => label)]
+	const rows = employees.map((employee) => [
+		employee.name,
+		...SUMMARY_COLUMNS.map(([, amountOf]) => amountOf(employee)),
+	])
+	const total = [
+		'Total',
+		...SUMMARY_COLUMNS.map(([, amountOf]) => {
+			const sum = employees.reduce((running, employee) => running + amountOf(employee), 0)
+			return Math.round(sum * 100) / 100
+		}),
+	]
+
+	const ws = XLSX.utils.aoa_to_sheet([header, ...rows, total])
+	ws['!cols'] = [{ wch: 32 }, ...SUMMARY_COLUMNS.map(() => ({ wch: 16 }))]
+	for (let r = 1; r <= rows.length + 1; r++) {
+		for (let c = 1; c <= SUMMARY_COLUMNS.length; c++) {
+			ws[XLSX.utils.encode_cell({ r, c })].z = '#,##0.00'
+		}
+	}
+	return ws
+}
+
+export const exportPayrollJournal = (employees: PayslipEmployee[], period: PayrollPeriod): void => {
+	const monthName = MONTH_NAMES[period.month - 1]
+	const wb = XLSX.utils.book_new()
+	XLSX.utils.book_append_sheet(wb, journalSheet(employees, monthName, period.year), 'Payroll')
+	XLSX.writeFile(wb, `Payroll_${monthName}_${period.year}.xlsx`)
+}
+
+export const exportPayrollSummary = (employees: PayslipEmployee[], period: PayrollPeriod): void => {
+	const monthName = MONTH_NAMES[period.month - 1]
+	const wb = XLSX.utils.book_new()
+	XLSX.utils.book_append_sheet(wb, summarySheet(employees), `${monthName} ${period.year}`)
+	XLSX.writeFile(wb, `Payroll_Summary_${monthName}_${period.year}.xlsx`)
+}
+
+/** A year's saved months in one file: a summary sheet for each, January first. */
+export const exportPayrollYearSummary = (
+	months: { month: number; employees: PayslipEmployee[] }[],
+	year: number,
+): void => {
+	const wb = XLSX.utils.book_new()
+	for (const { month, employees } of [...months].sort((a, b) => a.month - b.month)) {
+		XLSX.utils.book_append_sheet(wb, summarySheet(employees), MONTH_NAMES[month - 1])
+	}
+	XLSX.writeFile(wb, `Payroll_Summary_${year}.xlsx`)
 }

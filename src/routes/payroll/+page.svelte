@@ -3,13 +3,10 @@
 	import { goto } from '$app/navigation'
 	import { page } from '$app/state'
 	import { toast } from 'svelte-sonner'
-	import CircleCheckIcon from '@lucide/svelte/icons/circle-check'
-	import FileTextIcon from '@lucide/svelte/icons/file-text'
 	import LockIcon from '@lucide/svelte/icons/lock'
 	import PencilIcon from '@lucide/svelte/icons/pencil'
 	import PlusIcon from '@lucide/svelte/icons/plus'
 	import SearchIcon from '@lucide/svelte/icons/search'
-	import SheetIcon from '@lucide/svelte/icons/sheet'
 	import TriangleAlertIcon from '@lucide/svelte/icons/triangle-alert'
 	import UsersIcon from '@lucide/svelte/icons/users'
 	import WalletIcon from '@lucide/svelte/icons/wallet'
@@ -35,13 +32,8 @@
 	import * as Table from '$lib/components/ui/table'
 	import * as Tooltip from '$lib/components/ui/tooltip'
 	import { useErrorToast } from '$lib/composables/errorToast.svelte'
-	import { exportPayrollExcel, type PayrollPeriod } from '$lib/payrollExcel'
-	import {
-		allPayslipsFilename,
-		formatPeriod,
-		generatePayslipPdf,
-		type PayslipEmployee,
-	} from '$lib/payslip'
+	import type { PayrollPeriod } from '$lib/payrollExcel'
+	import { formatPeriod } from '$lib/payslip'
 	import { payrollStore, type Employee } from '$lib/stores/payroll.svelte'
 	import { payrollRecordsStore } from '$lib/stores/payrollRecords.svelte'
 	import type { PayrollData } from '$lib/types/payroll'
@@ -300,44 +292,57 @@
 	}
 
 	// ---------- Payroll run view ----------
+	const existingRun = $derived(
+		period ? payrollRecordsStore.getRunByPeriod(period.year, period.month) : undefined,
+	)
 	let payrollData = $state<PayrollData[]>([])
+	/** The period whose figures are on screen; until it matches, they are still loading */
+	let shownFor = $state('')
 	let generatedFor = ''
-	// Payslips are only downloadable once the on-screen figures are frozen into a record
-	let recordSaved = $state(false)
+	let fetchingFor = ''
 
-	// Figures are generated once per period, and again if employees arrive later
+	// A saved month opens with its saved figures. Any other month is worked out
+	// from the employees, once per period and again if employees arrive later.
 	$effect(() => {
 		const key = periodKey
 		const current = period
 		const count = activeEmployees.length
+		const runsLoaded = payrollRecordsStore.runsLoaded
+		const saved = existingRun
 		untrack(async () => {
 			if (!current) {
 				payrollData = []
 				generatedFor = ''
+				shownFor = ''
 				return
 			}
-			if (generatedFor === key && (payrollData.length > 0 || count === 0)) return
-			payrollData = payrollStore.generatePayrollData(current)
+			if (!runsLoaded) return
+			if (generatedFor === key && (fetchingFor === key || payrollData.length > 0 || count === 0))
+				return
 			generatedFor = key
-			recordSaved = false
+			let figures: PayrollData[]
+			if (saved) {
+				fetchingFor = key
+				figures = await payrollRecordsStore.savedPayrollData(saved.id)
+				if (fetchingFor === key) fetchingFor = ''
+				// Another month was opened while this one was loading
+				if (generatedFor !== key) return
+			} else {
+				figures = payrollStore.generatePayrollData(current)
+			}
+			payrollData = figures
+			shownFor = key
 			// PCB is the first figure entered by hand, so start there
 			await tick()
 			document.querySelector<HTMLInputElement>('[data-pcb-input]')?.focus()
 		})
 	})
-
-	// Editing PCB or CP38 puts the figures out of sync with the saved record
-	const payrollEdits = $derived(payrollData.map((row) => `${row.pcb}:${row.cp38}`).join('|'))
-	$effect(() => {
-		void payrollEdits
-		untrack(() => (recordSaved = false))
-	})
+	const figuresLoading = $derived(
+		shownFor !== periodKey || (payrollData.length === 0 && initialLoading),
+	)
 
 	const lindungApplies = $derived(
 		period ? payrollStore.isLindung24Applicable(period.year, period.month) : false,
-	)
-	const existingRun = $derived(
-		period ? payrollRecordsStore.getRunByPeriod(period.year, period.month) : undefined,
 	)
 
 	const net = (row: PayrollData): number => payrollStore.calculateNetSalary(row)
@@ -372,37 +377,6 @@
 		row[field] = Number.isFinite(parsed) && parsed >= 0 ? Math.round(parsed * 100) / 100 : 0
 	}
 
-	const generateExcel = (): void => {
-		if (!period || payrollData.length === 0) return
-		try {
-			exportPayrollExcel(payrollData, period, net)
-			toast.success('Excel downloaded')
-		} catch (error) {
-			console.error('Excel export failed:', error)
-			toast.error('The export failed. Try again.', { duration: 10000 })
-		}
-	}
-
-	const toPayslipEmployee = (row: PayrollData): PayslipEmployee => ({
-		name: row.employeeName,
-		basicSalary: row.basicSalary,
-		epfEmployee: row.epfEmployee,
-		epfEmployer: row.epfEmployer,
-		socsoEmployee: row.socsoEmployee,
-		socsoEmployer: row.socsoEmployer,
-		eisEmployee: row.eisEmployee,
-		eisEmployer: row.eisEmployer,
-		lindung24: row.lindung24,
-		pcb: row.pcb,
-		cp38: row.cp38,
-		netSalary: net(row),
-	})
-
-	const downloadPayslips = (): void => {
-		if (!period || !recordSaved || payrollData.length === 0) return
-		generatePayslipPdf(payrollData.map(toPayslipEmployee), period, allPayslipsFilename(period))
-	}
-
 	// ---------- Save record ----------
 	let showSave = $state(false)
 
@@ -417,10 +391,9 @@
 		)
 		if (run) {
 			showSave = false
-			recordSaved = true
-			toast.success(`${periodLabel} payroll ${wasExisting ? 'overwritten' : 'saved'}`, {
-				description: 'Payslips are ready to download.',
-			})
+			toast.success(`${periodLabel} payroll ${wasExisting ? 'overwritten' : 'saved'}`)
+			// The record is where the payslips and the Excel files are downloaded
+			await goto(`/payroll-history?run=${run.id}`)
 		}
 	}
 </script>
@@ -431,57 +404,58 @@
 	<!-- ===== Payroll run ===== -->
 	<PageHeader title={periodLabel} crumbs={[{ label: 'Payroll', href: '/payroll' }]}>
 		<div class="text-muted-foreground min-w-0 flex-1 text-sm">
-			{plural(payrollData.length, 'employee')}
+			{#if !figuresLoading}
+				{plural(payrollData.length, 'employee')} ·
+			{/if}
 			{#if lindungApplies}
-				· Lindung 24 Jam applies
+				Lindung 24 Jam applies
 			{:else}
-				· Lindung 24 Jam applies from June 2026
+				Lindung 24 Jam applies from June 2026
 			{/if}
 		</div>
-		<Button variant="outline" onclick={generateExcel} disabled={payrollData.length === 0}>
-			<SheetIcon data-icon="inline-start" />
-			Generate Excel
-		</Button>
-		<Tooltip.Root>
-			<Tooltip.Trigger>
-				{#snippet child({ props })}
-					<span {...props}>
-						<Button variant="outline" onclick={downloadPayslips} disabled={!recordSaved}>
-							<FileTextIcon data-icon="inline-start" />
-							Download Payslips
-						</Button>
-					</span>
-				{/snippet}
-			</Tooltip.Trigger>
-			{#if !recordSaved}
-				<Tooltip.Content>Save the record first</Tooltip.Content>
-			{/if}
-		</Tooltip.Root>
 		<Button onclick={() => (showSave = true)} disabled={payrollData.length === 0}>
 			<LockIcon data-icon="inline-start" />
 			Save Record…
 		</Button>
 	</PageHeader>
 
-	{#if recordSaved}
-		<Alert.Root class="bg-success-soft border-success/40">
-			<CircleCheckIcon class="text-success" />
-			<Alert.Title>{periodLabel} payroll saved</Alert.Title>
-			<Alert.Description>
-				Payslips are ready to download, and the frozen figures are in Payroll History.
+	{#if existingRun}
+		<Alert.Root class="bg-primary/5 border-primary/30 flex flex-wrap items-center gap-x-3 gap-y-2">
+			<LockIcon class="text-primary" />
+			<Alert.Description class="text-foreground">
+				<span class="font-medium">Saved {formatDate(existingRun.finalized_at)}.</span>
+				These are the saved figures. Change PCB or CP38 and save again to replace them.
 			</Alert.Description>
+			<div class="ms-auto">
+				<Button variant="outline" size="sm" href={`/payroll-history?run=${existingRun.id}`}>
+					View Record
+				</Button>
+			</div>
 		</Alert.Root>
-	{:else}
+	{:else if payrollRecordsStore.runsLoaded}
 		<Alert.Root class="bg-warning-soft border-warning/40">
 			<TriangleAlertIcon class="text-warning" />
 			<Alert.Description class="text-foreground">
-				Enter PCB and CP38, then save the record to unlock payslips. Editing a figure after saving
-				locks them again.
+				Enter PCB and CP38, then save the record. Its payslips and Excel files are then downloaded
+				from Payroll History.
 			</Alert.Description>
 		</Alert.Root>
 	{/if}
 
-	{#if payrollData.length === 0}
+	{#if figuresLoading}
+		<div class="grid grid-cols-2 gap-3 xl:grid-cols-4">
+			{#each { length: 4 } as _, i (i)}
+				<Card.Root size="sm">
+					<Card.Content class="flex flex-col gap-2">
+						<Skeleton class="h-3 w-28" />
+						<Skeleton class="h-7 w-32" />
+						<Skeleton class="h-3 w-24" />
+					</Card.Content>
+				</Card.Root>
+			{/each}
+		</div>
+		<Skeleton class="h-48 rounded-md" />
+	{:else if payrollData.length === 0}
 		<Empty.Root class="my-auto">
 			<Empty.Header>
 				<Empty.Media variant="icon">
@@ -521,7 +495,7 @@
 				</Table.Row>
 			</Table.Header>
 			<Table.Body>
-				{#each payrollData as row, i (row.employeeId)}
+				{#each payrollData as row, i (row.employeeId ?? row.employeeName)}
 					<Table.Row>
 						<Table.Cell class="font-medium">{row.employeeName}</Table.Cell>
 						<Table.Cell class="text-end tabular-nums">{formatAmount(row.basicSalary)}</Table.Cell>
@@ -618,7 +592,7 @@
 		title={existingRun ? `Overwrite ${periodLabel}?` : `Save ${periodLabel}?`}
 		description={existingRun
 			? `Saved on ${formatDate(existingRun.updated_at)}. Saving again replaces that month's payroll.`
-			: "Saves this month's payroll and makes the payslips ready to download."}
+			: "Saves this month's payroll. Its payslips and Excel files are then ready to download."}
 		loading={payrollRecordsStore.loading}
 		confirmText={existingRun ? 'Overwrite Record' : 'Save Record'}
 		onconfirm={confirmSave}
@@ -888,8 +862,8 @@
 			</div>
 			{#if runExisting && runPeriod}
 				<p class="text-warning text-xs font-medium">
-					{formatPeriod(runPeriod)} was already saved on {formatDate(runExisting.updated_at)}.
-					Running it again lets you overwrite that record.
+					{formatPeriod(runPeriod)} was already saved on {formatDate(runExisting.updated_at)}. It
+					opens with its saved figures, which you can correct and save again.
 				</p>
 			{/if}
 		</Field.Group>

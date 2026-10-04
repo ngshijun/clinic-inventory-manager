@@ -3,10 +3,12 @@
 	import { goto } from '$app/navigation'
 	import { page } from '$app/state'
 	import { toast } from 'svelte-sonner'
+	import BookTextIcon from '@lucide/svelte/icons/book-text'
 	import EllipsisIcon from '@lucide/svelte/icons/ellipsis'
 	import FileTextIcon from '@lucide/svelte/icons/file-text'
 	import HistoryIcon from '@lucide/svelte/icons/history'
 	import LockIcon from '@lucide/svelte/icons/lock'
+	import SheetIcon from '@lucide/svelte/icons/sheet'
 	import Trash2Icon from '@lucide/svelte/icons/trash-2'
 	import UsersIcon from '@lucide/svelte/icons/users'
 	import ActionModal from '$lib/components/app/ActionModal.svelte'
@@ -23,6 +25,11 @@
 	import * as ToggleGroup from '$lib/components/ui/toggle-group'
 	import * as Tooltip from '$lib/components/ui/tooltip'
 	import { useErrorToast } from '$lib/composables/errorToast.svelte'
+	import {
+		exportPayrollJournal,
+		exportPayrollSummary,
+		exportPayrollYearSummary,
+	} from '$lib/payrollExcel'
 	import {
 		allPayslipsFilename,
 		formatPeriod,
@@ -163,6 +170,40 @@
 		toast.success(`${periodLabel(run)} payslips downloaded`)
 	}
 
+	// ---------- Excel ----------
+	const exportExcel = (done: string, write: () => void): void => {
+		try {
+			write()
+			toast.success(done)
+		} catch (error) {
+			console.error('Excel export failed:', error)
+			toast.error('The export failed. Try again.', { duration: 10000 })
+		}
+	}
+
+	/** The month as a table (`summary`) or as the accountant's accrual entries (`journal`) */
+	const downloadExcel = async (run: PayrollRun, kind: 'summary' | 'journal'): Promise<void> => {
+		const rows = await payrollRecordsStore.fetchRunItems(run.id)
+		if (rows.length === 0) {
+			toast.error(`${periodLabel(run)} has no employees, so there is nothing to download.`)
+			return
+		}
+		const write = kind === 'summary' ? exportPayrollSummary : exportPayrollJournal
+		exportExcel(`${periodLabel(run)} ${kind} downloaded`, () =>
+			write(rows.map(toPayslipEmployee), periodOf(run)),
+		)
+	}
+
+	const yearLoaded = $derived(yearRuns.every((run) => run.id in payrollRecordsStore.itemsByRun))
+
+	const downloadYearSummary = (): void => {
+		const months = yearRuns.map((run) => ({
+			month: run.month,
+			employees: payrollRecordsStore.getItems(run.id).map(toPayslipEmployee),
+		}))
+		exportExcel(`${year} summary downloaded`, () => exportPayrollYearSummary(months, year))
+	}
+
 	// ---------- Delete ----------
 	let showDelete = $state(false)
 	let deleting = $state<PayrollRun | null>(null)
@@ -222,6 +263,22 @@
 				</DropdownMenu.Group>
 			</DropdownMenu.Content>
 		</DropdownMenu.Root>
+		<Button
+			variant="outline"
+			onclick={() => downloadExcel(run, 'summary')}
+			disabled={items.length === 0}
+		>
+			<SheetIcon data-icon="inline-start" />
+			Download Summary
+		</Button>
+		<Button
+			variant="outline"
+			onclick={() => downloadExcel(run, 'journal')}
+			disabled={items.length === 0}
+		>
+			<BookTextIcon data-icon="inline-start" />
+			Download Journal
+		</Button>
 		<Button onclick={() => downloadAllPayslips(run)} disabled={items.length === 0}>
 			<FileTextIcon data-icon="inline-start" />
 			Download All Payslips
@@ -402,6 +459,12 @@
 				<Label for="show-salaries">Show Salaries</Label>
 			</div>
 		</div>
+		{#if yearRuns.length > 0}
+			<Button variant="outline" onclick={downloadYearSummary} disabled={!yearLoaded}>
+				<SheetIcon data-icon="inline-start" />
+				Download {year} Summary
+			</Button>
+		{/if}
 	</PageHeader>
 
 	{#if initialLoading}
@@ -510,6 +573,14 @@
 											<DropdownMenu.Item onclick={() => downloadAllPayslips(run)}>
 												<FileTextIcon />
 												Download All Payslips
+											</DropdownMenu.Item>
+											<DropdownMenu.Item onclick={() => downloadExcel(run, 'summary')}>
+												<SheetIcon />
+												Download Summary
+											</DropdownMenu.Item>
+											<DropdownMenu.Item onclick={() => downloadExcel(run, 'journal')}>
+												<BookTextIcon />
+												Download Journal
 											</DropdownMenu.Item>
 										</DropdownMenu.Group>
 										<DropdownMenu.Separator />
