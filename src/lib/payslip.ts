@@ -1,9 +1,9 @@
 // lib/payslip.ts
 import { jsPDF } from 'jspdf'
 
-const EMPLOYER_NAME = 'POLIKLINIK NG PLT'
+export const EMPLOYER_NAME = 'POLIKLINIK NG PLT'
 
-const MONTH_NAMES = [
+export const MONTH_NAMES = [
 	'January',
 	'February',
 	'March',

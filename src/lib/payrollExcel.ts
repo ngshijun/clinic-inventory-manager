@@ -260,71 +260,9 @@ const journalSheet = (
 	return ws
 }
 
-/** The summary's amount columns, in the order Payroll History shows them. */
-const SUMMARY_COLUMNS: [string, (employee: PayslipEmployee) => number][] = [
-	['Basic Salary', (employee) => employee.basicSalary],
-	['EPF Employer', (employee) => employee.epfEmployer],
-	['EPF Employee', (employee) => employee.epfEmployee],
-	['SOCSO Employer', (employee) => employee.socsoEmployer],
-	['SOCSO Employee', (employee) => employee.socsoEmployee],
-	['EIS Employer', (employee) => employee.eisEmployer],
-	['EIS Employee', (employee) => employee.eisEmployee],
-	['Lindung 24 Jam', (employee) => employee.lindung24],
-	['PCB', (employee) => employee.pcb],
-	['CP38', (employee) => employee.cp38],
-	['Net Pay', (employee) => employee.netSalary],
-]
-
-/*
- * The month as a table: one row per employee and a total row. The amounts
- * are numbers, not text, so the sheet can be summed and filtered.
- */
-const summarySheet = (employees: PayslipEmployee[]): XLSX.WorkSheet => {
-	const header = ['Employee', ...SUMMARY_COLUMNS.map(([label]) => label)]
-	const rows = employees.map((employee) => [
-		employee.name,
-		...SUMMARY_COLUMNS.map(([, amountOf]) => amountOf(employee)),
-	])
-	const total = [
-		'Total',
-		...SUMMARY_COLUMNS.map(([, amountOf]) => {
-			const sum = employees.reduce((running, employee) => running + amountOf(employee), 0)
-			return Math.round(sum * 100) / 100
-		}),
-	]
-
-	const ws = XLSX.utils.aoa_to_sheet([header, ...rows, total])
-	ws['!cols'] = [{ wch: 32 }, ...SUMMARY_COLUMNS.map(() => ({ wch: 16 }))]
-	for (let r = 1; r <= rows.length + 1; r++) {
-		for (let c = 1; c <= SUMMARY_COLUMNS.length; c++) {
-			ws[XLSX.utils.encode_cell({ r, c })].z = '#,##0.00'
-		}
-	}
-	return ws
-}
-
 export const exportPayrollJournal = (employees: PayslipEmployee[], period: PayrollPeriod): void => {
 	const monthName = MONTH_NAMES[period.month - 1]
 	const wb = XLSX.utils.book_new()
 	XLSX.utils.book_append_sheet(wb, journalSheet(employees, monthName, period.year), 'Payroll')
 	XLSX.writeFile(wb, `Payroll_${monthName}_${period.year}.xlsx`)
-}
-
-export const exportPayrollSummary = (employees: PayslipEmployee[], period: PayrollPeriod): void => {
-	const monthName = MONTH_NAMES[period.month - 1]
-	const wb = XLSX.utils.book_new()
-	XLSX.utils.book_append_sheet(wb, summarySheet(employees), `${monthName} ${period.year}`)
-	XLSX.writeFile(wb, `Payroll_Summary_${monthName}_${period.year}.xlsx`)
-}
-
-/** A year's saved months in one file: a summary sheet for each, January first. */
-export const exportPayrollYearSummary = (
-	months: { month: number; employees: PayslipEmployee[] }[],
-	year: number,
-): void => {
-	const wb = XLSX.utils.book_new()
-	for (const { month, employees } of [...months].sort((a, b) => a.month - b.month)) {
-		XLSX.utils.book_append_sheet(wb, summarySheet(employees), MONTH_NAMES[month - 1])
-	}
-	XLSX.writeFile(wb, `Payroll_Summary_${year}.xlsx`)
 }

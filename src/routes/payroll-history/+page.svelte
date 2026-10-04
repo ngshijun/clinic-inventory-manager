@@ -25,11 +25,8 @@
 	import * as ToggleGroup from '$lib/components/ui/toggle-group'
 	import * as Tooltip from '$lib/components/ui/tooltip'
 	import { useErrorToast } from '$lib/composables/errorToast.svelte'
-	import {
-		exportPayrollJournal,
-		exportPayrollSummary,
-		exportPayrollYearSummary,
-	} from '$lib/payrollExcel'
+	import { exportPayrollJournal } from '$lib/payrollExcel'
+	import { exportPayrollSummary, exportPayrollYearSummary } from '$lib/payrollSummaryExcel'
 	import {
 		allPayslipsFilename,
 		formatPeriod,
@@ -171,9 +168,9 @@
 	}
 
 	// ---------- Excel ----------
-	const exportExcel = (done: string, write: () => void): void => {
+	const exportExcel = async (done: string, write: () => void | Promise<void>): Promise<void> => {
 		try {
-			write()
+			await write()
 			toast.success(done)
 		} catch (error) {
 			console.error('Excel export failed:', error)
@@ -189,19 +186,19 @@
 			return
 		}
 		const write = kind === 'summary' ? exportPayrollSummary : exportPayrollJournal
-		exportExcel(`${periodLabel(run)} ${kind} downloaded`, () =>
+		await exportExcel(`${periodLabel(run)} ${kind} downloaded`, () =>
 			write(rows.map(toPayslipEmployee), periodOf(run)),
 		)
 	}
 
 	const yearLoaded = $derived(yearRuns.every((run) => run.id in payrollRecordsStore.itemsByRun))
 
-	const downloadYearSummary = (): void => {
+	const downloadYearSummary = async (): Promise<void> => {
 		const months = yearRuns.map((run) => ({
 			month: run.month,
 			employees: payrollRecordsStore.getItems(run.id).map(toPayslipEmployee),
 		}))
-		exportExcel(`${year} summary downloaded`, () => exportPayrollYearSummary(months, year))
+		await exportExcel(`${year} summary downloaded`, () => exportPayrollYearSummary(months, year))
 	}
 
 	// ---------- Delete ----------
