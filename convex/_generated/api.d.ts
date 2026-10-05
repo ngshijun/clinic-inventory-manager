@@ -10,9 +10,11 @@
 
 import type * as auth from "../auth.js";
 import type * as crons from "../crons.js";
+import type * as http from "../http.js";
 import type * as inventory from "../inventory.js";
 import type * as lib_aggregates from "../lib/aggregates.js";
 import type * as lib_auth from "../lib/auth.js";
+import type * as lib_demand from "../lib/demand.js";
 import type * as lib_names from "../lib/names.js";
 import type * as lib_orders from "../lib/orders.js";
 import type * as lib_price from "../lib/price.js";
@@ -39,9 +41,11 @@ import type {
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   crons: typeof crons;
+  http: typeof http;
   inventory: typeof inventory;
   "lib/aggregates": typeof lib_aggregates;
   "lib/auth": typeof lib_auth;
+  "lib/demand": typeof lib_demand;
   "lib/names": typeof lib_names;
   "lib/orders": typeof lib_orders;
   "lib/price": typeof lib_price;

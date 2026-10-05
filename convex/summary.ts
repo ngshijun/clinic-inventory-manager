@@ -1,6 +1,7 @@
-import { v } from 'convex/values'
-import { internalMutation } from './_generated/server'
-import type { Doc } from './_generated/dataModel'
+import { v, type Infer } from 'convex/values'
+import { env, internalMutation, internalQuery, type QueryCtx } from './_generated/server'
+import type { Doc, Id } from './_generated/dataModel'
+import { demandOf, demandSince, type Demand } from './lib/demand'
 import {
 	BACK_ORDER_LATE_DAYS,
 	EXPIRY_WARNING_DAYS,
@@ -19,85 +20,96 @@ import {
 	ICON,
 	bold,
 	dayMonth,
+	entry,
 	facts,
-	fromSupplier,
-	italic,
+	left,
 	notify,
-	plain,
 	plural,
+	supplierLine,
+	type Button,
 } from './lib/telegram'
 
 type Item = Doc<'inventory'>
+type OrderedStatus = Extract<NonNullable<Item['order_status']>, { kind: 'ordered' }>
 
-/**
- * Rows a list shows before "and N more". The summary is read at a glance,
- * and a longer list is read on the Dashboard.
- */
-const LIST_ROWS = 5
+/** Items named under Order first */
+const ORDER_FIRST = 5
 
-/** Suppliers named under Still to order, the ones with the most to order first */
-const TOP_SUPPLIERS = 5
+/** Rows a list of details shows; a longer one is read on the Dashboard */
+const DETAIL_ROWS = 10
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
-/** As wide as a bullet, in spaces Telegram does not trim */
-const INDENT = '\u00a0\u00a0\u00a0'
+/** The lists a button under the summary asks for */
+export const detailKey = v.union(
+	v.literal('late'),
+	v.literal('expiring'),
+	v.literal('snoozes'),
+	v.literal('next'),
+	v.literal('idle'),
+)
+export type DetailKey = Infer<typeof detailKey>
+
+export const isDetailKey = (value: unknown): value is DetailKey =>
+	detailKey.members.some((member) => member.value === value)
+
+/** The Dashboard's queues at one moment, each in the order it is read in */
+export interface Queues {
+	now: number
+	today: string
+	toOrder: Item[]
+	/** The items to order that are in use, the most in demand first */
+	inDemand: { item: Item; demand: Demand }[]
+	/** The longest overdue first */
+	late: { item: Item; status: OrderedStatus }[]
+	/** The soonest first, so the batches already expired lead */
+	expiring: { item: Item; quantity: number; expiry: string }[]
+	/** Snoozes that end today on an item still low */
+	woke: Item[]
+	/** The latest to stop moving first */
+	notMoving: Item[]
+}
 
 const byName = (a: Item, b: Item): number => a.item_name.localeCompare(b.item_name)
 
-const heading = (icon: string, label: string, count: number): string =>
-	`${icon} ${bold(label)} (${count})`
-
-/** A name runs to 60 letters, so what is said about it goes on a line of its own */
-const row = (name: string, detail: string): string => `• ${plain(name)}\n${INDENT}${detail}`
-
-const capped = (rows: string[]): string[] =>
-	rows.length > LIST_ROWS
-		? [...rows.slice(0, LIST_ROWS), italic(`and ${rows.length - LIST_ROWS} more on the Dashboard`)]
-		: rows
-
-const list = (icon: string, label: string, rows: string[]): string[] =>
-	rows.length === 0 ? [] : [[heading(icon, label, rows.length), ...capped(rows)].join('\n')]
-
-/**
- * The Dashboard's queues as one message, or null on a day with nothing in
- * them. Late deliveries, expiring batches and ended snoozes are short lists
- * and are named. To Order and Not Moving run to a hundred items, so they are
- * counted: To Order by the suppliers to ring first, Not Moving on Mondays
- * with only the items that joined in the week.
- */
-export function morningSummary(
+/** `movements` are every item's since `demandSince(now)`. */
+export function queuesAt(
 	items: Item[],
 	batches: Doc<'stock_batches'>[],
+	movements: Doc<'stock_movements'>[],
 	now: number,
-): string | null {
+): Queues {
 	const today = clinicToday(now)
-	const sections: string[] = []
+	const toOrder = items.filter((item) => needsDecision(item, today))
 
-	// The longest overdue first
+	// How often an item is taken decides its place, and how fast it goes settles a tie
+	const movementsByItem = new Map<Id<'inventory'>, Doc<'stock_movements'>[]>()
+	for (const movement of movements) {
+		const own = movementsByItem.get(movement.item_id)
+		if (own) own.push(movement)
+		else movementsByItem.set(movement.item_id, [movement])
+	}
+	const inDemand = toOrder
+		.flatMap((item) => {
+			const demand = demandOf(item, movementsByItem.get(item._id) ?? [], now)
+			return demand ? [{ item, demand }] : []
+		})
+		.sort(
+			(a, b) =>
+				b.demand.daysTakenPerMonth - a.demand.daysTakenPerMonth ||
+				b.demand.quantityPerMonth - a.demand.quantityPerMonth ||
+				byName(a.item, b.item),
+		)
+
+	const due = (status: OrderedStatus): string =>
+		status.expected_by ?? addDays(status.ordered_on, BACK_ORDER_LATE_DAYS)
 	const late = items
 		.flatMap((item) => {
 			const status = item.order_status
-			if (status?.kind !== 'ordered' || !isLate(status, today)) return []
-			const due = status.expected_by ?? addDays(status.ordered_on, BACK_ORDER_LATE_DAYS)
-			return [{ item, status, due }]
+			return status?.kind === 'ordered' && isLate(status, today) ? [{ item, status }] : []
 		})
-		.sort((a, b) => a.due.localeCompare(b.due) || byName(a.item, b.item))
-	sections.push(
-		...list(
-			ICON.late,
-			'Late deliveries',
-			late.map(({ item, status }) => {
-				const figure = `${status.quantity - status.received} ${item.unit}${fromSupplier(item)}`
-				const lateness = status.expected_by
-					? `${plural(daysBetween(status.expected_by, today), 'day')} late`
-					: `no date, ordered ${dayMonth(status.ordered_on)}`
-				return row(item.item_name, facts(figure, lateness))
-			}),
-		),
-	)
+		.sort((a, b) => due(a.status).localeCompare(due(b.status)) || byName(a.item, b.item))
 
-	// The soonest first, with the batches already expired at the top
 	const itemsById = new Map(items.map((item) => [item._id, item]))
 	const expiring = batches
 		.flatMap((batch) => {
@@ -105,25 +117,9 @@ export function morningSummary(
 			const expiry = toIsoDate(batch.expiry_date)
 			if (!item || item.not_track || !expiry || batch.quantity <= 0) return []
 			if (daysBetween(today, expiry) > EXPIRY_WARNING_DAYS) return []
-			return [{ item, batch, expiry }]
+			return [{ item, quantity: batch.quantity, expiry }]
 		})
 		.sort((a, b) => a.expiry.localeCompare(b.expiry) || byName(a.item, b.item))
-	sections.push(
-		...list(
-			ICON.expiring,
-			'Expiring batches',
-			expiring.map(({ item, batch, expiry }) => {
-				// Bold marks the batches past saving, so they stand out from the ones with time left
-				const when =
-					expiry < today
-						? bold(`expired ${dayMonth(expiry)}`)
-						: expiry === today
-							? bold('expires today')
-							: `expires ${dayMonth(expiry)}`
-				return row(item.item_name, facts(`${batch.quantity} ${item.unit}`, when))
-			}),
-		),
-	)
 
 	const woke = items
 		.filter(
@@ -133,57 +129,180 @@ export function morningSummary(
 				item.order_status.until === today,
 		)
 		.sort(byName)
-	sections.push(
-		...list(
-			ICON.snooze,
-			'Snooze ended',
-			woke.map((item) => row(item.item_name, `${item.quantity} ${item.unit} left`)),
-		),
-	)
 
-	const toOrder = items.filter((item) => needsDecision(item, today))
+	const notMoving = items
+		.filter((item) => isNotMoving(item, now))
+		.sort((a, b) => b.updated_at - a.updated_at || byName(a, b))
+
+	return { now, today, toOrder, inDemand, late, expiring, woke, notMoving }
+}
+
+/** One item of a list in no particular rank; Order first numbers its own */
+const bullet = (name: string, details: string[]): string => entry(name, details, '• ')
+
+const demandEntry = ({ item, demand }: Queues['inDemand'][number], index: number): string => {
+	const stock = `${item.quantity === 0 ? ICON.out : ICON.low} ${left(item)}`
+	const monthly = Math.max(1, Math.round(demand.quantityPerMonth))
+	return entry(item.item_name, [facts(stock, `${monthly} ${item.unit} a month`)], `${index + 1}. `)
+}
+
+const button = (key: DetailKey, text: string): Button => ({ text, callback_data: key })
+
+/**
+ * The morning's message, or null on a day with nothing to say. It is meant
+ * to fit one phone screen: the few items to order first are named, in order
+ * of demand, and every other Dashboard queue is one line with its count.
+ * Each of those lines has a button that asks for its list; see `detailText`.
+ */
+export function morningSummary(queues: Queues): { text: string; buttons: Button[][] } | null {
+	const { now, today, toOrder, inDemand, late, expiring, woke, notMoving } = queues
+	const weekday = new Date(`${today}T00:00:00Z`).getUTCDay()
+	const also: string[] = []
+	const buttons: Button[] = []
+
+	if (late.length > 0) {
+		also.push(`${ICON.late} ${plural(late.length, 'delivery', 'deliveries')} late`)
+		buttons.push(button('late', `${ICON.late} Late (${late.length})`))
+	}
+
+	if (expiring.length > 0) {
+		const expired = expiring.filter(({ expiry }) => expiry < today).length
+		also.push(
+			facts(
+				`${ICON.expiring} ${plural(expiring.length, 'batch', 'batches')} expiring`,
+				...(expired > 0 ? [`${expired} already expired`] : []),
+			),
+		)
+		buttons.push(button('expiring', `${ICON.expiring} Expiring (${expiring.length})`))
+	}
+
+	if (woke.length > 0) {
+		also.push(`${ICON.snooze} ${plural(woke.length, 'snooze')} ended`)
+		buttons.push(button('snoozes', `${ICON.snooze} Snoozes ended (${woke.length})`))
+	}
+
 	if (toOrder.length > 0) {
 		const out = toOrder.filter((item) => item.quantity === 0).length
-		const counts = new Map<string, number>()
-		for (const { supplier } of toOrder) {
-			if (supplier) counts.set(supplier, (counts.get(supplier) ?? 0) + 1)
-		}
-		const top = [...counts]
-			.sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-			.slice(0, TOP_SUPPLIERS)
-		const lines = [
-			heading(ICON.toOrder, 'Still to order', toOrder.length),
-			`${ICON.out} ${bold(out)} out of stock`,
-			`${ICON.low} ${bold(toOrder.length - out)} running low`,
-		]
-		if (top.length > 0) {
-			lines.push('Most from:', ...top.map(([name, count]) => `• ${plain(name)} (${count})`))
-		}
-		sections.push(lines.join('\n'))
+		also.push(facts(`${ICON.toOrder} ${toOrder.length} still to order`, `${out} out of stock`))
 	}
+	const next = Math.min(DETAIL_ROWS, inDemand.length - ORDER_FIRST)
+	if (next > 0) buttons.push(button('next', `${ICON.toOrder} Next ${next} to order`))
 
-	const weekday = new Date(`${today}T00:00:00Z`).getUTCDay()
-	const notMoving = weekday === 1 ? items.filter((item) => isNotMoving(item, now)) : []
-	if (notMoving.length > 0) {
-		const joined = notMoving
-			.filter((item) => daysIdle(item, now) <= NOT_MOVING_DAYS + 7)
-			.sort(byName)
-			.map((item) => row(item.item_name, `${item.quantity} ${item.unit}`))
-		sections.push(
-			[
-				heading(ICON.notMoving, `Not moving for ${NOT_MOVING_DAYS} days`, notMoving.length),
-				joined.length > 0 ? `${joined.length} new this week:` : italic('None new this week'),
-				...capped(joined),
-			].join('\n'),
+	// A slow list, so it is told once a week, with how many joined it since the last time
+	if (weekday === 1 && notMoving.length > 0) {
+		const joined = notMoving.filter((item) => daysIdle(item, now) <= NOT_MOVING_DAYS + 7).length
+		also.push(
+			facts(
+				`${ICON.notMoving} ${notMoving.length} not moving`,
+				...(joined > 0 ? [`${joined} new this week`] : []),
+			),
 		)
+		buttons.push(button('idle', `${ICON.notMoving} Not moving (${notMoving.length})`))
 	}
 
-	if (sections.length === 0) return null
-	const title = facts(
-		`${ICON.summary} ${bold('Morning summary')}`,
-		`${WEEKDAYS[weekday]} ${dayMonth(today)}`,
-	)
-	return [title, ...sections].join('\n\n')
+	const orderFirst = inDemand.slice(0, ORDER_FIRST).map(demandEntry)
+	const blocks: string[] = []
+	if (orderFirst.length > 0) blocks.push([bold('Order first'), ...orderFirst].join('\n'))
+	if (also.length > 0) {
+		blocks.push([...(orderFirst.length > 0 ? [bold('Also today')] : []), ...also].join('\n'))
+	}
+	if (blocks.length === 0) return null
+	const title = `${ICON.summary} ${bold(`${WEEKDAYS[weekday]} ${dayMonth(today)}`)}`
+	return {
+		text: [title, ...blocks].join('\n\n'),
+		// Two to a row, so a label is never cut short on a phone
+		buttons: buttons.flatMap((_, index) =>
+			index % 2 === 0 ? [buttons.slice(index, index + 2)] : [],
+		),
+	}
+}
+
+/**
+ * The list behind one line of the summary, as it stands when it is asked
+ * for, which may be hours after the summary was posted.
+ */
+export function detailText(key: DetailKey, queues: Queues): string {
+	const { now, today, inDemand, late, expiring, woke, notMoving } = queues
+	const list = (heading: string, rows: string[], none: string): string =>
+		rows.length === 0
+			? none
+			: [
+					heading,
+					...rows.slice(0, DETAIL_ROWS),
+					...(rows.length > DETAIL_ROWS
+						? [`and ${rows.length - DETAIL_ROWS} more on the Dashboard`]
+						: []),
+				].join('\n')
+
+	switch (key) {
+		case 'late':
+			return list(
+				`${ICON.late} ${bold('Late deliveries')} (${late.length})`,
+				late.map(({ item, status }) =>
+					bullet(item.item_name, [
+						facts(
+							status.expected_by
+								? `${plural(daysBetween(status.expected_by, today), 'day')} late`
+								: `no date, ordered ${dayMonth(status.ordered_on)}`,
+							`${status.quantity - status.received} ${item.unit}`,
+						),
+						...supplierLine(item),
+					]),
+				),
+				'No delivery is late now.',
+			)
+		case 'expiring':
+			return list(
+				`${ICON.expiring} ${bold('Expiring batches')} (${expiring.length})`,
+				expiring.map(({ item, quantity, expiry }) =>
+					bullet(item.item_name, [
+						facts(
+							expiry < today
+								? `expired ${dayMonth(expiry)}`
+								: expiry === today
+									? 'expires today'
+									: `expires ${dayMonth(expiry)}`,
+							`${quantity} ${item.unit}`,
+						),
+					]),
+				),
+				'No batch is expiring now.',
+			)
+		case 'snoozes':
+			return list(
+				`${ICON.snooze} ${bold('Snoozes ended today')} (${woke.length})`,
+				woke.map((item) => bullet(item.item_name, [left(item)])),
+				'No snooze ended today.',
+			)
+		case 'next':
+			return list(
+				`${ICON.toOrder} ${bold('Next to order')}`,
+				inDemand.slice(ORDER_FIRST).map((row, index) => demandEntry(row, ORDER_FIRST + index)),
+				'Nothing more to order is in use now.',
+			)
+		case 'idle':
+			return list(
+				`${ICON.notMoving} ${bold('Not moving')} (${notMoving.length})`,
+				notMoving.map((item) =>
+					bullet(item.item_name, [
+						facts(`${item.quantity} ${item.unit}`, `${plural(daysIdle(item, now), 'day')} idle`),
+					]),
+				),
+				'Every item with stock has moved lately.',
+			)
+	}
+}
+
+async function queuesNow(ctx: QueryCtx, now: number): Promise<Queues> {
+	// Bounded by product count and by stock on hand, as inventory.list and stock.listBatches are
+	const items = await ctx.db.query('inventory').collect()
+	const batches = await ctx.db.query('stock_batches').collect()
+	// Bounded by the window: a few thousand movements at the clinic's pace
+	const movements = await ctx.db
+		.query('stock_movements')
+		.withIndex('by_creation_time', (q) => q.gte('_creationTime', demandSince(now)))
+		.collect()
+	return queuesAt(items, batches, movements, now)
 }
 
 /** Run by the cron in crons.ts. */
@@ -191,10 +310,18 @@ export const sendMorning = internalMutation({
 	args: {},
 	returns: v.null(),
 	handler: async (ctx) => {
-		// Bounded by product count and by stock on hand, as inventory.list and stock.listBatches are
-		const items = await ctx.db.query('inventory').collect()
-		const batches = await ctx.db.query('stock_batches').collect()
-		await notify(ctx, morningSummary(items, batches, Date.now()))
+		const summary = morningSummary(await queuesNow(ctx, Date.now()))
+		if (!summary) return null
+		// A button is only worth showing where the webhook that answers it is set up; see telegram.ts
+		const answered = env.TELEGRAM_WEBHOOK_SECRET && summary.buttons.length > 0
+		await notify(ctx, summary.text, answered ? summary.buttons : undefined)
 		return null
 	},
+})
+
+/** What the webhook in telegram.ts replies with when a button is pressed. */
+export const detail = internalQuery({
+	args: { key: detailKey, now: v.number() },
+	returns: v.string(),
+	handler: async (ctx, args) => detailText(args.key, await queuesNow(ctx, args.now)),
 })

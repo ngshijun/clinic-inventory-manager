@@ -34,6 +34,7 @@ type Env = {
   readonly REQUESTER_PASSWORD: string;
   readonly TELEGRAM_BOT_TOKEN: string | undefined;
   readonly TELEGRAM_CHAT_ID: string | undefined;
+  readonly TELEGRAM_WEBHOOK_SECRET: string | undefined;
 };
 
 /**
