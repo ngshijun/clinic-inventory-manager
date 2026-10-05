@@ -155,14 +155,12 @@ const button = (key: DetailKey, text: string): Button => ({ text, callback_data:
 
 /**
  * The morning's message, or null on a day with nothing to say. It is meant
- * to fit one phone screen: the first line carries the day's counts, since a
- * lock screen and the pinned bar show no more than that; the few items to
- * order first are named, in order of demand; and every other Dashboard
- * queue is one line with its count. Each of those lines has a button that
- * asks for its list; see `detailText`.
+ * to fit one phone screen: the few items to order first are named, in order
+ * of demand, and every other Dashboard queue is one line with its count.
+ * Each of those lines has a button that asks for its list; see `detailText`.
  */
 export function morningSummary(queues: Queues): { text: string; buttons: Button[][] } | null {
-	const { now, today, toOrder, inDemand, late, expiring, woke, notMoving } = queues
+	const { now, today, inDemand, late, expiring, woke, notMoving } = queues
 	const also: string[] = []
 	const buttons: Button[] = []
 
@@ -209,14 +207,7 @@ export function morningSummary(queues: Queues): { text: string; buttons: Button[
 		blocks.push([...(orderFirst.length > 0 ? [bold('Also today')] : []), ...also].join('\n'))
 	}
 	if (blocks.length === 0) return null
-
-	const out = toOrder.filter((item) => item.quantity === 0).length
-	const counts = [
-		...(out > 0 ? [`${out} out`] : []),
-		...(toOrder.length > out ? [`${toOrder.length - out} low`] : []),
-		...(late.length > 0 ? [`${late.length} late`] : []),
-	]
-	const title = `${ICON.summary} ${bold(facts(weekdayDayMonth(today), ...counts))}`
+	const title = `${ICON.summary} ${bold(weekdayDayMonth(today))}`
 	return {
 		text: [title, ...blocks].join('\n\n'),
 		// Two to a row, so a label is never cut short on a phone
