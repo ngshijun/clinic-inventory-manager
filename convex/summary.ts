@@ -26,6 +26,7 @@ import {
 	notify,
 	plural,
 	supplierLine,
+	weekdayDayMonth,
 	type Button,
 } from './lib/telegram'
 
@@ -38,7 +39,7 @@ const ORDER_FIRST = 5
 /** Rows a list of details shows; a longer one is read on the Dashboard */
 const DETAIL_ROWS = 10
 
-const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const isMonday = (date: string): boolean => new Date(`${date}T00:00:00Z`).getUTCDay() === 1
 
 /** The lists a button under the summary asks for */
 export const detailKey = v.union(
@@ -137,26 +138,31 @@ export function queuesAt(
 	return { now, today, toOrder, inDemand, late, expiring, woke, notMoving }
 }
 
-/** One item of a list in no particular rank; Order first numbers its own */
+/** One item of a list, led by a bullet where no icon says its state */
 const bullet = (name: string, details: string[]): string => entry(name, details, '• ')
 
-const demandEntry = ({ item, demand }: Queues['inDemand'][number], index: number): string => {
-	const stock = `${item.quantity === 0 ? ICON.out : ICON.low} ${left(item)}`
+/** An item to order, led by how low it is; its rank is its place in the list */
+const demandEntry = ({ item, demand }: Queues['inDemand'][number]): string => {
 	const monthly = Math.max(1, Math.round(demand.quantityPerMonth))
-	return entry(item.item_name, [facts(stock, `${monthly} ${item.unit} a month`)], `${index + 1}. `)
+	return entry(
+		item.item_name,
+		[facts(left(item), `uses ${monthly} ${item.unit} a month`)],
+		`${item.quantity === 0 ? ICON.out : ICON.low} `,
+	)
 }
 
 const button = (key: DetailKey, text: string): Button => ({ text, callback_data: key })
 
 /**
  * The morning's message, or null on a day with nothing to say. It is meant
- * to fit one phone screen: the few items to order first are named, in order
- * of demand, and every other Dashboard queue is one line with its count.
- * Each of those lines has a button that asks for its list; see `detailText`.
+ * to fit one phone screen: the first line carries the day's counts, since a
+ * lock screen and the pinned bar show no more than that; the few items to
+ * order first are named, in order of demand; and every other Dashboard
+ * queue is one line with its count. Each of those lines has a button that
+ * asks for its list; see `detailText`.
  */
 export function morningSummary(queues: Queues): { text: string; buttons: Button[][] } | null {
 	const { now, today, toOrder, inDemand, late, expiring, woke, notMoving } = queues
-	const weekday = new Date(`${today}T00:00:00Z`).getUTCDay()
 	const also: string[] = []
 	const buttons: Button[] = []
 
@@ -181,15 +187,11 @@ export function morningSummary(queues: Queues): { text: string; buttons: Button[
 		buttons.push(button('snoozes', `${ICON.snooze} Snoozes ended (${woke.length})`))
 	}
 
-	if (toOrder.length > 0) {
-		const out = toOrder.filter((item) => item.quantity === 0).length
-		also.push(facts(`${ICON.toOrder} ${toOrder.length} still to order`, `${out} out of stock`))
-	}
 	const next = Math.min(DETAIL_ROWS, inDemand.length - ORDER_FIRST)
 	if (next > 0) buttons.push(button('next', `${ICON.toOrder} Next ${next} to order`))
 
 	// A slow list, so it is told once a week, with how many joined it since the last time
-	if (weekday === 1 && notMoving.length > 0) {
+	if (isMonday(today) && notMoving.length > 0) {
 		const joined = notMoving.filter((item) => daysIdle(item, now) <= NOT_MOVING_DAYS + 7).length
 		also.push(
 			facts(
@@ -207,7 +209,14 @@ export function morningSummary(queues: Queues): { text: string; buttons: Button[
 		blocks.push([...(orderFirst.length > 0 ? [bold('Also today')] : []), ...also].join('\n'))
 	}
 	if (blocks.length === 0) return null
-	const title = `${ICON.summary} ${bold(`${WEEKDAYS[weekday]} ${dayMonth(today)}`)}`
+
+	const out = toOrder.filter((item) => item.quantity === 0).length
+	const counts = [
+		...(out > 0 ? [`${out} out`] : []),
+		...(toOrder.length > out ? [`${toOrder.length - out} low`] : []),
+		...(late.length > 0 ? [`${late.length} late`] : []),
+	]
+	const title = `${ICON.summary} ${bold(facts(weekdayDayMonth(today), ...counts))}`
 	return {
 		text: [title, ...blocks].join('\n\n'),
 		// Two to a row, so a label is never cut short on a phone
@@ -277,7 +286,7 @@ export function detailText(key: DetailKey, queues: Queues): string {
 		case 'next':
 			return list(
 				`${ICON.toOrder} ${bold('Next to order')}`,
-				inDemand.slice(ORDER_FIRST).map((row, index) => demandEntry(row, ORDER_FIRST + index)),
+				inDemand.slice(ORDER_FIRST).map(demandEntry),
 				'Nothing more to order is in use now.',
 			)
 		case 'idle':
@@ -314,7 +323,10 @@ export const sendMorning = internalMutation({
 		if (!summary) return null
 		// A button is only worth showing where the webhook that answers it is set up; see telegram.ts
 		const answered = env.TELEGRAM_WEBHOOK_SECRET && summary.buttons.length > 0
-		await notify(ctx, summary.text, answered ? summary.buttons : undefined)
+		await notify(ctx, summary.text, {
+			pin: true,
+			...(answered ? { buttons: summary.buttons } : {}),
+		})
 		return null
 	},
 })

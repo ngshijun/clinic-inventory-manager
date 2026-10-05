@@ -20,7 +20,10 @@ async function requireOk(response: Response, what: string): Promise<void> {
 
 /**
  * Posts one message to the clinic's Telegram group, with any buttons under
- * it. A deployment with no bot set, such as a developer's, sends nothing.
+ * it. A pinned message replaces whatever the group had pinned, quietly, so
+ * its first line stays in the bar at the top of the chat; the bot must be an
+ * admin of the group that may pin messages. A deployment with no bot set,
+ * such as a developer's, sends nothing.
  */
 export const send = internalAction({
 	args: {
@@ -28,6 +31,7 @@ export const send = internalAction({
 		buttons: v.optional(
 			v.array(v.array(v.object({ text: v.string(), callback_data: v.string() }))),
 		),
+		pin: v.optional(v.boolean()),
 	},
 	returns: v.null(),
 	handler: async (_ctx, args) => {
@@ -41,6 +45,18 @@ export const send = internalAction({
 			...(args.buttons ? { reply_markup: { inline_keyboard: args.buttons } } : {}),
 		})
 		await requireOk(response, 'the message')
+		if (!args.pin) return null
+
+		const { result } = (await response.json()) as { result: { message_id: number } }
+		await requireOk(await botApi('unpinAllChatMessages', { chat_id }), 'unpinning')
+		await requireOk(
+			await botApi('pinChatMessage', {
+				chat_id,
+				message_id: result.message_id,
+				disable_notification: true,
+			}),
+			'pinning',
+		)
 		return null
 	},
 })
