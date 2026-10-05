@@ -6,12 +6,12 @@
  * Every message is laid out the same way, the summary in summary.ts
  * included, so it is read at a glance on a phone: the icon and the state in
  * bold on the first line, with the one number that belongs to the state, the
- * item alone on the second, then its facts set in under it. Bold is kept for
- * the first line, a heading and an item's name, so those are what the eye
- * lands on; a fact never is. Staff type names in capitals, which read as
- * shouting when bold, so a name is set in sentence case here and nowhere else.
- * In a list the item's icon leads its name, so every item starts at the
- * left edge however far its name wraps.
+ * item on a line of its own with a blank line either side so it stands
+ * clear, then its facts. Bold is kept for the first line, a
+ * heading and an item's name, so those are what the eye lands on; a fact
+ * never is. In a list the item's icon leads its name, so every item starts
+ * at the left edge however far its name wraps, and a blank line parts one
+ * item from the next.
  */
 import { internal } from '../_generated/api'
 import type { Doc } from '../_generated/dataModel'
@@ -66,18 +66,6 @@ export async function notify(
 export const plain = (text: string): string =>
 	text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
-/**
- * "Machkhan 16mg/5mg Film Coated Tab 30s" from the capitals staff type. A
- * word of one or two letters is left as typed, so a code such as BP or IV
- * survives, and a strength such as 500MG reads as a pharmacist writes it.
- */
-export const sentenceCase = (name: string): string =>
-	name.replace(/[^\s/-]+/g, (part) =>
-		/^[A-Za-z]{1,2}$/.test(part)
-			? part
-			: part.toLowerCase().replace(/^\p{L}/u, (letter) => letter.toUpperCase()),
-	)
-
 /** "05 Oct" from "2026-10-05", as the pages show a date in a tight spot */
 export const dayMonth = (date: string): string =>
 	`${date.slice(8, 10)} ${MONTHS[Number(date.slice(5, 7)) - 1]}`
@@ -130,14 +118,22 @@ const INDENT = '    '
  * the name in a list: the item's icon, or a bullet where it has none.
  */
 export const entry = (name: string, details: string[], marker = ''): string =>
-	[
-		`${marker}${bold(plain(sentenceCase(name)))}`,
-		...details.map((detail) => `${INDENT}${detail}`),
-	].join('\n')
+	[`${marker}${bold(plain(name))}`, ...details.map((detail) => `${INDENT}${detail}`)].join('\n')
 
-/** One event about one item: the icon and the state, then the item and its facts */
+/** A heading and the items under it, a blank line between each */
+export const listed = (heading: string, rows: string[]): string => [heading, ...rows].join('\n\n')
+
+/**
+ * One event about one item: the icon and the state, the item, then its
+ * facts, each apart. The facts stand flush, since the blank line already
+ * parts them from the name.
+ */
 const message = (icon: string, state: string, item: Item, details: string[]): string =>
-	`${icon} ${bold(state)}\n${entry(item.item_name, details)}`
+	[
+		`${icon} ${bold(state)}`,
+		bold(plain(item.item_name)),
+		...(details.length > 0 ? [details.join('\n')] : []),
+	].join('\n\n')
 
 const today = (): string => clinicToday(Date.now())
 
@@ -160,7 +156,7 @@ export function stockDropMessage(before: Item, after: Item): string | null {
 }
 
 const expected = (status: OrderedStatus): string =>
-	status.expected_by ? `expected ${whenIs(status.expected_by, today())}` : 'no date yet'
+	status.expected_by ? `Expected ${whenIs(status.expected_by, today())}` : 'No date yet'
 
 /** An item marked ordered, or an order whose quantity or expected date changed. */
 export function orderedMessage(before: Item, after: Item): string | null {

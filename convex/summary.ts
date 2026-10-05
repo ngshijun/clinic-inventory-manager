@@ -23,6 +23,7 @@ import {
 	entry,
 	facts,
 	left,
+	listed,
 	notify,
 	plural,
 	supplierLine,
@@ -182,11 +183,11 @@ export function morningSummary(queues: Queues): { text: string; buttons: Button[
 
 	if (woke.length > 0) {
 		also.push(`${ICON.snooze} ${plural(woke.length, 'snooze')} ended`)
-		buttons.push(button('snoozes', `${ICON.snooze} Snoozes ended (${woke.length})`))
+		buttons.push(button('snoozes', `${ICON.snooze} Snoozes Ended (${woke.length})`))
 	}
 
 	const next = Math.min(DETAIL_ROWS, inDemand.length - ORDER_FIRST)
-	if (next > 0) buttons.push(button('next', `${ICON.toOrder} Next ${next} to order`))
+	if (next > 0) buttons.push(button('next', `${ICON.toOrder} Next ${next} to Order`))
 
 	// A slow list, so it is told once a week, with how many joined it since the last time
 	if (isMonday(today) && notMoving.length > 0) {
@@ -197,12 +198,12 @@ export function morningSummary(queues: Queues): { text: string; buttons: Button[
 				...(joined > 0 ? [`${joined} new this week`] : []),
 			),
 		)
-		buttons.push(button('idle', `${ICON.notMoving} Not moving (${notMoving.length})`))
+		buttons.push(button('idle', `${ICON.notMoving} Not Moving (${notMoving.length})`))
 	}
 
 	const orderFirst = inDemand.slice(0, ORDER_FIRST).map(demandEntry)
 	const blocks: string[] = []
-	if (orderFirst.length > 0) blocks.push([bold('Order first'), ...orderFirst].join('\n'))
+	if (orderFirst.length > 0) blocks.push(`${bold('Order first')}\n${orderFirst.join('\n\n')}`)
 	if (also.length > 0) {
 		blocks.push([...(orderFirst.length > 0 ? [bold('Also today')] : []), ...also].join('\n'))
 	}
@@ -210,10 +211,8 @@ export function morningSummary(queues: Queues): { text: string; buttons: Button[
 	const title = `${ICON.summary} ${bold(weekdayDayMonth(today))}`
 	return {
 		text: [title, ...blocks].join('\n\n'),
-		// Two to a row, so a label is never cut short on a phone
-		buttons: buttons.flatMap((_, index) =>
-			index % 2 === 0 ? [buttons.slice(index, index + 2)] : [],
-		),
+		// One to a row, so a label is never cut short on a phone
+		buttons: buttons.map((button) => [button]),
 	}
 }
 
@@ -226,13 +225,12 @@ export function detailText(key: DetailKey, queues: Queues): string {
 	const list = (heading: string, rows: string[], none: string): string =>
 		rows.length === 0
 			? none
-			: [
-					heading,
+			: listed(heading, [
 					...rows.slice(0, DETAIL_ROWS),
 					...(rows.length > DETAIL_ROWS
-						? [`and ${rows.length - DETAIL_ROWS} more on the Dashboard`]
+						? [`And ${rows.length - DETAIL_ROWS} more on the Dashboard`]
 						: []),
-				].join('\n')
+				])
 
 	switch (key) {
 		case 'late':
@@ -243,13 +241,13 @@ export function detailText(key: DetailKey, queues: Queues): string {
 						facts(
 							status.expected_by
 								? `${plural(daysBetween(status.expected_by, today), 'day')} late`
-								: `no date, ordered ${dayMonth(status.ordered_on)}`,
+								: `No date, ordered ${dayMonth(status.ordered_on)}`,
 							`${status.quantity - status.received} ${item.unit}`,
 						),
 						...supplierLine(item),
 					]),
 				),
-				'No delivery is late now.',
+				'No delivery is late now',
 			)
 		case 'expiring':
 			return list(
@@ -258,37 +256,40 @@ export function detailText(key: DetailKey, queues: Queues): string {
 					bullet(item.item_name, [
 						facts(
 							expiry < today
-								? `expired ${dayMonth(expiry)}`
+								? `Expired ${dayMonth(expiry)}`
 								: expiry === today
-									? 'expires today'
-									: `expires ${dayMonth(expiry)}`,
+									? 'Expires today'
+									: `Expires ${dayMonth(expiry)}`,
 							`${quantity} ${item.unit}`,
 						),
 					]),
 				),
-				'No batch is expiring now.',
+				'No batch is expiring now',
 			)
 		case 'snoozes':
 			return list(
 				`${ICON.snooze} ${bold('Snoozes ended today')} (${woke.length})`,
 				woke.map((item) => bullet(item.item_name, [left(item)])),
-				'No snooze ended today.',
+				'No snooze ended today',
 			)
 		case 'next':
 			return list(
 				`${ICON.toOrder} ${bold('Next to order')}`,
 				inDemand.slice(ORDER_FIRST).map(demandEntry),
-				'Nothing more to order is in use now.',
+				'Nothing more to order is in use now',
 			)
 		case 'idle':
 			return list(
 				`${ICON.notMoving} ${bold('Not moving')} (${notMoving.length})`,
 				notMoving.map((item) =>
 					bullet(item.item_name, [
-						facts(`${item.quantity} ${item.unit}`, `${plural(daysIdle(item, now), 'day')} idle`),
+						facts(
+							`${item.quantity} ${item.unit}`,
+							`Last moved ${plural(daysIdle(item, now), 'day')} ago`,
+						),
 					]),
 				),
-				'Every item with stock has moved lately.',
+				'Every item with stock has moved lately',
 			)
 	}
 }
