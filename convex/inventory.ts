@@ -8,6 +8,7 @@ import { capitalName } from './lib/names'
 import { toIsoDate } from './lib/orders'
 import { applyStockIn, assertNonNegativeQuantity, requireItem } from './lib/stock'
 import { roundAmount, type Price } from './lib/price'
+import { notify, orderedMessage, snoozedMessage } from './lib/telegram'
 import type { UnitParts } from './lib/units'
 import { inventoryDoc, orderStatus, price, unitParts } from './schema'
 import { supplierResolver } from './suppliers'
@@ -260,23 +261,25 @@ export const markOrdered = mutation({
 			})
 		}
 		const received = item.order_status?.kind === 'ordered' ? item.order_status.received : 0
+		const order_status: OrderStatus | undefined =
+			received >= args.quantity
+				? undefined
+				: {
+						kind: 'ordered',
+						ordered_on: requireIsoDate(args.ordered_on, 'Order date'),
+						expected_by:
+							args.expected_by === undefined
+								? undefined
+								: requireIsoDate(args.expected_by, 'Expected date'),
+						quantity: args.quantity,
+						received,
+					}
 		await ctx.db.patch(item._id, {
 			...(args.price ? { price: requirePrice(item, args.price) } : {}),
-			order_status:
-				received >= args.quantity
-					? undefined
-					: {
-							kind: 'ordered',
-							ordered_on: requireIsoDate(args.ordered_on, 'Order date'),
-							expected_by:
-								args.expected_by === undefined
-									? undefined
-									: requireIsoDate(args.expected_by, 'Expected date'),
-							quantity: args.quantity,
-							received,
-						},
+			order_status,
 			updated_at: Date.now(),
 		})
+		await notify(ctx, orderedMessage(item, { ...item, order_status }))
 		return null
 	},
 })
@@ -294,10 +297,13 @@ export const snooze = mutation({
 		const item = await requireItem(ctx, args.id)
 		const reason = optionalText(args.reason)
 		if (!reason) throw new ConvexError({ code: 'INVALID_STATE', message: 'A reason is needed' })
-		await ctx.db.patch(item._id, {
-			order_status: { kind: 'snoozed', until: requireIsoDate(args.until, 'Snooze date'), reason },
-			updated_at: Date.now(),
-		})
+		const order_status: OrderStatus = {
+			kind: 'snoozed',
+			until: requireIsoDate(args.until, 'Snooze date'),
+			reason,
+		}
+		await ctx.db.patch(item._id, { order_status, updated_at: Date.now() })
+		await notify(ctx, snoozedMessage(item, { ...item, order_status }))
 		return null
 	},
 })

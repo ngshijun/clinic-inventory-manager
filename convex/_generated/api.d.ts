@@ -9,6 +9,7 @@
  */
 
 import type * as auth from "../auth.js";
+import type * as crons from "../crons.js";
 import type * as inventory from "../inventory.js";
 import type * as lib_aggregates from "../lib/aggregates.js";
 import type * as lib_auth from "../lib/auth.js";
@@ -16,6 +17,7 @@ import type * as lib_names from "../lib/names.js";
 import type * as lib_orders from "../lib/orders.js";
 import type * as lib_price from "../lib/price.js";
 import type * as lib_stock from "../lib/stock.js";
+import type * as lib_telegram from "../lib/telegram.js";
 import type * as lib_units from "../lib/units.js";
 import type * as migration from "../migration.js";
 import type * as movements from "../movements.js";
@@ -23,7 +25,9 @@ import type * as payroll from "../payroll.js";
 import type * as payrollRuns from "../payrollRuns.js";
 import type * as requests from "../requests.js";
 import type * as stock from "../stock.js";
+import type * as summary from "../summary.js";
 import type * as suppliers from "../suppliers.js";
+import type * as telegram from "../telegram.js";
 import type * as units from "../units.js";
 
 import type {
@@ -34,6 +38,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
+  crons: typeof crons;
   inventory: typeof inventory;
   "lib/aggregates": typeof lib_aggregates;
   "lib/auth": typeof lib_auth;
@@ -41,6 +46,7 @@ declare const fullApi: ApiFromModules<{
   "lib/orders": typeof lib_orders;
   "lib/price": typeof lib_price;
   "lib/stock": typeof lib_stock;
+  "lib/telegram": typeof lib_telegram;
   "lib/units": typeof lib_units;
   migration: typeof migration;
   movements: typeof movements;
@@ -48,7 +54,9 @@ declare const fullApi: ApiFromModules<{
   payrollRuns: typeof payrollRuns;
   requests: typeof requests;
   stock: typeof stock;
+  summary: typeof summary;
   suppliers: typeof suppliers;
+  telegram: typeof telegram;
   units: typeof units;
 }>;
 

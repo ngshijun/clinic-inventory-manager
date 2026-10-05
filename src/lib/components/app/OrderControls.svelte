@@ -7,7 +7,8 @@
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu'
 	import { inventoryStore } from '$lib/stores/inventory.svelte'
 	import type { InventoryItem } from '$lib/types/inventory'
-	import { isSnoozing } from '$lib/utils/orders'
+	import { todayIsoDate } from '$lib/types/stockBatches'
+	import { isSnoozing } from '../../../../convex/lib/orders'
 
 	/**
 	 * The purchaser's controls on a row. On order: Update Order… and Not
@@ -85,7 +86,7 @@
 			<DropdownMenu.Group>
 				<DropdownMenu.Item onclick={() => onSnooze(item)}>
 					<AlarmClockIcon />
-					{isSnoozing(item) ? 'Change Snooze…' : 'Snooze Until a Date…'}
+					{isSnoozing(item, todayIsoDate()) ? 'Change Snooze…' : 'Snooze Until a Date…'}
 				</DropdownMenu.Item>
 				{#if item.order_status?.kind === 'snoozed'}
 					<DropdownMenu.Item

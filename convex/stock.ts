@@ -14,6 +14,7 @@ import {
 } from './lib/stock'
 import { createItem, deleteItem, requirePrice, type OrderStatus } from './inventory'
 import { LEAD_DAYS, addDays, suggestedOrderQuantity, toIsoDate } from './lib/orders'
+import { arrivedMessage, notify, stockDropMessage } from './lib/telegram'
 import { normalizeUnitName, parseUnitLabel, sameUnit } from './lib/units'
 import { inventoryDoc, stockBatchDoc } from './schema'
 import { supplierResolver } from './suppliers'
@@ -37,13 +38,16 @@ export const stockIn = mutation({
 	returns: inventoryDoc,
 	handler: async (ctx, args) => {
 		requireRole(args.auth, ['manager'])
-		return await applyStockIn(ctx, {
+		const before = await requireItem(ctx, args.item_id)
+		const item = await applyStockIn(ctx, {
 			item_id: args.item_id,
 			quantity: args.quantity,
 			not_track: args.not_track,
 			expiry_date: optionalText(args.expiry_date),
 			remark: args.remark ?? 'Stock in',
 		})
+		await notify(ctx, arrivedMessage(before, args.quantity))
+		return item
 	},
 })
 
@@ -57,11 +61,14 @@ export const stockOut = mutation({
 	returns: inventoryDoc,
 	handler: async (ctx, args) => {
 		requireRole(args.auth, ['manager'])
-		return await applyStockOut(ctx, {
+		const before = await requireItem(ctx, args.item_id)
+		const item = await applyStockOut(ctx, {
 			item_id: args.item_id,
 			quantity: args.quantity,
 			remark: args.remark ?? 'Stock out',
 		})
+		await notify(ctx, stockDropMessage(before, item))
+		return item
 	},
 })
 
@@ -107,7 +114,9 @@ export const updateBatch = mutation({
 				updated_at: now,
 			})
 		}
-		return await recomputeItemQuantity(ctx, item._id)
+		const adjusted = await recomputeItemQuantity(ctx, item._id)
+		await notify(ctx, stockDropMessage(item, adjusted))
+		return adjusted
 	},
 })
 

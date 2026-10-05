@@ -6,8 +6,9 @@
 	import TriangleAlertIcon from '@lucide/svelte/icons/triangle-alert'
 	import ToneBadge from '$lib/components/app/ToneBadge.svelte'
 	import type { InventoryItem } from '$lib/types/inventory'
+	import { todayIsoDate } from '$lib/types/stockBatches'
 	import { formatDayMonth } from '$lib/utils/date'
-	import { isLate, wokeFromSnooze } from '$lib/utils/orders'
+	import { isLate, wokeFromSnooze } from '../../../../convex/lib/orders'
 
 	/**
 	 * An item's order status as one badge for the ledger tables (Inventory,
@@ -21,7 +22,7 @@
 {#if !status}
 	<span class="text-muted-foreground">—</span>
 {:else if status.kind === 'ordered'}
-	{#if isLate(status)}
+	{#if isLate(status, todayIsoDate())}
 		<ToneBadge tone="danger">
 			<TriangleAlertIcon />
 			Late, ordered {formatDayMonth(status.ordered_on)}
@@ -42,7 +43,7 @@
 			Back-ordered {formatDayMonth(status.ordered_on)}
 		</ToneBadge>
 	{/if}
-{:else if wokeFromSnooze(item)}
+{:else if wokeFromSnooze(item, todayIsoDate())}
 	<ToneBadge tone="warning">
 		<AlarmClockIcon />
 		Snooze ended {formatDayMonth(status.until)}

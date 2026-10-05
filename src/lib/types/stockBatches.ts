@@ -1,4 +1,5 @@
 import type { Doc, Id } from '../../../convex/_generated/dataModel'
+import { EXPIRY_WARNING_DAYS } from '../../../convex/lib/orders'
 import type { WithLegacy } from '$lib/types/legacy'
 
 export type StockBatchId = Id<'stock_batches'>
@@ -20,9 +21,6 @@ export const fefoOrder = <T extends { expiry_date?: string; _creationTime: numbe
 		if (!a.expiry_date && b.expiry_date) return 1
 		return a._creationTime - b._creationTime
 	})
-
-/** Days before expiry at which a batch counts as "expiring soon" */
-export const EXPIRY_WARNING_DAYS = 30
 
 export type ExpiryStatus = 'expired' | 'expiring' | 'ok' | 'none'
 

@@ -2,7 +2,8 @@ import { ConvexError, v } from 'convex/values'
 import { mutation, query } from './_generated/server'
 import type { Doc, Id } from './_generated/dataModel'
 import { requireRole } from './lib/auth'
-import { applyStockOut, assertPositiveQuantity } from './lib/stock'
+import { applyStockOut, assertPositiveQuantity, requireItem } from './lib/stock'
+import { notify, stockDropMessage } from './lib/telegram'
 import { unitLabel } from './lib/units'
 import { stockRequestDoc } from './schema'
 
@@ -136,11 +137,13 @@ export const approve = mutation({
 			throw new ConvexError({ code: 'INVALID_STATE', message: 'Request is not pending' })
 		}
 		await ctx.db.patch(request._id, { status: 'Approved', updated_at: Date.now() })
-		await applyStockOut(ctx, {
+		const before = await requireItem(ctx, request.item_id)
+		const item = await applyStockOut(ctx, {
 			item_id: request.item_id,
 			quantity: request.quantity,
 			remark: 'Stock Request',
 		})
+		await notify(ctx, stockDropMessage(before, item))
 		return null
 	},
 })

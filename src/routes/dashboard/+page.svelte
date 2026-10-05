@@ -33,26 +33,23 @@
 	import { inventoryStore } from '$lib/stores/inventory.svelte'
 	import { stockBatchesStore } from '$lib/stores/stockBatches.svelte'
 	import type { InventoryItem, OrderedStatus, SnoozedStatus } from '$lib/types/inventory'
-	import {
-		EXPIRY_WARNING_DAYS,
-		daysUntilExpiry,
-		todayIsoDate,
-		type StockBatch,
-	} from '$lib/types/stockBatches'
+	import { daysUntilExpiry, todayIsoDate, type StockBatch } from '$lib/types/stockBatches'
 	import { daysSince, formatDate, formatDayMonth, formatDuration } from '$lib/utils/date'
 	import { expiryNote } from '$lib/utils/expiry'
+	import { cn } from '$lib/utils'
+	import { ALL_SUPPLIERS, activeSupplier, matchesSupplier } from '$lib/utils/supplier'
 	import {
+		EXPIRY_WARNING_DAYS,
+		NOT_MOVING_DAYS,
 		daysBetween,
 		isLate,
+		isNotMoving,
 		isSnoozing,
 		needsDecision,
 		needsStock,
 		wokeFromSnooze,
-	} from '$lib/utils/orders'
-	import { cn } from '$lib/utils'
-	import { ALL_SUPPLIERS, activeSupplier, matchesSupplier } from '$lib/utils/supplier'
+	} from '../../../convex/lib/orders'
 
-	const NOT_MOVING_DAYS = 30
 	const QUEUE_PAGE = 8
 
 	useErrorToast(inventoryStore)
@@ -143,10 +140,7 @@
 	// ---------- Not moving ----------
 	const stale = $derived(
 		items
-			.filter(
-				(item) =>
-					!item.not_track && item.quantity > 0 && daysSince(item.updated_at) > NOT_MOVING_DAYS,
-			)
+			.filter((item) => isNotMoving(item, Date.now()))
 			.sort((a, b) => a.updated_at - b.updated_at),
 	)
 	const staleList = createLoadMore(() => stale, QUEUE_PAGE)

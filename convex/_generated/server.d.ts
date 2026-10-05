@@ -32,6 +32,8 @@ type Env = {
   readonly CONVEX_SITE_URL: string;
   readonly MANAGER_PASSWORD: string;
   readonly REQUESTER_PASSWORD: string;
+  readonly TELEGRAM_BOT_TOKEN: string | undefined;
+  readonly TELEGRAM_CHAT_ID: string | undefined;
 };
 
 /**
