@@ -9,7 +9,8 @@
  * in under it, so the name stands clear of what is said about it.
  * Facts that belong together, such as a quantity and its date, share a line
  * with a dot between them; the supplier is a different kind of fact and has a
- * labelled line of its own. Only a heading is bold.
+ * labelled line of its own. A heading and an item's name are bold, so the
+ * names are what the eye lands on down a list; a fact never is.
  */
 import { internal } from '../_generated/api'
 import type { Doc } from '../_generated/dataModel'
@@ -86,12 +87,12 @@ export const supplierLine = (item: Item): string[] =>
 const INDENT = '\u00a0\u00a0\u00a0\u00a0'
 
 /**
- * An item and what is said about it: the name on a line of its own, since one
- * runs to 60 letters, and each fact set in under it. `marker` leads the name
+ * An item and what is said about it: the name in bold on a line of its own,
+ * since one runs to 60 letters, and each fact set in under it. `marker` leads the name
  * in a list: a bullet, or a number where the rank matters.
  */
 export const entry = (name: string, details: string[], marker = ''): string =>
-	[`${marker}${plain(name)}`, ...details.map((detail) => `${INDENT}${detail}`)].join('\n')
+	[`${marker}${bold(plain(name))}`, ...details.map((detail) => `${INDENT}${detail}`)].join('\n')
 
 /** One event about one item: the icon and the state, then the item and its facts */
 const message = (icon: string, state: string, item: Item, details: string[]): string =>
