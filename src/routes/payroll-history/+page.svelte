@@ -4,7 +4,6 @@
 	import { page } from '$app/state'
 	import { toast } from 'svelte-sonner'
 	import BookTextIcon from '@lucide/svelte/icons/book-text'
-	import EllipsisIcon from '@lucide/svelte/icons/ellipsis'
 	import FileTextIcon from '@lucide/svelte/icons/file-text'
 	import HistoryIcon from '@lucide/svelte/icons/history'
 	import LockIcon from '@lucide/svelte/icons/lock'
@@ -12,6 +11,7 @@
 	import Trash2Icon from '@lucide/svelte/icons/trash-2'
 	import UsersIcon from '@lucide/svelte/icons/users'
 	import ActionModal from '$lib/components/app/ActionModal.svelte'
+	import MoreMenuTrigger from '$lib/components/app/MoreMenuTrigger.svelte'
 	import PageHeader from '$lib/components/app/PageHeader.svelte'
 	import ToneBadge from '$lib/components/app/ToneBadge.svelte'
 	import { Button } from '$lib/components/ui/button'
@@ -244,13 +244,7 @@
 			<Label for="show-salaries-detail">Show Salaries</Label>
 		</div>
 		<DropdownMenu.Root>
-			<DropdownMenu.Trigger>
-				{#snippet child({ props })}
-					<Button {...props} variant="ghost" size="icon" aria-label="More">
-						<EllipsisIcon />
-					</Button>
-				{/snippet}
-			</DropdownMenu.Trigger>
+			<MoreMenuTrigger />
 			<DropdownMenu.Content align="end">
 				<DropdownMenu.Group>
 					<DropdownMenu.Item variant="destructive" onclick={() => openDelete(run)}>
@@ -558,13 +552,7 @@
 									View Record
 								</Button>
 								<DropdownMenu.Root>
-									<DropdownMenu.Trigger>
-										{#snippet child({ props })}
-											<Button {...props} variant="ghost" size="icon-sm" aria-label="More">
-												<EllipsisIcon />
-											</Button>
-										{/snippet}
-									</DropdownMenu.Trigger>
+									<MoreMenuTrigger size="icon-sm" />
 									<DropdownMenu.Content align="end">
 										<DropdownMenu.Group>
 											<DropdownMenu.Item onclick={() => downloadAllPayslips(run)}>

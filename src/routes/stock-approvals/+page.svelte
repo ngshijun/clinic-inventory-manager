@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte'
 	import { toast } from 'svelte-sonner'
-	import CircleCheckIcon from '@lucide/svelte/icons/circle-check'
 	import ClipboardCheckIcon from '@lucide/svelte/icons/clipboard-check'
 	import PencilIcon from '@lucide/svelte/icons/pencil'
 	import SearchIcon from '@lucide/svelte/icons/search'
@@ -14,7 +13,6 @@
 	import SortHeader from '$lib/components/app/SortHeader.svelte'
 	import type { SortState } from '$lib/components/app/sort'
 	import ToneBadge from '$lib/components/app/ToneBadge.svelte'
-	import * as Alert from '$lib/components/ui/alert'
 	import { Button } from '$lib/components/ui/button'
 	import { Checkbox } from '$lib/components/ui/checkbox'
 	import * as Empty from '$lib/components/ui/empty'
@@ -280,22 +278,17 @@
 			olderPendingCount={olderPending.length}
 		/>
 	</div>
-</PageHeader>
-
-{#if selected.length > 0}
-	<Alert.Root class="bg-primary/5 border-primary/30 flex flex-wrap items-center gap-x-3 gap-y-2">
-		<CircleCheckIcon class="text-primary" />
-		<Alert.Description class="text-foreground">
-			<span class="font-medium">{plural(selected.length, 'request')} selected.</span>
-			Approving deducts stock now; requests without enough stock are skipped.
-		</Alert.Description>
-		<div class="ms-auto flex items-center gap-1.5">
-			<Button variant="ghost" size="sm" onclick={clearSelection}>Clear</Button>
-			<Button variant="destructive" size="sm" onclick={() => openReject(selected)}>Reject…</Button>
-			<Button size="sm" onclick={() => (showBulkApprove = true)}>Approve…</Button>
+	{#if selected.length > 0}
+		<div class="flex items-center gap-1.5">
+			<span class="px-1.5 font-medium tabular-nums"
+				>{plural(selected.length, 'request')} selected</span
+			>
+			<Button variant="ghost" onclick={clearSelection}>Clear</Button>
+			<Button variant="destructive" onclick={() => openReject(selected)}>Reject…</Button>
+			<Button onclick={() => (showBulkApprove = true)}>Approve…</Button>
 		</div>
-	</Alert.Root>
-{/if}
+	{/if}
+</PageHeader>
 
 {#if initialLoading}
 	<Table.Root>

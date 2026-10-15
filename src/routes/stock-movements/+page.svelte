@@ -651,12 +651,7 @@
 			{/if}
 		</span>
 		{#if stockMovementsStore.hasMore}
-			<Button
-				variant="outline"
-				size="sm"
-				disabled={loadingMore}
-				onclick={stockMovementsStore.loadMore}
-			>
+			<Button variant="outline" disabled={loadingMore} onclick={stockMovementsStore.loadMore}>
 				{#if loadingMore}
 					<Spinner data-icon="inline-start" />
 				{/if}

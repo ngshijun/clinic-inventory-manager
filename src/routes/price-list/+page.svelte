@@ -255,15 +255,15 @@
 			<Empty.Title>{isFiltered ? 'No items match' : 'No items yet'}</Empty.Title>
 			<Empty.Description>
 				{isFiltered
-					? 'Try another search or clear the filter.'
+					? 'Try another search or clear the filters.'
 					: 'Add items in Inventory and they appear here.'}
 			</Empty.Description>
 		</Empty.Header>
 		<Empty.Content>
 			{#if isFiltered}
-				<Button variant="outline" onclick={clearFilters}>Clear Search</Button>
+				<Button variant="outline" onclick={clearFilters}>Clear Filters</Button>
 			{:else}
-				<Button href="/inventory">Go to Inventory</Button>
+				<Button variant="outline" href="/inventory">Go to Inventory</Button>
 			{/if}
 		</Empty.Content>
 	</Empty.Root>

@@ -12,7 +12,7 @@
 
 	/**
 	 * The purchaser's controls on a row. On order: Update Order… and Not
-	 * Ordered. Otherwise Mark Ordered… and a Not now menu holding the ways to
+	 * Ordered. Otherwise Mark Ordered… and a Not Now menu holding the ways to
 	 * put the item aside. The dialogs belong to the page.
 	 */
 	let {
@@ -77,7 +77,7 @@
 		<DropdownMenu.Trigger>
 			{#snippet child({ props })}
 				<Button {...props} variant="outline" {size} disabled={inventoryStore.loading}>
-					Not now
+					Not Now
 					<ChevronDownIcon data-icon="inline-end" />
 				</Button>
 			{/snippet}

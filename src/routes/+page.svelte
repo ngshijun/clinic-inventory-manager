@@ -105,7 +105,7 @@
 						</Field.Field>
 					</Field.Group>
 
-					<Button type="submit" class="h-10 w-full" disabled={!canSubmit}>
+					<Button type="submit" size="lg" class="w-full" disabled={!canSubmit}>
 						{#if loading}
 							<Spinner data-icon="inline-start" />
 							Signing In…

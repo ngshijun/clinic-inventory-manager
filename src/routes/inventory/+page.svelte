@@ -10,7 +10,6 @@
 	import Building2Icon from '@lucide/svelte/icons/building-2'
 	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right'
 	import DownloadIcon from '@lucide/svelte/icons/download'
-	import EllipsisIcon from '@lucide/svelte/icons/ellipsis'
 	import PackageOpenIcon from '@lucide/svelte/icons/package-open'
 	import PencilIcon from '@lucide/svelte/icons/pencil'
 	import PlusIcon from '@lucide/svelte/icons/plus'
@@ -27,6 +26,7 @@
 	import SupplierFilter from '$lib/components/app/SupplierFilter.svelte'
 	import DialogSubject from '$lib/components/app/DialogSubject.svelte'
 	import DiscardDialog from '$lib/components/app/DiscardDialog.svelte'
+	import MoreMenuTrigger from '$lib/components/app/MoreMenuTrigger.svelte'
 	import PageHeader from '$lib/components/app/PageHeader.svelte'
 	import OrderStatusBadge from '$lib/components/app/OrderStatusBadge.svelte'
 	import SortHeader from '$lib/components/app/SortHeader.svelte'
@@ -47,6 +47,7 @@
 	import { Skeleton } from '$lib/components/ui/skeleton'
 	import { Spinner } from '$lib/components/ui/spinner'
 	import * as Table from '$lib/components/ui/table'
+	import * as Tooltip from '$lib/components/ui/tooltip'
 	import { Textarea } from '$lib/components/ui/textarea'
 	import { useErrorToast } from '$lib/composables/errorToast.svelte'
 	import { createLoadMore } from '$lib/composables/loadMore.svelte'
@@ -377,11 +378,16 @@
 	let collapseAfterDiscard: string | null = null
 
 	let batchExpiryInvalid = $state(false)
-	const editingBatch = $derived(
-		editingBatchId
-			? (stockBatchesStore.batches.find((batch) => batch.id === editingBatchId) ?? null)
-			: null,
-	)
+	// Only an edit on a row in view counts. One whose batch was emptied, or whose
+	// item a search, filter or collapse hid, has no Cancel to reach, so it must
+	// not keep the other batches from being edited.
+	const editingBatch = $derived.by((): StockBatch | null => {
+		const batch = editingBatchId
+			? stockBatchesStore.batches.find((candidate) => candidate.id === editingBatchId)
+			: undefined
+		if (!batch || !expandedIds.has(batch.item_id)) return null
+		return list.visible.some((item) => item.id === batch.item_id) ? batch : null
+	})
 
 	const isBatchChanged = $derived.by((): boolean => {
 		if (!editingBatch) return false
@@ -616,13 +622,7 @@
 		{/if}
 	</div>
 	<DropdownMenu.Root>
-		<DropdownMenu.Trigger>
-			{#snippet child({ props })}
-				<Button {...props} variant="ghost" size="icon" aria-label="More">
-					<EllipsisIcon />
-				</Button>
-			{/snippet}
-		</DropdownMenu.Trigger>
+		<MoreMenuTrigger />
 		<DropdownMenu.Content align="end">
 			<DropdownMenu.Group>
 				<DropdownMenu.Item onclick={() => fileInput?.click()}>
@@ -714,13 +714,13 @@
 			<Empty.Title>{isFiltered ? 'No items match' : 'No items yet'}</Empty.Title>
 			<Empty.Description>
 				{isFiltered
-					? 'Try another search or clear the filter.'
+					? 'Try another search or clear the filters.'
 					: 'Add your first item to start tracking stock.'}
 			</Empty.Description>
 		</Empty.Header>
 		<Empty.Content>
 			{#if isFiltered}
-				<Button variant="outline" onclick={clearFilters}>Clear Search</Button>
+				<Button variant="outline" onclick={clearFilters}>Clear Filters</Button>
 			{:else}
 				<Button onclick={openAddDialog}>
 					<PlusIcon data-icon="inline-start" />
@@ -821,33 +821,45 @@
 					</Table.Cell>
 					<Table.Cell>
 						<div class="flex justify-end gap-1">
-							<Button
-								variant="ghost"
-								size="icon-sm"
-								aria-label="Stock In…"
-								title="Stock In…"
-								onclick={() => stockInDialog?.open(item)}
-							>
-								<ArrowDownToLineIcon />
-							</Button>
-							<Button
-								variant="ghost"
-								size="icon-sm"
-								aria-label="Stock Out…"
-								title="Stock Out…"
-								disabled={item.quantity === 0}
-								onclick={() => stockOutDialog?.open(item)}
-							>
-								<ArrowUpFromLineIcon />
-							</Button>
-							<DropdownMenu.Root>
-								<DropdownMenu.Trigger>
+							<Tooltip.Root>
+								<Tooltip.Trigger>
 									{#snippet child({ props })}
-										<Button {...props} variant="ghost" size="icon-sm" aria-label="More">
-											<EllipsisIcon />
+										<Button
+											{...props}
+											variant="ghost"
+											size="icon-sm"
+											aria-label="Stock In…"
+											onclick={() => stockInDialog?.open(item)}
+										>
+											<ArrowDownToLineIcon />
 										</Button>
 									{/snippet}
-								</DropdownMenu.Trigger>
+								</Tooltip.Trigger>
+								<Tooltip.Content>Stock in</Tooltip.Content>
+							</Tooltip.Root>
+							<!-- The span keeps the hint showing while the button is disabled -->
+							<Tooltip.Root>
+								<Tooltip.Trigger>
+									{#snippet child({ props })}
+										<span {...props}>
+											<Button
+												variant="ghost"
+												size="icon-sm"
+												aria-label="Stock Out…"
+												disabled={item.quantity === 0}
+												onclick={() => stockOutDialog?.open(item)}
+											>
+												<ArrowUpFromLineIcon />
+											</Button>
+										</span>
+									{/snippet}
+								</Tooltip.Trigger>
+								<Tooltip.Content>
+									{item.quantity === 0 ? 'Nothing in stock' : 'Stock out'}
+								</Tooltip.Content>
+							</Tooltip.Root>
+							<DropdownMenu.Root>
+								<MoreMenuTrigger size="icon-sm" />
 								<DropdownMenu.Content align="end">
 									<DropdownMenu.Group>
 										<DropdownMenu.Item onclick={() => openEdit(item)}>
@@ -885,7 +897,7 @@
 					{:else}
 						<!-- One lighter row per batch, in stock-out (FEFO) order, using the item's own columns. -->
 						{#each itemBatches as batch, index (batch.id)}
-							{@const editing = editingBatchId === batch.id}
+							{@const editing = editingBatch?.id === batch.id}
 							{@const batchNote = expiryNote(batch.expiry_date)}
 							<Table.Row class={cn('text-foreground/85', editing && '[&>td]:bg-muted/60!')}>
 								<Table.Cell></Table.Cell>
@@ -971,16 +983,23 @@
 												Save
 											</Button>
 										{:else}
-											<Button
-												variant="ghost"
-												size="icon-sm"
-												aria-label="Edit batch {index + 1}"
-												title="Edit"
-												disabled={editingBatchId !== null || stockBatchesStore.loading}
-												onclick={() => startEditBatch(batch)}
-											>
-												<PencilIcon />
-											</Button>
+											<Tooltip.Root>
+												<Tooltip.Trigger>
+													{#snippet child({ props })}
+														<Button
+															{...props}
+															variant="ghost"
+															size="icon-sm"
+															aria-label="Edit batch {index + 1}"
+															disabled={editingBatch !== null || stockBatchesStore.loading}
+															onclick={() => startEditBatch(batch)}
+														>
+															<PencilIcon />
+														</Button>
+													{/snippet}
+												</Tooltip.Trigger>
+												<Tooltip.Content>Edit batch</Tooltip.Content>
+											</Tooltip.Root>
 										{/if}
 									</div>
 								</Table.Cell>
