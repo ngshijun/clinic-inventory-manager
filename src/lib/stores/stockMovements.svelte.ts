@@ -10,6 +10,48 @@ const startOfLocalDay = (date: string): number => new Date(`${date}T00:00:00`).g
 /** End of a local calendar day in ms */
 const endOfLocalDay = (date: string): number => new Date(`${date}T23:59:59.999`).getTime()
 
+export const MOVEMENTS_PAGE_SIZE = 25
+
+/** What the Stock Movements page asks for when it opens: newest first, no filters */
+export const FIRST_VIEW: MovementsQuery = {
+	pageSize: MOVEMENTS_PAGE_SIZE,
+	sortDirection: 'desc',
+	filters: {
+		itemName: '',
+		itemId: null,
+		quantityMin: null,
+		quantityMax: null,
+		movementType: '',
+		startDate: '',
+		endDate: '',
+		remark: '',
+	},
+}
+
+/** The filters as the server takes them */
+const serverFilters = ({ filters }: MovementsQuery) => {
+	const search = filters.itemName.trim()
+	const remark = filters.remark.trim()
+	return {
+		movement_type: filters.movementType || undefined,
+		item_id: filters.itemId ?? undefined,
+		start_ms: filters.startDate ? startOfLocalDay(filters.startDate) : undefined,
+		end_ms: filters.endDate ? endOfLocalDay(filters.endDate) : undefined,
+		search: search || undefined,
+		remark: remark || undefined,
+		quantity_min: filters.quantityMin ?? undefined,
+		quantity_max: filters.quantityMax ?? undefined,
+	}
+}
+
+/** Two queries with the same key fetch the same rows */
+const queryKey = (query: MovementsQuery): string =>
+	JSON.stringify({
+		pageSize: query.pageSize,
+		sortDirection: query.sortDirection,
+		...serverFilters(query),
+	})
+
 /** One server page: the cursor it was fetched with and its live rows */
 interface Page {
 	cursor: string | null
@@ -41,6 +83,7 @@ class StockMovementsStore {
 	loadError = $state<string | null>(null)
 
 	#query: MovementsQuery | null = null
+	#queryKey: string | null = null
 	#unsubscribeCount: (() => void) | null = null
 
 	/** Every loaded row in order. A row that moved between live pages appears once. */
@@ -68,23 +111,7 @@ class StockMovementsStore {
 	}
 
 	get pageSize(): number {
-		return this.#query?.pageSize ?? 25
-	}
-
-	#serverFilters = () => {
-		const { filters } = this.#query!
-		const search = filters.itemName.trim()
-		const remark = filters.remark.trim()
-		return {
-			movement_type: filters.movementType || undefined,
-			item_id: filters.itemId ?? undefined,
-			start_ms: filters.startDate ? startOfLocalDay(filters.startDate) : undefined,
-			end_ms: filters.endDate ? endOfLocalDay(filters.endDate) : undefined,
-			search: search || undefined,
-			remark: remark || undefined,
-			quantity_min: filters.quantityMin ?? undefined,
-			quantity_max: filters.quantityMax ?? undefined,
-		}
+		return this.#query?.pageSize ?? MOVEMENTS_PAGE_SIZE
 	}
 
 	#dropPages = () => {
@@ -121,7 +148,7 @@ class StockMovementsStore {
 				auth: authStore.token,
 				paginationOpts: { cursor, numItems: this.#query.pageSize },
 				sort_direction: this.#query.sortDirection,
-				...this.#serverFilters(),
+				...serverFilters(this.#query),
 			},
 			(result) => {
 				const live = this.#pages[index]
@@ -156,7 +183,7 @@ class StockMovementsStore {
 		this.#unsubscribeCount = null
 		if (!this.#query) return
 
-		const filters = this.#serverFilters()
+		const filters = serverFilters(this.#query)
 		this.countIsExact =
 			filters.search === undefined &&
 			filters.remark === undefined &&
@@ -185,8 +212,15 @@ class StockMovementsStore {
 
 	// Actions
 
-	/** Apply new filters or sort and start again from the first page */
+	/**
+	 * Apply new filters or sort and start again from the first page. The same
+	 * query again keeps the pages that are already live, so reopening the page
+	 * (or hovering its link, see its `+page.ts`) shows them without a round trip.
+	 */
 	setQuery = (query: MovementsQuery): void => {
+		const key = queryKey(query)
+		if (key === this.#queryKey && this.loadError === null) return
+		this.#queryKey = key
 		this.#query = query
 		this.#dropPages()
 		this.#subscribePage(null)
@@ -225,6 +259,7 @@ class StockMovementsStore {
 		this.#unsubscribeCount?.()
 		this.#unsubscribeCount = null
 		this.#query = null
+		this.#queryKey = null
 		this.totalCount = 0
 		this.countIsExact = true
 		this.error = null

@@ -33,7 +33,7 @@
 	import { useErrorToast } from '$lib/composables/errorToast.svelte'
 	import { IsMobile } from '$lib/hooks/is-mobile.svelte'
 	import { inventoryStore } from '$lib/stores/inventory.svelte'
-	import { stockMovementsStore } from '$lib/stores/stockMovements.svelte'
+	import { MOVEMENTS_PAGE_SIZE, stockMovementsStore } from '$lib/stores/stockMovements.svelte'
 	import type { InventoryItem } from '$lib/types/inventory'
 	import type { MovementType, MovementsQuery, StockMovement } from '$lib/types/stockMovements'
 	import { formatDate, formatDateTime, formatDayMonth, formatTime } from '$lib/utils/date'
@@ -42,7 +42,6 @@
 	import { cn } from '$lib/utils'
 
 	const SEARCH_DEBOUNCE_MS = 300
-	const PAGE_SIZE = 25
 	const timeZone = getLocalTimeZone()
 
 	// ---------- Toolbar state ----------
@@ -93,7 +92,7 @@
 	// not become a dependency of this effect or it would re-run itself.
 	$effect(() => {
 		const query: MovementsQuery = {
-			pageSize: PAGE_SIZE,
+			pageSize: MOVEMENTS_PAGE_SIZE,
 			sortDirection: sort.direction,
 			filters: {
 				itemName: debouncedSearch,

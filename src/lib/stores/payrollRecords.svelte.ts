@@ -83,6 +83,18 @@ class PayrollRecordsStore {
 		})
 	}
 
+	/**
+	 * Opens what Payroll History shows first: every month of the latest year,
+	 * plus the record named in the link. Its `+page.ts` calls this when the link
+	 * is hovered, so the figures are live before the page opens.
+	 */
+	prefetchHistory = (runId: string | null): void => {
+		const latest = Math.max(...this.runs.map((run) => run.year))
+		for (const run of this.runs) {
+			if (run.year === latest || run.id === runId) void this.fetchRunItems(run.id)
+		}
+	}
+
 	/** A saved month's figures in the shape Run Payroll edits, so it can be corrected and saved again. */
 	savedPayrollData = async (runId: PayrollRunId): Promise<PayrollData[]> =>
 		(await this.fetchRunItems(runId)).map((item) => ({
