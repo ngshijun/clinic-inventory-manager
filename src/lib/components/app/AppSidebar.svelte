@@ -67,6 +67,11 @@
 	}
 </script>
 
+<!--
+	Every row is 36px tall and keeps its padding when the sidebar collapses; only its width
+	shrinks to a 36px square. The 16px nav icons (10px inset) and 32px tiles (2px inset)
+	share one centre line, and group labels fade out in place, so nothing moves on collapse.
+-->
 <Sidebar.Root variant="inset" collapsible="icon">
 	<Sidebar.Header>
 		<Sidebar.Menu>
@@ -147,7 +152,7 @@
 										>Signed in with clinic password</span
 									>
 								</span>
-								<ChevronsUpDownIcon class="ms-auto size-4" />
+								<ChevronsUpDownIcon class="ms-auto me-2 size-4" />
 							</Sidebar.MenuButton>
 						{/snippet}
 					</DropdownMenu.Trigger>
