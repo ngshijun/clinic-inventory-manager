@@ -71,6 +71,8 @@
 	Every row is 36px tall and keeps its padding when the sidebar collapses; only its width
 	shrinks to a 36px square. The 16px nav icons (10px inset) and 32px tiles (2px inset)
 	share one centre line, and group labels fade out in place, so nothing moves on collapse.
+	Rows are 18px-radius pills, so a tile 2px inside one is a 16px-radius circle to keep the
+	corners concentric.
 -->
 <Sidebar.Root variant="inset" collapsible="icon">
 	<Sidebar.Header>
@@ -80,7 +82,7 @@
 					{#snippet child({ props })}
 						<a href={groups[0].items[0].href} {...props}>
 							<span
-								class="bg-sidebar-primary text-sidebar-primary-foreground flex size-8 shrink-0 items-center justify-center rounded-[8px]"
+								class="bg-sidebar-primary text-sidebar-primary-foreground flex size-8 shrink-0 items-center justify-center rounded-full"
 							>
 								<BoxesIcon />
 							</span>
@@ -115,8 +117,8 @@
 								{#if item.href === '/stock-approvals' && pendingCount > 0}
 									<!--
 										Pending approvals: a solid badge so the count reads against the brand
-										sidebar. It sits 8px inside the 14px-radius button on every side, so its
-										own radius is 6px (rounded-sm) to keep the corners concentric.
+										sidebar. It sits 8px inside the 18px-radius button on every side, so its
+										own radius is 10px (rounded-sm) to keep the corners concentric.
 									-->
 									<Sidebar.MenuBadge
 										class="bg-sidebar-primary text-sidebar-primary-foreground peer-hover/menu-button:text-sidebar-primary-foreground peer-data-active/menu-button:text-sidebar-primary-foreground right-2 rounded-sm px-1.5 font-semibold peer-data-[size=default]/menu-button:top-2"
