@@ -14,7 +14,7 @@
 	bind:this={ref}
 	data-slot="sidebar-header"
 	data-sidebar="header"
-	class={cn('flex flex-col gap-2 p-2 [--radius:var(--radius-xl)]', className)}
+	class={cn('flex flex-col gap-2 px-3 pt-2.5 pb-2 [--radius:var(--radius-xl)]', className)}
 	{...restProps}
 >
 	{@render children?.()}
