@@ -1,25 +1,26 @@
 <script lang="ts">
 	import { getLocalTimeZone, parseDate, today, type DateValue } from '@internationalized/date'
 	import CalendarIcon from '@lucide/svelte/icons/calendar'
+	import CountBadge from '$lib/components/app/CountBadge.svelte'
 	import { Button } from '$lib/components/ui/button'
 	import { Calendar } from '$lib/components/ui/calendar'
-	import CountBadge from '$lib/components/app/CountBadge.svelte'
 	import * as Popover from '$lib/components/ui/popover'
-	import * as ToggleGroup from '$lib/components/ui/toggle-group'
+	import * as Tabs from '$lib/components/ui/tabs'
 	import { todayIsoDate } from '$lib/types/stockBatches'
 	import { formatDate } from '$lib/utils/date'
 	import type { DayMode } from '$lib/utils/requests'
 
 	/**
-	 * The day control shared by Stock Approvals and Stock Requests: Today,
-	 * Older Pending with its count, or one chosen date. Choosing By Date
-	 * reveals the date beside the control.
+	 * The day segments shared by Stock Approvals and Stock Requests: Today,
+	 * Older Pending with its count, or one chosen date. They sit inside the
+	 * page's Tabs.Root, which holds the mode; By Date reveals the date beside
+	 * them.
 	 */
 	let {
-		mode = $bindable('today'),
+		mode,
 		date = $bindable(todayIsoDate()),
 		olderPendingCount = 0,
-	}: { mode?: DayMode; date?: string; olderPendingCount?: number } = $props()
+	}: { mode: DayMode; date?: string; olderPendingCount?: number } = $props()
 
 	const timeZone = getLocalTimeZone()
 	let open = $state(false)
@@ -33,25 +34,14 @@
 	}
 </script>
 
-<ToggleGroup.Root
-	class="grid auto-cols-fr grid-flow-col"
-	type="single"
-	variant="outline"
-	bind:value={
-		() => mode,
-		(value) => {
-			if (value) mode = value as DayMode
-		}
-	}
-	aria-label="Which day to show"
->
-	<ToggleGroup.Item value="today">Today</ToggleGroup.Item>
-	<ToggleGroup.Item value="older">
+<Tabs.List aria-label="Which day to show" class="grid auto-cols-fr grid-flow-col">
+	<Tabs.Trigger value="today">Today</Tabs.Trigger>
+	<Tabs.Trigger value="older">
 		Older Pending
 		{#if olderPendingCount > 0}<CountBadge count={olderPendingCount} />{/if}
-	</ToggleGroup.Item>
-	<ToggleGroup.Item value="date">By Date</ToggleGroup.Item>
-</ToggleGroup.Root>
+	</Tabs.Trigger>
+	<Tabs.Trigger value="date">By Date</Tabs.Trigger>
+</Tabs.List>
 
 {#if mode === 'date'}
 	<Popover.Root bind:open>

@@ -9,7 +9,8 @@
 	import ActionModal from '$lib/components/app/ActionModal.svelte'
 	import EditRequestDialog from '$lib/components/app/EditRequestDialog.svelte'
 	import PageHeader from '$lib/components/app/PageHeader.svelte'
-	import RequestDayFilter from '$lib/components/app/RequestDayFilter.svelte'
+	import RequestDayTabs from '$lib/components/app/RequestDayTabs.svelte'
+	import * as Tabs from '$lib/components/ui/tabs'
 	import SortHeader from '$lib/components/app/SortHeader.svelte'
 	import type { SortState } from '$lib/components/app/sort'
 	import ToneBadge from '$lib/components/app/ToneBadge.svelte'
@@ -37,6 +38,7 @@
 		matchesDay,
 		matchesSearch,
 		withUnit,
+		isDayMode,
 		type DayMode,
 	} from '$lib/utils/requests'
 	import Quantity from '$lib/components/app/Quantity.svelte'
@@ -247,261 +249,276 @@
 
 <svelte:window onkeydown={onKeydown} />
 
-<PageHeader title="Stock Approvals">
-	<div class="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-		<InputGroup.Root class="w-full sm:w-96">
-			<InputGroup.Addon>
-				<SearchIcon />
-			</InputGroup.Addon>
-			<InputGroup.Input
-				bind:ref={searchInput}
-				bind:value={searchQuery}
-				type="search"
-				placeholder="Search by item or remark"
-				aria-label="Search by item or remark"
-			/>
-			{#if searchQuery}
-				<InputGroup.Addon align="inline-end">
-					<InputGroup.Button
-						size="icon-sm"
-						aria-label="Clear search"
-						onclick={() => (searchQuery = '')}
-					>
-						<XIcon />
-					</InputGroup.Button>
+<Tabs.Root
+	value={dayMode}
+	onValueChange={(value) => {
+		if (isDayMode(value)) dayMode = value
+	}}
+	class="flex-1 gap-4"
+>
+	<PageHeader title="Stock Approvals">
+		<div class="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+			<InputGroup.Root class="w-full sm:w-96">
+				<InputGroup.Addon>
+					<SearchIcon />
 				</InputGroup.Addon>
-			{/if}
-		</InputGroup.Root>
-		<RequestDayFilter
-			bind:mode={dayMode}
-			bind:date={dayDate}
-			olderPendingCount={olderPending.length}
-		/>
-	</div>
-	{#if selected.length > 0}
-		<div class="flex items-center gap-1.5">
-			<span class="px-1.5 font-medium tabular-nums"
-				>{plural(selected.length, 'request')} selected</span
-			>
-			<Button variant="ghost" onclick={clearSelection}>Clear</Button>
-			<Button variant="destructive" onclick={() => openReject(selected)}>Reject…</Button>
-			<Button onclick={() => (showBulkApprove = true)}>Approve…</Button>
+				<InputGroup.Input
+					bind:ref={searchInput}
+					bind:value={searchQuery}
+					type="search"
+					placeholder="Search by item or remark"
+					aria-label="Search by item or remark"
+				/>
+				{#if searchQuery}
+					<InputGroup.Addon align="inline-end">
+						<InputGroup.Button
+							size="icon-sm"
+							aria-label="Clear search"
+							onclick={() => (searchQuery = '')}
+						>
+							<XIcon />
+						</InputGroup.Button>
+					</InputGroup.Addon>
+				{/if}
+			</InputGroup.Root>
+			<RequestDayTabs mode={dayMode} bind:date={dayDate} olderPendingCount={olderPending.length} />
 		</div>
-	{/if}
-</PageHeader>
-
-{#if initialLoading}
-	<Table.Root>
-		<Table.Header>
-			<Table.Row>
-				<Table.Head class="w-9"></Table.Head>
-				<Table.Head>Item</Table.Head>
-				<Table.Head>Quantity</Table.Head>
-				<Table.Head>In stock</Table.Head>
-				<Table.Head>Remark</Table.Head>
-				<Table.Head>Status</Table.Head>
-				<Table.Head><span class="sr-only">Actions</span></Table.Head>
-			</Table.Row>
-		</Table.Header>
-		<Table.Body>
-			{#each { length: 6 } as _, i (i)}
-				<Table.Row>
-					<Table.Cell><Skeleton class="size-4 rounded-[4px]" /></Table.Cell>
-					<Table.Cell><Skeleton class="h-4 w-44" /></Table.Cell>
-					<Table.Cell><Skeleton class="h-4 w-24" /></Table.Cell>
-					<Table.Cell><Skeleton class="h-4 w-16" /></Table.Cell>
-					<Table.Cell><Skeleton class="h-4 w-16" /></Table.Cell>
-					<Table.Cell><Skeleton class="h-4 w-40" /></Table.Cell>
-					<Table.Cell><Skeleton class="h-5 w-16 rounded-full" /></Table.Cell>
-					<Table.Cell><Skeleton class="ms-auto h-7 w-36" /></Table.Cell>
-				</Table.Row>
-			{/each}
-		</Table.Body>
-	</Table.Root>
-{:else if sortedRequests.length === 0}
-	<Empty.Root class="my-auto">
-		<Empty.Header>
-			<Empty.Media variant="icon">
-				<ClipboardCheckIcon />
-			</Empty.Media>
-			<Empty.Title>
-				{#if searchQuery}
-					No requests match
-				{:else if dayMode === 'older'}
-					Nothing older is waiting
-				{:else if dayMode === 'date'}
-					No requests on {formatDate(dayDate)}
-				{:else}
-					No requests today
-				{/if}
-			</Empty.Title>
-			<Empty.Description>
-				{#if searchQuery}
-					Try another search or clear the filter.
-				{:else if dayMode === 'today'}
-					Requests made today appear here as they arrive.
-				{:else}
-					Pick another day, or go back to today.
-				{/if}
-			</Empty.Description>
-		</Empty.Header>
-		{#if isFiltered}
-			<Empty.Content>
-				<Button variant="outline" onclick={clearFilters}>Show Today</Button>
-			</Empty.Content>
-		{/if}
-	</Empty.Root>
-{:else}
-	<Table.Root>
-		<Table.Header>
-			<Table.Row>
-				<Table.Head class="w-9 pe-0">
-					<Checkbox
-						checked={allVisibleSelected}
-						indeterminate={someVisibleSelected}
-						disabled={visiblePendingIds.length === 0}
-						aria-label="Select all pending requests"
-						onCheckedChange={(checked) => toggleAllVisible(checked === true)}
-					/>
-				</Table.Head>
-				<SortHeader key="item_name" {sort} onsort={toggleSort}>Item</SortHeader>
-				<SortHeader key="created_at" {sort} onsort={toggleSort}>Requested</SortHeader>
-				<Table.Head>Quantity</Table.Head>
-				<Table.Head>In stock</Table.Head>
-				<Table.Head class="w-[26%]">Remark</Table.Head>
-				<SortHeader key="status" {sort} onsort={toggleSort}>Status</SortHeader>
-				<Table.Head><span class="sr-only">Actions</span></Table.Head>
-			</Table.Row>
-		</Table.Header>
-		<Table.Body>
-			{#each list.visible as request (request.id)}
-				{@const pending = request.status === 'Pending'}
-				{@const stock = onHand(request)}
-				{@const short = pending && stock < request.quantity}
-				{@const checked = isSelected(request.id)}
-				<Table.Row
-					data-state={checked ? 'selected' : undefined}
-					class={cn(short && 'shadow-[inset_2px_0_0_var(--destructive)]')}
+		{#if selected.length > 0}
+			<div class="flex items-center gap-1.5">
+				<span class="px-1.5 font-medium tabular-nums"
+					>{plural(selected.length, 'request')} selected</span
 				>
-					<Table.Cell class="pe-0">
-						{#if pending}
-							<Checkbox
-								{checked}
-								aria-label={`Select ${request.item_name}`}
-								onCheckedChange={(value) => toggleSelected(request.id, value === true)}
-							/>
-						{/if}
-					</Table.Cell>
-					<Table.Cell class="font-medium tracking-wide">{request.item_name}</Table.Cell>
-					<Table.Cell class="tabular-nums">
-						{requestedDay(request)}
-						<span class="text-muted-foreground ms-1 text-xs">{formatTime(request.created_at)}</span>
-					</Table.Cell>
-					<Table.Cell>
-						<Quantity
-							value={request.quantity}
-							unit={request.unit}
-							valueClass={cn(pending && 'font-semibold')}
-						/>
-					</Table.Cell>
-					<!-- Only a pending request needs the figure: it answers "can I approve this?" -->
-					<Table.Cell class="tabular-nums">
-						{#if short}
-							<ToneBadge tone="danger">
-								<TriangleAlertIcon />
-								Only {withUnit(stock, request.unit)}
-							</ToneBadge>
-						{:else if pending}
-							{@const left = stock - request.quantity}
-							{@const tone = leftTone(request, left)}
-							<Quantity value={stock} unit={request.unit} pack={false} valueClass="font-normal" />
-							<span
-								class={cn(
-									'ms-1.5 text-xs',
-									tone === 'danger' && 'text-destructive',
-									tone === 'warning' && 'text-warning',
-									tone === null && 'text-muted-foreground',
-								)}
-							>
-								{left} left after
-							</span>
-						{:else}
-							<span class="text-muted-foreground">—</span>
-						{/if}
-					</Table.Cell>
-					<!-- One line: the full remark is the title and opens in Edit Request. -->
-					<Table.Cell class="max-w-0">
-						{#if request.remark}
-							<div class="text-foreground/80 truncate" title={request.remark}>{request.remark}</div>
-						{:else}
-							<span class="text-muted-foreground">No remark</span>
-						{/if}
-					</Table.Cell>
-					<Table.Cell>
-						<ToneBadge tone={STATUS_TONE[request.status]}>{request.status}</ToneBadge>
-					</Table.Cell>
-					<Table.Cell>
-						<div class="flex items-center justify-end gap-1">
-							{#if pending}
-								<Tooltip.Root>
-									<Tooltip.Trigger>
-										{#snippet child({ props })}
-											<Button
-												{...props}
-												variant="ghost"
-												size="icon-sm"
-												aria-label="Edit Request…"
-												onclick={() => editDialog?.open(request)}
-											>
-												<PencilIcon />
-											</Button>
-										{/snippet}
-									</Tooltip.Trigger>
-									<Tooltip.Content>Edit request</Tooltip.Content>
-								</Tooltip.Root>
-								<Button variant="destructive" size="sm" onclick={() => openReject([request])}>
-									Reject…
-								</Button>
-								<Tooltip.Root>
-									<Tooltip.Trigger>
-										{#snippet child({ props })}
-											<span {...props}>
-												<Button
-													variant="outline"
-													size="sm"
-													disabled={short || stockRequestsStore.loading}
-													onclick={() => approveOne(request)}
-												>
-													Approve
-												</Button>
-											</span>
-										{/snippet}
-									</Tooltip.Trigger>
-									{#if short}
-										<Tooltip.Content>Not enough in stock</Tooltip.Content>
-									{/if}
-								</Tooltip.Root>
-							{:else}
-								<span
-									class="text-muted-foreground text-xs tabular-nums"
-									title={`${request.status} ${formatDate(request.updated_at)}`}
-								>
-									{formatTime(request.updated_at)}
-								</span>
-							{/if}
-						</div>
-					</Table.Cell>
-				</Table.Row>
-			{/each}
-		</Table.Body>
-	</Table.Root>
-	<div class="text-muted-foreground flex items-center justify-between gap-3 text-sm">
-		<span>Showing {list.shown} of {plural(list.total, 'request')}</span>
-		{#if list.hasMore}
-			<Button variant="outline" onclick={list.loadMore}>Load More</Button>
+				<Button variant="ghost" onclick={clearSelection}>Clear</Button>
+				<Button variant="destructive" onclick={() => openReject(selected)}>Reject…</Button>
+				<Button onclick={() => (showBulkApprove = true)}>Approve…</Button>
+			</div>
 		{/if}
-	</div>
-{/if}
+	</PageHeader>
+
+	<Tabs.Content value={dayMode} class="flex flex-1 flex-col gap-4">
+		{#if initialLoading}
+			<Table.Root>
+				<Table.Header>
+					<Table.Row>
+						<Table.Head class="w-9"></Table.Head>
+						<Table.Head>Item</Table.Head>
+						<Table.Head>Quantity</Table.Head>
+						<Table.Head>In stock</Table.Head>
+						<Table.Head>Remark</Table.Head>
+						<Table.Head>Status</Table.Head>
+						<Table.Head><span class="sr-only">Actions</span></Table.Head>
+					</Table.Row>
+				</Table.Header>
+				<Table.Body>
+					{#each { length: 6 } as _, i (i)}
+						<Table.Row>
+							<Table.Cell><Skeleton class="size-4 rounded-[4px]" /></Table.Cell>
+							<Table.Cell><Skeleton class="h-4 w-44" /></Table.Cell>
+							<Table.Cell><Skeleton class="h-4 w-24" /></Table.Cell>
+							<Table.Cell><Skeleton class="h-4 w-16" /></Table.Cell>
+							<Table.Cell><Skeleton class="h-4 w-16" /></Table.Cell>
+							<Table.Cell><Skeleton class="h-4 w-40" /></Table.Cell>
+							<Table.Cell><Skeleton class="h-5 w-16 rounded-full" /></Table.Cell>
+							<Table.Cell><Skeleton class="ms-auto h-7 w-36" /></Table.Cell>
+						</Table.Row>
+					{/each}
+				</Table.Body>
+			</Table.Root>
+		{:else if sortedRequests.length === 0}
+			<Empty.Root class="my-auto">
+				<Empty.Header>
+					<Empty.Media variant="icon">
+						<ClipboardCheckIcon />
+					</Empty.Media>
+					<Empty.Title>
+						{#if searchQuery}
+							No requests match
+						{:else if dayMode === 'older'}
+							Nothing older is waiting
+						{:else if dayMode === 'date'}
+							No requests on {formatDate(dayDate)}
+						{:else}
+							No requests today
+						{/if}
+					</Empty.Title>
+					<Empty.Description>
+						{#if searchQuery}
+							Try another search or clear the filter.
+						{:else if dayMode === 'today'}
+							Requests made today appear here as they arrive.
+						{:else}
+							Pick another day, or go back to today.
+						{/if}
+					</Empty.Description>
+				</Empty.Header>
+				{#if isFiltered}
+					<Empty.Content>
+						<Button variant="outline" onclick={clearFilters}>Show Today</Button>
+					</Empty.Content>
+				{/if}
+			</Empty.Root>
+		{:else}
+			<Table.Root>
+				<Table.Header>
+					<Table.Row>
+						<Table.Head class="w-9 pe-0">
+							<Checkbox
+								checked={allVisibleSelected}
+								indeterminate={someVisibleSelected}
+								disabled={visiblePendingIds.length === 0}
+								aria-label="Select all pending requests"
+								onCheckedChange={(checked) => toggleAllVisible(checked === true)}
+							/>
+						</Table.Head>
+						<SortHeader key="item_name" {sort} onsort={toggleSort}>Item</SortHeader>
+						<SortHeader key="created_at" {sort} onsort={toggleSort}>Requested</SortHeader>
+						<Table.Head>Quantity</Table.Head>
+						<Table.Head>In stock</Table.Head>
+						<Table.Head class="w-[26%]">Remark</Table.Head>
+						<SortHeader key="status" {sort} onsort={toggleSort}>Status</SortHeader>
+						<Table.Head><span class="sr-only">Actions</span></Table.Head>
+					</Table.Row>
+				</Table.Header>
+				<Table.Body>
+					{#each list.visible as request (request.id)}
+						{@const pending = request.status === 'Pending'}
+						{@const stock = onHand(request)}
+						{@const short = pending && stock < request.quantity}
+						{@const checked = isSelected(request.id)}
+						<Table.Row
+							data-state={checked ? 'selected' : undefined}
+							class={cn(short && 'shadow-[inset_2px_0_0_var(--destructive)]')}
+						>
+							<Table.Cell class="pe-0">
+								{#if pending}
+									<Checkbox
+										{checked}
+										aria-label={`Select ${request.item_name}`}
+										onCheckedChange={(value) => toggleSelected(request.id, value === true)}
+									/>
+								{/if}
+							</Table.Cell>
+							<Table.Cell class="font-medium tracking-wide">{request.item_name}</Table.Cell>
+							<Table.Cell class="tabular-nums">
+								{requestedDay(request)}
+								<span class="text-muted-foreground ms-1 text-xs"
+									>{formatTime(request.created_at)}</span
+								>
+							</Table.Cell>
+							<Table.Cell>
+								<Quantity
+									value={request.quantity}
+									unit={request.unit}
+									valueClass={cn(pending && 'font-semibold')}
+								/>
+							</Table.Cell>
+							<!-- Only a pending request needs the figure: it answers "can I approve this?" -->
+							<Table.Cell class="tabular-nums">
+								{#if short}
+									<ToneBadge tone="danger">
+										<TriangleAlertIcon />
+										Only {withUnit(stock, request.unit)}
+									</ToneBadge>
+								{:else if pending}
+									{@const left = stock - request.quantity}
+									{@const tone = leftTone(request, left)}
+									<Quantity
+										value={stock}
+										unit={request.unit}
+										pack={false}
+										valueClass="font-normal"
+									/>
+									<span
+										class={cn(
+											'ms-1.5 text-xs',
+											tone === 'danger' && 'text-destructive',
+											tone === 'warning' && 'text-warning',
+											tone === null && 'text-muted-foreground',
+										)}
+									>
+										{left} left after
+									</span>
+								{:else}
+									<span class="text-muted-foreground">—</span>
+								{/if}
+							</Table.Cell>
+							<!-- One line: the full remark is the title and opens in Edit Request. -->
+							<Table.Cell class="max-w-0">
+								{#if request.remark}
+									<div class="text-foreground/80 truncate" title={request.remark}>
+										{request.remark}
+									</div>
+								{:else}
+									<span class="text-muted-foreground">No remark</span>
+								{/if}
+							</Table.Cell>
+							<Table.Cell>
+								<ToneBadge tone={STATUS_TONE[request.status]}>{request.status}</ToneBadge>
+							</Table.Cell>
+							<Table.Cell>
+								<div class="flex items-center justify-end gap-1">
+									{#if pending}
+										<Tooltip.Root>
+											<Tooltip.Trigger>
+												{#snippet child({ props })}
+													<Button
+														{...props}
+														variant="ghost"
+														size="icon-sm"
+														aria-label="Edit Request…"
+														onclick={() => editDialog?.open(request)}
+													>
+														<PencilIcon />
+													</Button>
+												{/snippet}
+											</Tooltip.Trigger>
+											<Tooltip.Content>Edit request</Tooltip.Content>
+										</Tooltip.Root>
+										<Button variant="destructive" size="sm" onclick={() => openReject([request])}>
+											Reject…
+										</Button>
+										<Tooltip.Root>
+											<Tooltip.Trigger>
+												{#snippet child({ props })}
+													<span {...props}>
+														<Button
+															variant="outline"
+															size="sm"
+															disabled={short || stockRequestsStore.loading}
+															onclick={() => approveOne(request)}
+														>
+															Approve
+														</Button>
+													</span>
+												{/snippet}
+											</Tooltip.Trigger>
+											{#if short}
+												<Tooltip.Content>Not enough in stock</Tooltip.Content>
+											{/if}
+										</Tooltip.Root>
+									{:else}
+										<span
+											class="text-muted-foreground text-xs tabular-nums"
+											title={`${request.status} ${formatDate(request.updated_at)}`}
+										>
+											{formatTime(request.updated_at)}
+										</span>
+									{/if}
+								</div>
+							</Table.Cell>
+						</Table.Row>
+					{/each}
+				</Table.Body>
+			</Table.Root>
+			<div class="text-muted-foreground flex items-center justify-between gap-3 text-sm">
+				<span>Showing {list.shown} of {plural(list.total, 'request')}</span>
+				{#if list.hasMore}
+					<Button variant="outline" onclick={list.loadMore}>Load More</Button>
+				{/if}
+			</div>
+		{/if}
+	</Tabs.Content>
+</Tabs.Root>
 
 <EditRequestDialog bind:this={editDialog} />
 

@@ -8,7 +8,8 @@
 	import { caretAtEnd } from '$lib/attachments/focus'
 	import ActionModal from '$lib/components/app/ActionModal.svelte'
 	import SupplierField from '$lib/components/app/SupplierField.svelte'
-	import StatusFilter from '$lib/components/app/StatusFilter.svelte'
+	import StatusTabs from '$lib/components/app/StatusTabs.svelte'
+	import * as Tabs from '$lib/components/ui/tabs'
 	import SupplierFilter from '$lib/components/app/SupplierFilter.svelte'
 	import DialogSubject from '$lib/components/app/DialogSubject.svelte'
 	import MarkOrderedDialog from '$lib/components/app/MarkOrderedDialog.svelte'
@@ -35,7 +36,11 @@
 	import { inventoryStore } from '$lib/stores/inventory.svelte'
 	import type { InventoryItem, InventoryItemUpdate } from '$lib/types/inventory'
 	import Quantity from '$lib/components/app/Quantity.svelte'
-	import { matchesStatus, type StatusFilter as StatusFilterValue } from '$lib/utils/statusFilter'
+	import {
+		isStatusFilter,
+		matchesStatus,
+		type StatusFilter as StatusFilterValue,
+	} from '$lib/utils/statusFilter'
 	import { ALL_SUPPLIERS, activeSupplier, matchesSupplier } from '$lib/utils/supplier'
 	import {
 		priceFormFrom,
@@ -191,168 +196,178 @@
 
 <svelte:window onkeydown={onKeydown} />
 
-<PageHeader title="Price List">
-	<div class="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-		<InputGroup.Root class="w-full sm:w-96">
-			<InputGroup.Addon>
-				<SearchIcon />
-			</InputGroup.Addon>
-			<InputGroup.Input
-				bind:ref={searchInput}
-				bind:value={searchQuery}
-				type="search"
-				placeholder="Search by item or supplier"
-				aria-label="Search by item or supplier"
-			/>
-			{#if searchQuery}
-				<InputGroup.Addon align="inline-end">
-					<InputGroup.Button
-						size="icon-sm"
-						aria-label="Clear search"
-						onclick={() => (searchQuery = '')}
-					>
-						<XIcon />
-					</InputGroup.Button>
+<Tabs.Root
+	value={filter}
+	onValueChange={(value) => {
+		if (isStatusFilter(value)) filter = value
+	}}
+	class="flex-1 gap-4"
+>
+	<PageHeader title="Price List">
+		<div class="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+			<InputGroup.Root class="w-full sm:w-96">
+				<InputGroup.Addon>
+					<SearchIcon />
 				</InputGroup.Addon>
-			{/if}
-		</InputGroup.Root>
-		<StatusFilter bind:value={filter} />
-		<SupplierFilter bind:value={supplierChoice} items={inventoryStore.items} />
-	</div>
-</PageHeader>
+				<InputGroup.Input
+					bind:ref={searchInput}
+					bind:value={searchQuery}
+					type="search"
+					placeholder="Search by item or supplier"
+					aria-label="Search by item or supplier"
+				/>
+				{#if searchQuery}
+					<InputGroup.Addon align="inline-end">
+						<InputGroup.Button
+							size="icon-sm"
+							aria-label="Clear search"
+							onclick={() => (searchQuery = '')}
+						>
+							<XIcon />
+						</InputGroup.Button>
+					</InputGroup.Addon>
+				{/if}
+			</InputGroup.Root>
+			<StatusTabs />
+			<SupplierFilter bind:value={supplierChoice} items={inventoryStore.items} />
+		</div>
+	</PageHeader>
 
-{#if initialLoading}
-	<Table.Root>
-		<Table.Header>
-			<Table.Row>
-				<Table.Head>Item</Table.Head>
-				<Table.Head>Supplier</Table.Head>
-				<Table.Head>In stock</Table.Head>
-				<Table.Head>Price</Table.Head>
-				<Table.Head>Order status</Table.Head>
-				<Table.Head><span class="sr-only">Actions</span></Table.Head>
-			</Table.Row>
-		</Table.Header>
-		<Table.Body>
-			{#each { length: 8 } as _, i (i)}
-				<Table.Row>
-					<Table.Cell><Skeleton class="h-4 w-48" /></Table.Cell>
-					<Table.Cell><Skeleton class="h-4 w-24" /></Table.Cell>
-					<Table.Cell><Skeleton class="h-4 w-20" /></Table.Cell>
-					<Table.Cell><Skeleton class="h-4 w-24" /></Table.Cell>
-					<Table.Cell><Skeleton class="h-4 w-28" /></Table.Cell>
-					<Table.Cell><Skeleton class="ms-auto h-7 w-32" /></Table.Cell>
-				</Table.Row>
-			{/each}
-		</Table.Body>
-	</Table.Root>
-{:else if sortedItems.length === 0}
-	<Empty.Root class="my-auto">
-		<Empty.Header>
-			<Empty.Media variant="icon">
-				<PackageOpenIcon />
-			</Empty.Media>
-			<Empty.Title>{isFiltered ? 'No items match' : 'No items yet'}</Empty.Title>
-			<Empty.Description>
-				{isFiltered
-					? 'Try another search or clear the filters.'
-					: 'Add items in Inventory and they appear here.'}
-			</Empty.Description>
-		</Empty.Header>
-		<Empty.Content>
-			{#if isFiltered}
-				<Button variant="outline" onclick={clearFilters}>Clear Filters</Button>
-			{:else}
-				<Button variant="outline" href="/inventory">Go to Inventory</Button>
-			{/if}
-		</Empty.Content>
-	</Empty.Root>
-{:else}
-	<Table.Root>
-		<Table.Header>
-			<Table.Row>
-				<SortHeader key="item_name" {sort} onsort={toggleSort}>Item</SortHeader>
-				<SortHeader key="supplier" {sort} onsort={toggleSort}>Supplier</SortHeader>
-				<SortHeader key="quantity" {sort} onsort={toggleSort}>In stock</SortHeader>
-				<SortHeader key="price" {sort} onsort={toggleSort}>Price</SortHeader>
-				<Table.Head>Order status</Table.Head>
-				<Table.Head><span class="sr-only">Actions</span></Table.Head>
-			</Table.Row>
-		</Table.Header>
-		<Table.Body>
-			{#each list.visible as item (item.id)}
-				{@const status = stockStatus(item)}
-				<Table.Row>
-					<Table.Cell class="font-medium tracking-wide">
-						<span class="inline-flex items-center gap-2">
-							{item.item_name}
-							{#if status}
-								<ToneBadge tone={status.tone}>{status.text}</ToneBadge>
-							{/if}
-						</span>
-						<!-- The remark in full, under the name: long lines wrap, typed line breaks are
+	<Tabs.Content value={filter} class="flex flex-1 flex-col gap-4">
+		{#if initialLoading}
+			<Table.Root>
+				<Table.Header>
+					<Table.Row>
+						<Table.Head>Item</Table.Head>
+						<Table.Head>Supplier</Table.Head>
+						<Table.Head>In stock</Table.Head>
+						<Table.Head>Price</Table.Head>
+						<Table.Head>Order status</Table.Head>
+						<Table.Head><span class="sr-only">Actions</span></Table.Head>
+					</Table.Row>
+				</Table.Header>
+				<Table.Body>
+					{#each { length: 8 } as _, i (i)}
+						<Table.Row>
+							<Table.Cell><Skeleton class="h-4 w-48" /></Table.Cell>
+							<Table.Cell><Skeleton class="h-4 w-24" /></Table.Cell>
+							<Table.Cell><Skeleton class="h-4 w-20" /></Table.Cell>
+							<Table.Cell><Skeleton class="h-4 w-24" /></Table.Cell>
+							<Table.Cell><Skeleton class="h-4 w-28" /></Table.Cell>
+							<Table.Cell><Skeleton class="ms-auto h-7 w-32" /></Table.Cell>
+						</Table.Row>
+					{/each}
+				</Table.Body>
+			</Table.Root>
+		{:else if sortedItems.length === 0}
+			<Empty.Root class="my-auto">
+				<Empty.Header>
+					<Empty.Media variant="icon">
+						<PackageOpenIcon />
+					</Empty.Media>
+					<Empty.Title>{isFiltered ? 'No items match' : 'No items yet'}</Empty.Title>
+					<Empty.Description>
+						{isFiltered
+							? 'Try another search or clear the filters.'
+							: 'Add items in Inventory and they appear here.'}
+					</Empty.Description>
+				</Empty.Header>
+				<Empty.Content>
+					{#if isFiltered}
+						<Button variant="outline" onclick={clearFilters}>Clear Filters</Button>
+					{:else}
+						<Button variant="outline" href="/inventory">Go to Inventory</Button>
+					{/if}
+				</Empty.Content>
+			</Empty.Root>
+		{:else}
+			<Table.Root>
+				<Table.Header>
+					<Table.Row>
+						<SortHeader key="item_name" {sort} onsort={toggleSort}>Item</SortHeader>
+						<SortHeader key="supplier" {sort} onsort={toggleSort}>Supplier</SortHeader>
+						<SortHeader key="quantity" {sort} onsort={toggleSort}>In stock</SortHeader>
+						<SortHeader key="price" {sort} onsort={toggleSort}>Price</SortHeader>
+						<Table.Head>Order status</Table.Head>
+						<Table.Head><span class="sr-only">Actions</span></Table.Head>
+					</Table.Row>
+				</Table.Header>
+				<Table.Body>
+					{#each list.visible as item (item.id)}
+						{@const status = stockStatus(item)}
+						<Table.Row>
+							<Table.Cell class="font-medium tracking-wide">
+								<span class="inline-flex items-center gap-2">
+									{item.item_name}
+									{#if status}
+										<ToneBadge tone={status.tone}>{status.text}</ToneBadge>
+									{/if}
+								</span>
+								<!-- The remark in full, under the name: long lines wrap, typed line breaks are
 						     kept. Width 0 keeps it from widening the column the names have set. -->
-						{#if item.remark}
-							<div
-								class="text-muted-foreground mt-0.5 w-0 min-w-[max(100%,16rem)] text-sm font-normal tracking-normal wrap-break-word whitespace-pre-line"
-							>
-								{item.remark}
-							</div>
-						{/if}
-					</Table.Cell>
-					<Table.Cell class="tracking-wide">
-						{#if item.supplier}
-							{item.supplier}
-						{:else}
-							<span class="text-muted-foreground">—</span>
-						{/if}
-					</Table.Cell>
-					<Table.Cell>
-						<Quantity value={item.quantity} unit={item.unit_label} />
-					</Table.Cell>
-					<Table.Cell>
-						<Price price={item.price} />
-					</Table.Cell>
-					<Table.Cell>
-						<OrderStatusBadge {item} />
-					</Table.Cell>
-					<Table.Cell>
-						<div class="flex justify-end gap-1">
-							<OrderControls
-								{item}
-								onMarkOrdered={(target) => orderDialog?.open(target)}
-								onSnooze={(target) => snoozeDialog?.open(target)}
-								onStopOrdering={(target) => stopOrderingDialog?.open(target)}
-							/>
-							<Tooltip.Root>
-								<Tooltip.Trigger>
-									{#snippet child({ props })}
-										<Button
-											{...props}
-											variant="ghost"
-											size="icon-sm"
-											aria-label="Edit Price Details…"
-											onclick={() => openEdit(item)}
-										>
-											<PencilIcon />
-										</Button>
-									{/snippet}
-								</Tooltip.Trigger>
-								<Tooltip.Content>Edit supplier, price and remark</Tooltip.Content>
-							</Tooltip.Root>
-						</div>
-					</Table.Cell>
-				</Table.Row>
-			{/each}
-		</Table.Body>
-	</Table.Root>
-	<div class="text-muted-foreground flex items-center justify-between gap-3 text-sm">
-		<span>Showing {list.shown} of {plural(list.total, 'item')}</span>
-		{#if list.hasMore}
-			<Button variant="outline" onclick={list.loadMore}>Load More</Button>
+								{#if item.remark}
+									<div
+										class="text-muted-foreground mt-0.5 w-0 min-w-[max(100%,16rem)] text-sm font-normal tracking-normal wrap-break-word whitespace-pre-line"
+									>
+										{item.remark}
+									</div>
+								{/if}
+							</Table.Cell>
+							<Table.Cell class="tracking-wide">
+								{#if item.supplier}
+									{item.supplier}
+								{:else}
+									<span class="text-muted-foreground">—</span>
+								{/if}
+							</Table.Cell>
+							<Table.Cell>
+								<Quantity value={item.quantity} unit={item.unit_label} />
+							</Table.Cell>
+							<Table.Cell>
+								<Price price={item.price} />
+							</Table.Cell>
+							<Table.Cell>
+								<OrderStatusBadge {item} />
+							</Table.Cell>
+							<Table.Cell>
+								<div class="flex justify-end gap-1">
+									<OrderControls
+										{item}
+										onMarkOrdered={(target) => orderDialog?.open(target)}
+										onSnooze={(target) => snoozeDialog?.open(target)}
+										onStopOrdering={(target) => stopOrderingDialog?.open(target)}
+									/>
+									<Tooltip.Root>
+										<Tooltip.Trigger>
+											{#snippet child({ props })}
+												<Button
+													{...props}
+													variant="ghost"
+													size="icon-sm"
+													aria-label="Edit Price Details…"
+													onclick={() => openEdit(item)}
+												>
+													<PencilIcon />
+												</Button>
+											{/snippet}
+										</Tooltip.Trigger>
+										<Tooltip.Content>Edit supplier, price and remark</Tooltip.Content>
+									</Tooltip.Root>
+								</div>
+							</Table.Cell>
+						</Table.Row>
+					{/each}
+				</Table.Body>
+			</Table.Root>
+			<div class="text-muted-foreground flex items-center justify-between gap-3 text-sm">
+				<span>Showing {list.shown} of {plural(list.total, 'item')}</span>
+				{#if list.hasMore}
+					<Button variant="outline" onclick={list.loadMore}>Load More</Button>
+				{/if}
+			</div>
 		{/if}
-	</div>
-{/if}
+	</Tabs.Content>
+</Tabs.Root>
 
 <MarkOrderedDialog bind:this={orderDialog} />
 <SnoozeDialog bind:this={snoozeDialog} />

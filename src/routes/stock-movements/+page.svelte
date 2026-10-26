@@ -28,7 +28,7 @@
 	import { Spinner } from '$lib/components/ui/spinner'
 	import * as Table from '$lib/components/ui/table'
 	import { Textarea } from '$lib/components/ui/textarea'
-	import * as ToggleGroup from '$lib/components/ui/toggle-group'
+	import * as Tabs from '$lib/components/ui/tabs'
 	import * as Tooltip from '$lib/components/ui/tooltip'
 	import { useErrorToast } from '$lib/composables/errorToast.svelte'
 	import { IsMobile } from '$lib/hooks/is-mobile.svelte'
@@ -313,188 +313,340 @@
 
 <svelte:window onkeydown={onKeydown} />
 
-<PageHeader title="Stock Movements">
-	<div class="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-		<InputGroup.Root class="w-full sm:w-96">
-			<InputGroup.Addon>
-				<SearchIcon />
-			</InputGroup.Addon>
-			<InputGroup.Input
-				bind:ref={searchInput}
-				bind:value={searchQuery}
-				type="search"
-				placeholder="Search by item name"
-				aria-label="Search by item name"
-			/>
-			{#if searchQuery}
-				<InputGroup.Addon align="inline-end">
-					<InputGroup.Button
-						size="icon-sm"
-						aria-label="Clear search"
-						onclick={() => (searchQuery = '')}
-					>
-						<XIcon />
-					</InputGroup.Button>
+<Tabs.Root
+	value={typeFilter}
+	onValueChange={(value) => {
+		const option = TYPE_FILTERS.find((o) => o.value === value)
+		if (option) typeFilter = option.value
+	}}
+	class="flex-1 gap-4"
+>
+	<PageHeader title="Stock Movements">
+		<div class="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+			<InputGroup.Root class="w-full sm:w-96">
+				<InputGroup.Addon>
+					<SearchIcon />
 				</InputGroup.Addon>
-			{/if}
-		</InputGroup.Root>
-		<ToggleGroup.Root
-			class="grid auto-cols-fr grid-flow-col"
-			type="single"
-			variant="outline"
-			bind:value={
-				() => typeFilter,
-				(value) => {
-					if (value) typeFilter = value as TypeFilter
-				}
-			}
-			aria-label="Filter by movement type"
-		>
-			{#each TYPE_FILTERS as option (option.value)}
-				<ToggleGroup.Item value={option.value}>{option.label}</ToggleGroup.Item>
-			{/each}
-		</ToggleGroup.Root>
-
-		<!-- Date range -->
-		<Popover.Root open={dateOpen} onOpenChange={openDateRange}>
-			<Popover.Trigger>
-				{#snippet child({ props })}
-					<Button {...props} variant="outline">
-						<CalendarIcon data-icon="inline-start" />
-						{dateLabel}
-					</Button>
-				{/snippet}
-			</Popover.Trigger>
-			<Popover.Content align="start" class="w-auto p-3">
-				<div class="flex flex-wrap gap-1">
-					{#each DATE_PRESETS as preset (preset.label)}
-						{@const range = preset.range()}
-						<Button
-							variant={sameRange(dateDraft, range) ? 'secondary' : 'ghost'}
-							size="xs"
-							onclick={() => (dateDraft = range)}
-						>
-							{preset.label}
-						</Button>
-					{/each}
-				</div>
-				<RangeCalendar
-					bind:value={dateDraft}
-					bind:placeholder={calendarPlaceholder}
-					numberOfMonths={isMobile.current ? 1 : 2}
-					maxValue={today(timeZone)}
-					class="p-0"
+				<InputGroup.Input
+					bind:ref={searchInput}
+					bind:value={searchQuery}
+					type="search"
+					placeholder="Search by item name"
+					aria-label="Search by item name"
 				/>
-				<div class="flex items-center justify-between gap-2">
-					<Button
-						variant="ghost"
-						size="sm"
-						onclick={() => (dateDraft = { start: undefined, end: undefined })}
-					>
-						Clear
-					</Button>
-					<Button size="sm" onclick={applyDateRange}>Apply</Button>
-				</div>
-			</Popover.Content>
-		</Popover.Root>
-
-		<!-- Filters -->
-		<Popover.Root open={filtersOpen} onOpenChange={openFilters}>
-			<Popover.Trigger>
-				{#snippet child({ props })}
-					<Button {...props} variant="outline">
-						<SlidersHorizontalIcon data-icon="inline-start" />
-						Filters
-						{#if popoverFilterCount > 0}
-							<Badge class="h-[18px] min-w-[18px] px-1.5">{popoverFilterCount}</Badge>
-						{/if}
-					</Button>
-				{/snippet}
-			</Popover.Trigger>
-			<Popover.Content align="start" class="w-80 p-4">
-				<form
-					onsubmit={(event) => {
-						event.preventDefault()
-						applyFilters()
-					}}
-				>
-					<Field.Group class="gap-4">
-						<Field.Field>
-							<Field.Label for="filter-quantity-min">Quantity</Field.Label>
-							<div class="flex gap-2">
-								<Input
-									id="filter-quantity-min"
-									bind:value={filterDraft.quantityMin}
-									type="number"
-									min="0"
-									placeholder="Min"
-									aria-label="Minimum quantity"
-								/>
-								<Input
-									bind:value={filterDraft.quantityMax}
-									type="number"
-									min="0"
-									placeholder="Max"
-									aria-label="Maximum quantity"
-								/>
-							</div>
-						</Field.Field>
-						<Field.Field>
-							<Field.Label for="filter-remark">Remark contains</Field.Label>
-							<Input
-								id="filter-remark"
-								bind:value={filterDraft.remark}
-								placeholder="e.g. expired"
-							/>
-						</Field.Field>
-						<Field.Field>
-							<Field.Label for="filter-item">Item</Field.Label>
-							<ItemPicker
-								id="filter-item"
-								bind:value={filterDraft.itemId}
-								items={itemOptions}
-								placeholder="Any item"
-							/>
-						</Field.Field>
-					</Field.Group>
-					<div class="mt-4 flex items-center justify-between gap-2">
-						<Button type="button" variant="ghost" size="sm" onclick={clearFilterDraft}>Clear</Button
+				{#if searchQuery}
+					<InputGroup.Addon align="inline-end">
+						<InputGroup.Button
+							size="icon-sm"
+							aria-label="Clear search"
+							onclick={() => (searchQuery = '')}
 						>
-						<Button type="submit" size="sm">Apply</Button>
-					</div>
-				</form>
-			</Popover.Content>
-		</Popover.Root>
-	</div>
-</PageHeader>
+							<XIcon />
+						</InputGroup.Button>
+					</InputGroup.Addon>
+				{/if}
+			</InputGroup.Root>
+			<Tabs.List aria-label="Filter by movement type" class="grid auto-cols-fr grid-flow-col">
+				{#each TYPE_FILTERS as option (option.value)}
+					<Tabs.Trigger value={option.value}>{option.label}</Tabs.Trigger>
+				{/each}
+			</Tabs.List>
 
-{#if hasChips}
-	<div class="flex flex-wrap items-center gap-1.5">
-		{#if hasDateRange}
-			{@render chip(dateLabel, 'Remove date range', () => {
-				applied.startDate = ''
-				applied.endDate = ''
-			})}
+			<!-- Date range -->
+			<Popover.Root open={dateOpen} onOpenChange={openDateRange}>
+				<Popover.Trigger>
+					{#snippet child({ props })}
+						<Button {...props} variant="outline">
+							<CalendarIcon data-icon="inline-start" />
+							{dateLabel}
+						</Button>
+					{/snippet}
+				</Popover.Trigger>
+				<Popover.Content align="start" class="w-auto p-3">
+					<div class="flex flex-wrap gap-1">
+						{#each DATE_PRESETS as preset (preset.label)}
+							{@const range = preset.range()}
+							<Button
+								variant={sameRange(dateDraft, range) ? 'secondary' : 'ghost'}
+								size="xs"
+								onclick={() => (dateDraft = range)}
+							>
+								{preset.label}
+							</Button>
+						{/each}
+					</div>
+					<RangeCalendar
+						bind:value={dateDraft}
+						bind:placeholder={calendarPlaceholder}
+						numberOfMonths={isMobile.current ? 1 : 2}
+						maxValue={today(timeZone)}
+						class="p-0"
+					/>
+					<div class="flex items-center justify-between gap-2">
+						<Button
+							variant="ghost"
+							size="sm"
+							onclick={() => (dateDraft = { start: undefined, end: undefined })}
+						>
+							Clear
+						</Button>
+						<Button size="sm" onclick={applyDateRange}>Apply</Button>
+					</div>
+				</Popover.Content>
+			</Popover.Root>
+
+			<!-- Filters -->
+			<Popover.Root open={filtersOpen} onOpenChange={openFilters}>
+				<Popover.Trigger>
+					{#snippet child({ props })}
+						<Button {...props} variant="outline">
+							<SlidersHorizontalIcon data-icon="inline-start" />
+							Filters
+							{#if popoverFilterCount > 0}
+								<Badge class="h-[18px] min-w-[18px] px-1.5">{popoverFilterCount}</Badge>
+							{/if}
+						</Button>
+					{/snippet}
+				</Popover.Trigger>
+				<Popover.Content align="start" class="w-80 p-4">
+					<form
+						onsubmit={(event) => {
+							event.preventDefault()
+							applyFilters()
+						}}
+					>
+						<Field.Group class="gap-4">
+							<Field.Field>
+								<Field.Label for="filter-quantity-min">Quantity</Field.Label>
+								<div class="flex gap-2">
+									<Input
+										id="filter-quantity-min"
+										bind:value={filterDraft.quantityMin}
+										type="number"
+										min="0"
+										placeholder="Min"
+										aria-label="Minimum quantity"
+									/>
+									<Input
+										bind:value={filterDraft.quantityMax}
+										type="number"
+										min="0"
+										placeholder="Max"
+										aria-label="Maximum quantity"
+									/>
+								</div>
+							</Field.Field>
+							<Field.Field>
+								<Field.Label for="filter-remark">Remark contains</Field.Label>
+								<Input
+									id="filter-remark"
+									bind:value={filterDraft.remark}
+									placeholder="e.g. expired"
+								/>
+							</Field.Field>
+							<Field.Field>
+								<Field.Label for="filter-item">Item</Field.Label>
+								<ItemPicker
+									id="filter-item"
+									bind:value={filterDraft.itemId}
+									items={itemOptions}
+									placeholder="Any item"
+								/>
+							</Field.Field>
+						</Field.Group>
+						<div class="mt-4 flex items-center justify-between gap-2">
+							<Button type="button" variant="ghost" size="sm" onclick={clearFilterDraft}
+								>Clear</Button
+							>
+							<Button type="submit" size="sm">Apply</Button>
+						</div>
+					</form>
+				</Popover.Content>
+			</Popover.Root>
+		</div>
+	</PageHeader>
+
+	<Tabs.Content value={typeFilter} class="flex flex-1 flex-col gap-4">
+		{#if hasChips}
+			<div class="flex flex-wrap items-center gap-1.5">
+				{#if hasDateRange}
+					{@render chip(dateLabel, 'Remove date range', () => {
+						applied.startDate = ''
+						applied.endDate = ''
+					})}
+				{/if}
+				{#if hasQuantity}
+					{@render chip(quantityLabel, 'Remove quantity filter', () => {
+						applied.quantityMin = null
+						applied.quantityMax = null
+					})}
+				{/if}
+				{#if hasRemark}
+					{@render chip(`Remark contains “${applied.remark}”`, 'Remove remark filter', () => {
+						applied.remark = ''
+					})}
+				{/if}
+				{#if hasItem}
+					{@render chip(`Item: ${itemName(applied.itemId)}`, 'Remove item filter', () => {
+						applied.itemId = null
+					})}
+				{/if}
+				<Button variant="ghost" size="xs" onclick={clearFilters}>Clear Filters</Button>
+			</div>
 		{/if}
-		{#if hasQuantity}
-			{@render chip(quantityLabel, 'Remove quantity filter', () => {
-				applied.quantityMin = null
-				applied.quantityMax = null
-			})}
+
+		{#if initialLoading}
+			<Table.Root>
+				<Table.Header>
+					<Table.Row>
+						<Table.Head>Date</Table.Head>
+						<Table.Head>Item</Table.Head>
+						<Table.Head class="text-end">Change</Table.Head>
+						<Table.Head>Batch expiry</Table.Head>
+						<Table.Head>Remark</Table.Head>
+						<Table.Head><span class="sr-only">Actions</span></Table.Head>
+					</Table.Row>
+				</Table.Header>
+				<Table.Body>
+					{#each { length: 8 } as _, i (i)}
+						<Table.Row>
+							<Table.Cell><Skeleton class="h-4 w-32" /></Table.Cell>
+							<Table.Cell><Skeleton class="h-4 w-44" /></Table.Cell>
+							<Table.Cell><Skeleton class="ms-auto h-4 w-16" /></Table.Cell>
+							<Table.Cell><Skeleton class="h-4 w-24" /></Table.Cell>
+							<Table.Cell><Skeleton class="h-4 w-48" /></Table.Cell>
+							<Table.Cell><Skeleton class="ms-auto size-7" /></Table.Cell>
+						</Table.Row>
+					{/each}
+				</Table.Body>
+			</Table.Root>
+		{:else if movements.length === 0}
+			<Empty.Root class="my-auto">
+				<Empty.Header>
+					<Empty.Media variant="icon">
+						<HistoryIcon />
+					</Empty.Media>
+					<Empty.Title>{isFiltered ? 'No movements match' : 'No movements yet'}</Empty.Title>
+					<Empty.Description>
+						{isFiltered
+							? 'Try another search or clear the filters.'
+							: 'Stock in or stock out an item in Inventory and it appears here.'}
+					</Empty.Description>
+				</Empty.Header>
+				<Empty.Content>
+					{#if isFiltered}
+						<Button variant="outline" onclick={clearEverything}>Clear Filters</Button>
+					{:else}
+						<Button variant="outline" href="/inventory">Go to Inventory</Button>
+					{/if}
+				</Empty.Content>
+			</Empty.Root>
+		{:else}
+			<Table.Root>
+				<Table.Header>
+					<Table.Row>
+						{#if canSort}
+							<SortHeader key="created_at" {sort} onsort={toggleSort}>Date</SortHeader>
+						{:else}
+							<Table.Head title="Search results are ordered by relevance">Date</Table.Head>
+						{/if}
+						<Table.Head>Item</Table.Head>
+						<Table.Head class="text-end">Change</Table.Head>
+						<Table.Head>Batch expiry</Table.Head>
+						<Table.Head class="w-[32%]">Remark</Table.Head>
+						<Table.Head><span class="sr-only">Actions</span></Table.Head>
+					</Table.Row>
+				</Table.Header>
+				<Table.Body>
+					{#each movements as movement (movement.id)}
+						{@const note = expiryNote(movement.expiry_date)}
+						{@const isIn = movement.movement_type === 'stock_in'}
+						<Table.Row>
+							<Table.Cell class="tabular-nums">
+								{formatDate(movement.created_at)}
+								<span class="text-muted-foreground ms-1 text-xs"
+									>{formatTime(movement.created_at)}</span
+								>
+							</Table.Cell>
+							<Table.Cell class="font-medium tracking-wide">{movement.item_name}</Table.Cell>
+							<Table.Cell class="text-end">
+								<Quantity
+									value={`${isIn ? '+' : '−'}${movement.quantity}`}
+									unit={movement.unit}
+									valueClass={cn('font-semibold', isIn ? 'text-success' : 'text-destructive')}
+								/>
+							</Table.Cell>
+							<Table.Cell class="tabular-nums">
+								{#if movement.expiry_date}
+									{formatDate(movement.expiry_date)}
+									{#if note}
+										<span
+											class={cn(
+												'ms-1 text-xs',
+												note.tone === 'danger' ? 'text-destructive' : 'text-warning',
+											)}
+										>
+											{note.text}
+										</span>
+									{/if}
+								{:else}
+									<span class="text-muted-foreground">—</span>
+								{/if}
+							</Table.Cell>
+							<!-- One line: the full remark is the title and opens in Edit Remark. -->
+							<Table.Cell class="max-w-0">
+								{#if movement.remark}
+									<div class="text-foreground/80 truncate" title={movement.remark}>
+										{movement.remark}
+									</div>
+								{:else}
+									<span class="text-muted-foreground">No remark</span>
+								{/if}
+							</Table.Cell>
+							<Table.Cell>
+								<div class="flex justify-end">
+									<Tooltip.Root>
+										<Tooltip.Trigger>
+											{#snippet child({ props })}
+												<Button
+													{...props}
+													variant="ghost"
+													size="icon-sm"
+													aria-label="Edit Remark…"
+													onclick={() => openRemark(movement)}
+												>
+													<PencilIcon />
+												</Button>
+											{/snippet}
+										</Tooltip.Trigger>
+										<Tooltip.Content>Edit remark</Tooltip.Content>
+									</Tooltip.Root>
+								</div>
+							</Table.Cell>
+						</Table.Row>
+					{/each}
+				</Table.Body>
+			</Table.Root>
+			<div class="text-muted-foreground flex items-center justify-between gap-3 text-sm">
+				<span>
+					{#if stockMovementsStore.countIsExact}
+						Showing {movements.length} of {plural(stockMovementsStore.totalCount, 'movement')}
+					{:else}
+						Showing {plural(movements.length, 'movement')}
+					{/if}
+				</span>
+				{#if stockMovementsStore.hasMore}
+					<Button variant="outline" disabled={loadingMore} onclick={stockMovementsStore.loadMore}>
+						{#if loadingMore}
+							<Spinner data-icon="inline-start" />
+						{/if}
+						Load More
+					</Button>
+				{/if}
+			</div>
 		{/if}
-		{#if hasRemark}
-			{@render chip(`Remark contains “${applied.remark}”`, 'Remove remark filter', () => {
-				applied.remark = ''
-			})}
-		{/if}
-		{#if hasItem}
-			{@render chip(`Item: ${itemName(applied.itemId)}`, 'Remove item filter', () => {
-				applied.itemId = null
-			})}
-		{/if}
-		<Button variant="ghost" size="xs" onclick={clearFilters}>Clear Filters</Button>
-	</div>
-{/if}
+	</Tabs.Content>
+</Tabs.Root>
 
 {#snippet chip(label: string, removeLabel: string, onremove: () => void)}
 	<Badge variant="secondary" class="pe-1">
@@ -509,156 +661,6 @@
 		</button>
 	</Badge>
 {/snippet}
-
-{#if initialLoading}
-	<Table.Root>
-		<Table.Header>
-			<Table.Row>
-				<Table.Head>Date</Table.Head>
-				<Table.Head>Item</Table.Head>
-				<Table.Head class="text-end">Change</Table.Head>
-				<Table.Head>Batch expiry</Table.Head>
-				<Table.Head>Remark</Table.Head>
-				<Table.Head><span class="sr-only">Actions</span></Table.Head>
-			</Table.Row>
-		</Table.Header>
-		<Table.Body>
-			{#each { length: 8 } as _, i (i)}
-				<Table.Row>
-					<Table.Cell><Skeleton class="h-4 w-32" /></Table.Cell>
-					<Table.Cell><Skeleton class="h-4 w-44" /></Table.Cell>
-					<Table.Cell><Skeleton class="ms-auto h-4 w-16" /></Table.Cell>
-					<Table.Cell><Skeleton class="h-4 w-24" /></Table.Cell>
-					<Table.Cell><Skeleton class="h-4 w-48" /></Table.Cell>
-					<Table.Cell><Skeleton class="ms-auto size-7" /></Table.Cell>
-				</Table.Row>
-			{/each}
-		</Table.Body>
-	</Table.Root>
-{:else if movements.length === 0}
-	<Empty.Root class="my-auto">
-		<Empty.Header>
-			<Empty.Media variant="icon">
-				<HistoryIcon />
-			</Empty.Media>
-			<Empty.Title>{isFiltered ? 'No movements match' : 'No movements yet'}</Empty.Title>
-			<Empty.Description>
-				{isFiltered
-					? 'Try another search or clear the filters.'
-					: 'Stock in or stock out an item in Inventory and it appears here.'}
-			</Empty.Description>
-		</Empty.Header>
-		<Empty.Content>
-			{#if isFiltered}
-				<Button variant="outline" onclick={clearEverything}>Clear Filters</Button>
-			{:else}
-				<Button variant="outline" href="/inventory">Go to Inventory</Button>
-			{/if}
-		</Empty.Content>
-	</Empty.Root>
-{:else}
-	<Table.Root>
-		<Table.Header>
-			<Table.Row>
-				{#if canSort}
-					<SortHeader key="created_at" {sort} onsort={toggleSort}>Date</SortHeader>
-				{:else}
-					<Table.Head title="Search results are ordered by relevance">Date</Table.Head>
-				{/if}
-				<Table.Head>Item</Table.Head>
-				<Table.Head class="text-end">Change</Table.Head>
-				<Table.Head>Batch expiry</Table.Head>
-				<Table.Head class="w-[32%]">Remark</Table.Head>
-				<Table.Head><span class="sr-only">Actions</span></Table.Head>
-			</Table.Row>
-		</Table.Header>
-		<Table.Body>
-			{#each movements as movement (movement.id)}
-				{@const note = expiryNote(movement.expiry_date)}
-				{@const isIn = movement.movement_type === 'stock_in'}
-				<Table.Row>
-					<Table.Cell class="tabular-nums">
-						{formatDate(movement.created_at)}
-						<span class="text-muted-foreground ms-1 text-xs">{formatTime(movement.created_at)}</span
-						>
-					</Table.Cell>
-					<Table.Cell class="font-medium tracking-wide">{movement.item_name}</Table.Cell>
-					<Table.Cell class="text-end">
-						<Quantity
-							value={`${isIn ? '+' : '−'}${movement.quantity}`}
-							unit={movement.unit}
-							valueClass={cn('font-semibold', isIn ? 'text-success' : 'text-destructive')}
-						/>
-					</Table.Cell>
-					<Table.Cell class="tabular-nums">
-						{#if movement.expiry_date}
-							{formatDate(movement.expiry_date)}
-							{#if note}
-								<span
-									class={cn(
-										'ms-1 text-xs',
-										note.tone === 'danger' ? 'text-destructive' : 'text-warning',
-									)}
-								>
-									{note.text}
-								</span>
-							{/if}
-						{:else}
-							<span class="text-muted-foreground">—</span>
-						{/if}
-					</Table.Cell>
-					<!-- One line: the full remark is the title and opens in Edit Remark. -->
-					<Table.Cell class="max-w-0">
-						{#if movement.remark}
-							<div class="text-foreground/80 truncate" title={movement.remark}>
-								{movement.remark}
-							</div>
-						{:else}
-							<span class="text-muted-foreground">No remark</span>
-						{/if}
-					</Table.Cell>
-					<Table.Cell>
-						<div class="flex justify-end">
-							<Tooltip.Root>
-								<Tooltip.Trigger>
-									{#snippet child({ props })}
-										<Button
-											{...props}
-											variant="ghost"
-											size="icon-sm"
-											aria-label="Edit Remark…"
-											onclick={() => openRemark(movement)}
-										>
-											<PencilIcon />
-										</Button>
-									{/snippet}
-								</Tooltip.Trigger>
-								<Tooltip.Content>Edit remark</Tooltip.Content>
-							</Tooltip.Root>
-						</div>
-					</Table.Cell>
-				</Table.Row>
-			{/each}
-		</Table.Body>
-	</Table.Root>
-	<div class="text-muted-foreground flex items-center justify-between gap-3 text-sm">
-		<span>
-			{#if stockMovementsStore.countIsExact}
-				Showing {movements.length} of {plural(stockMovementsStore.totalCount, 'movement')}
-			{:else}
-				Showing {plural(movements.length, 'movement')}
-			{/if}
-		</span>
-		{#if stockMovementsStore.hasMore}
-			<Button variant="outline" disabled={loadingMore} onclick={stockMovementsStore.loadMore}>
-				{#if loadingMore}
-					<Spinner data-icon="inline-start" />
-				{/if}
-				Load More
-			</Button>
-		{/if}
-	</div>
-{/if}
 
 <!-- Edit Remark -->
 <ActionModal

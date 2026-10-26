@@ -5,6 +5,9 @@ import { todayIsoDate } from '$lib/types/stockBatches'
 /** Which requests the day control shows */
 export type DayMode = 'today' | 'older' | 'date'
 
+export const isDayMode = (value: string): value is DayMode =>
+	value === 'today' || value === 'older' || value === 'date'
+
 /** YYYY-MM-DD of an instant in the browser's local time zone */
 export const localDateKey = (value: string | number | Date): string => {
 	const date = new Date(value)

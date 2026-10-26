@@ -22,7 +22,7 @@
 	import { Skeleton } from '$lib/components/ui/skeleton'
 	import { Switch } from '$lib/components/ui/switch'
 	import * as Table from '$lib/components/ui/table'
-	import * as ToggleGroup from '$lib/components/ui/toggle-group'
+	import * as Tabs from '$lib/components/ui/tabs'
 	import * as Tooltip from '$lib/components/ui/tooltip'
 	import { useErrorToast } from '$lib/composables/errorToast.svelte'
 	import { exportPayrollJournal } from '$lib/payrollExcel'
@@ -79,6 +79,7 @@
 	const years = $derived([...new Set(runs.map((run) => run.year))].sort((a, b) => b - a))
 	let chosenYear = $state<number | null>(null)
 	const year = $derived(chosenYear !== null && years.includes(chosenYear) ? chosenYear : years[0])
+	const yearTab = $derived(year === undefined ? '' : String(year))
 	const yearRuns = $derived(
 		runs.filter((run) => run.year === year).sort((a, b) => b.month - a.month),
 	)
@@ -425,168 +426,167 @@
 	{/snippet}
 {:else}
 	<!-- ===== Saved periods ===== -->
-	<PageHeader title="Payroll History">
-		<div class="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-			{#if years.length > 1}
-				<ToggleGroup.Root
-					class="grid auto-cols-fr grid-flow-col"
-					type="single"
-					variant="outline"
-					bind:value={
-						() => String(year),
-						(value) => {
-							if (value) chosenYear = Number(value)
-						}
-					}
-					aria-label="Year"
-				>
-					{#each years as option (option)}
-						<ToggleGroup.Item value={String(option)}>{option}</ToggleGroup.Item>
-					{/each}
-				</ToggleGroup.Root>
-			{/if}
-			<div class="flex items-center gap-2">
-				<Switch id="show-salaries" bind:checked={showSalaries} />
-				<Label for="show-salaries">Show Salaries</Label>
+	<Tabs.Root
+		value={yearTab}
+		onValueChange={(value) => {
+			chosenYear = Number(value)
+		}}
+		class="flex-1 gap-4"
+	>
+		<PageHeader title="Payroll History">
+			<div class="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+				{#if years.length > 1}
+					<Tabs.List aria-label="Year" class="grid auto-cols-fr grid-flow-col">
+						{#each years as option (option)}
+							<Tabs.Trigger value={String(option)}>{option}</Tabs.Trigger>
+						{/each}
+					</Tabs.List>
+				{/if}
+				<div class="flex items-center gap-2">
+					<Switch id="show-salaries" bind:checked={showSalaries} />
+					<Label for="show-salaries">Show Salaries</Label>
+				</div>
 			</div>
-		</div>
-		{#if yearRuns.length > 0}
-			<Button variant="outline" onclick={downloadYearSummary} disabled={!yearLoaded}>
-				<SheetIcon data-icon="inline-start" />
-				Download {year} Summary
-			</Button>
-		{/if}
-	</PageHeader>
+			{#if yearRuns.length > 0}
+				<Button variant="outline" onclick={downloadYearSummary} disabled={!yearLoaded}>
+					<SheetIcon data-icon="inline-start" />
+					Download {year} Summary
+				</Button>
+			{/if}
+		</PageHeader>
 
-	{#if initialLoading}
-		<Table.Root>
-			<Table.Header>
-				<Table.Row>
-					<Table.Head>Period</Table.Head>
-					<Table.Head>Saved on</Table.Head>
-					<Table.Head class="text-end">Employees</Table.Head>
-					<Table.Head class="text-end">Total basic</Table.Head>
-					<Table.Head class="text-end">Total net</Table.Head>
-					<Table.Head><span class="sr-only">Actions</span></Table.Head>
-				</Table.Row>
-			</Table.Header>
-			<Table.Body>
-				{#each { length: 5 } as _, i (i)}
-					<Table.Row>
-						<Table.Cell><Skeleton class="h-4 w-32" /></Table.Cell>
-						<Table.Cell><Skeleton class="h-4 w-36" /></Table.Cell>
-						<Table.Cell><Skeleton class="ms-auto h-4 w-6" /></Table.Cell>
-						<Table.Cell><Skeleton class="ms-auto h-4 w-24" /></Table.Cell>
-						<Table.Cell><Skeleton class="ms-auto h-4 w-24" /></Table.Cell>
-						<Table.Cell><Skeleton class="ms-auto h-7 w-32" /></Table.Cell>
-					</Table.Row>
-				{/each}
-			</Table.Body>
-		</Table.Root>
-	{:else if runs.length === 0}
-		<Empty.Root class="my-auto">
-			<Empty.Header>
-				<Empty.Media variant="icon">
-					<HistoryIcon />
-				</Empty.Media>
-				<Empty.Title>No saved months yet</Empty.Title>
-				<Empty.Description>Save a month in Payroll and it appears here.</Empty.Description>
-			</Empty.Header>
-			<Empty.Content>
-				<Button variant="outline" href="/payroll">Go to Payroll</Button>
-			</Empty.Content>
-		</Empty.Root>
-	{:else}
-		<Table.Root>
-			<Table.Header>
-				<Table.Row>
-					<Table.Head>Period</Table.Head>
-					<Table.Head>Saved on</Table.Head>
-					<Table.Head class="text-end">Employees</Table.Head>
-					<Table.Head class="text-end">Total basic</Table.Head>
-					<Table.Head class="text-end">Total net</Table.Head>
-					<Table.Head><span class="sr-only">Actions</span></Table.Head>
-				</Table.Row>
-			</Table.Header>
-			<Table.Body>
-				{#each yearRuns as run (run.id)}
-					{@const loaded = run.id in payrollRecordsStore.itemsByRun}
-					{@const rows = payrollRecordsStore.getItems(run.id)}
-					{@const figures = summary(rows)}
-					<Table.Row>
-						<Table.Cell class="font-medium">{periodLabel(run)}</Table.Cell>
-						<Table.Cell class="tabular-nums">
-							{formatDateTime(run.finalized_at)}
-							{#if wasOverwritten(run)}
-								<ToneBadge tone="neutral" class="ms-1">Overwritten</ToneBadge>
-							{/if}
-						</Table.Cell>
-						<Table.Cell class="text-end tabular-nums">
-							{#if loaded}
-								{rows.length}
-							{:else}
-								<Skeleton class="ms-auto h-4 w-6" />
-							{/if}
-						</Table.Cell>
-						<Table.Cell
-							class={cn('text-end tabular-nums', !showSalaries && 'text-muted-foreground')}
-						>
-							{#if loaded}
-								{rm(figures.basic)}
-							{:else}
-								<Skeleton class="ms-auto h-4 w-24" />
-							{/if}
-						</Table.Cell>
-						<Table.Cell
-							class={cn('text-end tabular-nums', !showSalaries && 'text-muted-foreground')}
-						>
-							{#if loaded}
-								{rm(figures.net)}
-							{:else}
-								<Skeleton class="ms-auto h-4 w-24" />
-							{/if}
-						</Table.Cell>
-						<Table.Cell>
-							<div class="flex items-center justify-end gap-1">
-								<Button variant="outline" size="sm" href={`/payroll-history?run=${run.id}`}>
-									View Record
-								</Button>
-								<DropdownMenu.Root>
-									<MoreMenuTrigger size="icon-sm" />
-									<DropdownMenu.Content align="end">
-										<DropdownMenu.Group>
-											<DropdownMenu.Item onclick={() => downloadAllPayslips(run)}>
-												<FileTextIcon />
-												Download All Payslips
-											</DropdownMenu.Item>
-											<DropdownMenu.Item onclick={() => downloadExcel(run, 'summary')}>
-												<SheetIcon />
-												Download Summary
-											</DropdownMenu.Item>
-											<DropdownMenu.Item onclick={() => downloadExcel(run, 'journal')}>
-												<BookTextIcon />
-												Download Journal
-											</DropdownMenu.Item>
-										</DropdownMenu.Group>
-										<DropdownMenu.Separator />
-										<DropdownMenu.Group>
-											<DropdownMenu.Item variant="destructive" onclick={() => openDelete(run)}>
-												<Trash2Icon />
-												Delete Record…
-											</DropdownMenu.Item>
-										</DropdownMenu.Group>
-									</DropdownMenu.Content>
-								</DropdownMenu.Root>
-							</div>
-						</Table.Cell>
-					</Table.Row>
-				{/each}
-			</Table.Body>
-		</Table.Root>
-		<div class="text-muted-foreground text-sm">
-			{plural(yearRuns.length, 'saved month')} in {year}
-		</div>
-	{/if}
+		<Tabs.Content value={yearTab} class="flex flex-1 flex-col gap-4">
+			{#if initialLoading}
+				<Table.Root>
+					<Table.Header>
+						<Table.Row>
+							<Table.Head>Period</Table.Head>
+							<Table.Head>Saved on</Table.Head>
+							<Table.Head class="text-end">Employees</Table.Head>
+							<Table.Head class="text-end">Total basic</Table.Head>
+							<Table.Head class="text-end">Total net</Table.Head>
+							<Table.Head><span class="sr-only">Actions</span></Table.Head>
+						</Table.Row>
+					</Table.Header>
+					<Table.Body>
+						{#each { length: 5 } as _, i (i)}
+							<Table.Row>
+								<Table.Cell><Skeleton class="h-4 w-32" /></Table.Cell>
+								<Table.Cell><Skeleton class="h-4 w-36" /></Table.Cell>
+								<Table.Cell><Skeleton class="ms-auto h-4 w-6" /></Table.Cell>
+								<Table.Cell><Skeleton class="ms-auto h-4 w-24" /></Table.Cell>
+								<Table.Cell><Skeleton class="ms-auto h-4 w-24" /></Table.Cell>
+								<Table.Cell><Skeleton class="ms-auto h-7 w-32" /></Table.Cell>
+							</Table.Row>
+						{/each}
+					</Table.Body>
+				</Table.Root>
+			{:else if runs.length === 0}
+				<Empty.Root class="my-auto">
+					<Empty.Header>
+						<Empty.Media variant="icon">
+							<HistoryIcon />
+						</Empty.Media>
+						<Empty.Title>No saved months yet</Empty.Title>
+						<Empty.Description>Save a month in Payroll and it appears here.</Empty.Description>
+					</Empty.Header>
+					<Empty.Content>
+						<Button variant="outline" href="/payroll">Go to Payroll</Button>
+					</Empty.Content>
+				</Empty.Root>
+			{:else}
+				<Table.Root>
+					<Table.Header>
+						<Table.Row>
+							<Table.Head>Period</Table.Head>
+							<Table.Head>Saved on</Table.Head>
+							<Table.Head class="text-end">Employees</Table.Head>
+							<Table.Head class="text-end">Total basic</Table.Head>
+							<Table.Head class="text-end">Total net</Table.Head>
+							<Table.Head><span class="sr-only">Actions</span></Table.Head>
+						</Table.Row>
+					</Table.Header>
+					<Table.Body>
+						{#each yearRuns as run (run.id)}
+							{@const loaded = run.id in payrollRecordsStore.itemsByRun}
+							{@const rows = payrollRecordsStore.getItems(run.id)}
+							{@const figures = summary(rows)}
+							<Table.Row>
+								<Table.Cell class="font-medium">{periodLabel(run)}</Table.Cell>
+								<Table.Cell class="tabular-nums">
+									{formatDateTime(run.finalized_at)}
+									{#if wasOverwritten(run)}
+										<ToneBadge tone="neutral" class="ms-1">Overwritten</ToneBadge>
+									{/if}
+								</Table.Cell>
+								<Table.Cell class="text-end tabular-nums">
+									{#if loaded}
+										{rows.length}
+									{:else}
+										<Skeleton class="ms-auto h-4 w-6" />
+									{/if}
+								</Table.Cell>
+								<Table.Cell
+									class={cn('text-end tabular-nums', !showSalaries && 'text-muted-foreground')}
+								>
+									{#if loaded}
+										{rm(figures.basic)}
+									{:else}
+										<Skeleton class="ms-auto h-4 w-24" />
+									{/if}
+								</Table.Cell>
+								<Table.Cell
+									class={cn('text-end tabular-nums', !showSalaries && 'text-muted-foreground')}
+								>
+									{#if loaded}
+										{rm(figures.net)}
+									{:else}
+										<Skeleton class="ms-auto h-4 w-24" />
+									{/if}
+								</Table.Cell>
+								<Table.Cell>
+									<div class="flex items-center justify-end gap-1">
+										<Button variant="outline" size="sm" href={`/payroll-history?run=${run.id}`}>
+											View Record
+										</Button>
+										<DropdownMenu.Root>
+											<MoreMenuTrigger size="icon-sm" />
+											<DropdownMenu.Content align="end">
+												<DropdownMenu.Group>
+													<DropdownMenu.Item onclick={() => downloadAllPayslips(run)}>
+														<FileTextIcon />
+														Download All Payslips
+													</DropdownMenu.Item>
+													<DropdownMenu.Item onclick={() => downloadExcel(run, 'summary')}>
+														<SheetIcon />
+														Download Summary
+													</DropdownMenu.Item>
+													<DropdownMenu.Item onclick={() => downloadExcel(run, 'journal')}>
+														<BookTextIcon />
+														Download Journal
+													</DropdownMenu.Item>
+												</DropdownMenu.Group>
+												<DropdownMenu.Separator />
+												<DropdownMenu.Group>
+													<DropdownMenu.Item variant="destructive" onclick={() => openDelete(run)}>
+														<Trash2Icon />
+														Delete Record…
+													</DropdownMenu.Item>
+												</DropdownMenu.Group>
+											</DropdownMenu.Content>
+										</DropdownMenu.Root>
+									</div>
+								</Table.Cell>
+							</Table.Row>
+						{/each}
+					</Table.Body>
+				</Table.Root>
+				<div class="text-muted-foreground text-sm">
+					{plural(yearRuns.length, 'saved month')} in {year}
+				</div>
+			{/if}
+		</Tabs.Content>
+	</Tabs.Root>
 {/if}
 
 <!-- Delete record -->

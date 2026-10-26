@@ -22,7 +22,8 @@
 	import { selectOnFocus } from '$lib/attachments/focus'
 	import ActionModal from '$lib/components/app/ActionModal.svelte'
 	import SupplierField from '$lib/components/app/SupplierField.svelte'
-	import StatusFilter from '$lib/components/app/StatusFilter.svelte'
+	import StatusTabs from '$lib/components/app/StatusTabs.svelte'
+	import * as Tabs from '$lib/components/ui/tabs'
 	import SupplierFilter from '$lib/components/app/SupplierFilter.svelte'
 	import DialogSubject from '$lib/components/app/DialogSubject.svelte'
 	import DiscardDialog from '$lib/components/app/DiscardDialog.svelte'
@@ -586,437 +587,447 @@
 
 <svelte:window onkeydown={onKeydown} />
 
-<PageHeader title="Inventory">
-	<div class="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-		<InputGroup.Root class="w-full sm:w-96">
-			<InputGroup.Addon>
-				<SearchIcon />
-			</InputGroup.Addon>
-			<InputGroup.Input
-				bind:ref={searchInput}
-				bind:value={searchQuery}
-				type="search"
-				placeholder="Search by item or supplier"
-				aria-label="Search by item or supplier"
-			/>
-			{#if searchQuery}
-				<InputGroup.Addon align="inline-end">
-					<InputGroup.Button
-						size="icon-sm"
-						aria-label="Clear search"
-						onclick={() => (searchQuery = '')}
-					>
-						<XIcon />
-					</InputGroup.Button>
+<Tabs.Root
+	value={filter}
+	onValueChange={(value) => {
+		if (isStatusFilter(value)) filter = value
+	}}
+	class="flex-1 gap-4"
+>
+	<PageHeader title="Inventory">
+		<div class="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+			<InputGroup.Root class="w-full sm:w-96">
+				<InputGroup.Addon>
+					<SearchIcon />
 				</InputGroup.Addon>
-			{/if}
-		</InputGroup.Root>
-		<StatusFilter bind:value={filter} />
-		<SupplierFilter bind:value={supplierChoice} items={inventoryStore.items} />
-		{#if unitFilter}
-			<Button variant="secondary" onclick={() => (unitFilter = '')}>
-				Unit: <span class="tracking-wide">{unitFilter}</span>
-				<XIcon data-icon="inline-end" />
-				<span class="sr-only">Remove unit filter</span>
-			</Button>
-		{/if}
-	</div>
-	<DropdownMenu.Root>
-		<MoreMenuTrigger />
-		<DropdownMenu.Content align="end">
-			<DropdownMenu.Group>
-				<DropdownMenu.Item onclick={() => fileInput?.click()}>
-					<DownloadIcon />
-					Import from Excel…
-				</DropdownMenu.Item>
-				<DropdownMenu.Item onclick={exportToExcel}>
-					<UploadIcon />
-					Export to Excel
-				</DropdownMenu.Item>
-			</DropdownMenu.Group>
-			<DropdownMenu.Separator />
-			<DropdownMenu.Group>
-				<DropdownMenu.Item onclick={() => goto('/inventory/units')}>
-					<RulerIcon />
-					Units
-				</DropdownMenu.Item>
-				<DropdownMenu.Item onclick={() => goto('/inventory/suppliers')}>
-					<Building2Icon />
-					Suppliers
-				</DropdownMenu.Item>
-			</DropdownMenu.Group>
-		</DropdownMenu.Content>
-	</DropdownMenu.Root>
-	<Button onclick={openAddDialog}>
-		<PlusIcon data-icon="inline-start" />
-		Add Item…
-	</Button>
-</PageHeader>
-
-<input
-	bind:this={fileInput}
-	type="file"
-	accept=".xlsx"
-	class="hidden"
-	onchange={handleFileUpload}
-/>
-
-{#if importError}
-	<Alert.Root variant="destructive">
-		<TriangleAlertIcon />
-		<Alert.Title>Import failed</Alert.Title>
-		<Alert.Description>{importError}</Alert.Description>
-		<Button
-			variant="ghost"
-			size="icon-xs"
-			class="absolute end-2 top-2"
-			aria-label="Dismiss"
-			onclick={() => (importError = null)}
-		>
-			<XIcon />
-		</Button>
-	</Alert.Root>
-{/if}
-
-{#if initialLoading}
-	<Table.Root>
-		<Table.Header>
-			<Table.Row>
-				<Table.Head>Item</Table.Head>
-				<Table.Head>Supplier</Table.Head>
-				<Table.Head>In stock</Table.Head>
-				<Table.Head>Reorder level</Table.Head>
-				<Table.Head>Nearest expiry</Table.Head>
-				<Table.Head>Order</Table.Head>
-				<Table.Head><span class="sr-only">Actions</span></Table.Head>
-			</Table.Row>
-		</Table.Header>
-		<Table.Body>
-			{#each { length: 8 } as _, i (i)}
-				<Table.Row>
-					<Table.Cell><Skeleton class="h-4 w-48" /></Table.Cell>
-					<Table.Cell><Skeleton class="h-4 w-24" /></Table.Cell>
-					<Table.Cell><Skeleton class="h-4 w-20" /></Table.Cell>
-					<Table.Cell><Skeleton class="h-4 w-16" /></Table.Cell>
-					<Table.Cell><Skeleton class="h-4 w-24" /></Table.Cell>
-					<Table.Cell><Skeleton class="h-5 w-24 rounded-full" /></Table.Cell>
-					<Table.Cell><Skeleton class="ms-auto h-8 w-24" /></Table.Cell>
-				</Table.Row>
-			{/each}
-		</Table.Body>
-	</Table.Root>
-{:else if sortedItems.length === 0}
-	<Empty.Root class="my-auto">
-		<Empty.Header>
-			<Empty.Media variant="icon">
-				<PackageOpenIcon />
-			</Empty.Media>
-			<Empty.Title>{isFiltered ? 'No items match' : 'No items yet'}</Empty.Title>
-			<Empty.Description>
-				{isFiltered
-					? 'Try another search or clear the filters.'
-					: 'Add your first item to start tracking stock.'}
-			</Empty.Description>
-		</Empty.Header>
-		<Empty.Content>
-			{#if isFiltered}
-				<Button variant="outline" onclick={clearFilters}>Clear Filters</Button>
-			{:else}
-				<Button onclick={openAddDialog}>
-					<PlusIcon data-icon="inline-start" />
-					Add Item…
+				<InputGroup.Input
+					bind:ref={searchInput}
+					bind:value={searchQuery}
+					type="search"
+					placeholder="Search by item or supplier"
+					aria-label="Search by item or supplier"
+				/>
+				{#if searchQuery}
+					<InputGroup.Addon align="inline-end">
+						<InputGroup.Button
+							size="icon-sm"
+							aria-label="Clear search"
+							onclick={() => (searchQuery = '')}
+						>
+							<XIcon />
+						</InputGroup.Button>
+					</InputGroup.Addon>
+				{/if}
+			</InputGroup.Root>
+			<StatusTabs />
+			<SupplierFilter bind:value={supplierChoice} items={inventoryStore.items} />
+			{#if unitFilter}
+				<Button variant="secondary" onclick={() => (unitFilter = '')}>
+					Unit: <span class="tracking-wide">{unitFilter}</span>
+					<XIcon data-icon="inline-end" />
+					<span class="sr-only">Remove unit filter</span>
 				</Button>
 			{/if}
-		</Empty.Content>
-	</Empty.Root>
-{:else}
-	<!--
+		</div>
+		<DropdownMenu.Root>
+			<MoreMenuTrigger />
+			<DropdownMenu.Content align="end">
+				<DropdownMenu.Group>
+					<DropdownMenu.Item onclick={() => fileInput?.click()}>
+						<DownloadIcon />
+						Import from Excel…
+					</DropdownMenu.Item>
+					<DropdownMenu.Item onclick={exportToExcel}>
+						<UploadIcon />
+						Export to Excel
+					</DropdownMenu.Item>
+				</DropdownMenu.Group>
+				<DropdownMenu.Separator />
+				<DropdownMenu.Group>
+					<DropdownMenu.Item onclick={() => goto('/inventory/units')}>
+						<RulerIcon />
+						Units
+					</DropdownMenu.Item>
+					<DropdownMenu.Item onclick={() => goto('/inventory/suppliers')}>
+						<Building2Icon />
+						Suppliers
+					</DropdownMenu.Item>
+				</DropdownMenu.Group>
+			</DropdownMenu.Content>
+		</DropdownMenu.Root>
+		<Button onclick={openAddDialog}>
+			<PlusIcon data-icon="inline-start" />
+			Add Item…
+		</Button>
+	</PageHeader>
+
+	<Tabs.Content value={filter} class="flex flex-1 flex-col gap-4">
+		<input
+			bind:this={fileInput}
+			type="file"
+			accept=".xlsx"
+			class="hidden"
+			onchange={handleFileUpload}
+		/>
+
+		{#if importError}
+			<Alert.Root variant="destructive">
+				<TriangleAlertIcon />
+				<Alert.Title>Import failed</Alert.Title>
+				<Alert.Description>{importError}</Alert.Description>
+				<Button
+					variant="ghost"
+					size="icon-xs"
+					class="absolute end-2 top-2"
+					aria-label="Dismiss"
+					onclick={() => (importError = null)}
+				>
+					<XIcon />
+				</Button>
+			</Alert.Root>
+		{/if}
+
+		{#if initialLoading}
+			<Table.Root>
+				<Table.Header>
+					<Table.Row>
+						<Table.Head>Item</Table.Head>
+						<Table.Head>Supplier</Table.Head>
+						<Table.Head>In stock</Table.Head>
+						<Table.Head>Reorder level</Table.Head>
+						<Table.Head>Nearest expiry</Table.Head>
+						<Table.Head>Order</Table.Head>
+						<Table.Head><span class="sr-only">Actions</span></Table.Head>
+					</Table.Row>
+				</Table.Header>
+				<Table.Body>
+					{#each { length: 8 } as _, i (i)}
+						<Table.Row>
+							<Table.Cell><Skeleton class="h-4 w-48" /></Table.Cell>
+							<Table.Cell><Skeleton class="h-4 w-24" /></Table.Cell>
+							<Table.Cell><Skeleton class="h-4 w-20" /></Table.Cell>
+							<Table.Cell><Skeleton class="h-4 w-16" /></Table.Cell>
+							<Table.Cell><Skeleton class="h-4 w-24" /></Table.Cell>
+							<Table.Cell><Skeleton class="h-5 w-24 rounded-full" /></Table.Cell>
+							<Table.Cell><Skeleton class="ms-auto h-8 w-24" /></Table.Cell>
+						</Table.Row>
+					{/each}
+				</Table.Body>
+			</Table.Root>
+		{:else if sortedItems.length === 0}
+			<Empty.Root class="my-auto">
+				<Empty.Header>
+					<Empty.Media variant="icon">
+						<PackageOpenIcon />
+					</Empty.Media>
+					<Empty.Title>{isFiltered ? 'No items match' : 'No items yet'}</Empty.Title>
+					<Empty.Description>
+						{isFiltered
+							? 'Try another search or clear the filters.'
+							: 'Add your first item to start tracking stock.'}
+					</Empty.Description>
+				</Empty.Header>
+				<Empty.Content>
+					{#if isFiltered}
+						<Button variant="outline" onclick={clearFilters}>Clear Filters</Button>
+					{:else}
+						<Button onclick={openAddDialog}>
+							<PlusIcon data-icon="inline-start" />
+							Add Item…
+						</Button>
+					{/if}
+				</Empty.Content>
+			</Empty.Root>
+		{:else}
+			<!--
 		Borders sit on the cells rather than the rows so an open item can lift
 		into a rounded card: each item is its own tbody, and the open one gets
 		an outline, a shadow and a card ground.
 	-->
-	<Table.Root
-		class="border-separate border-spacing-0 [&_td]:border-b [&_th]:border-b [&_tr]:border-0 [&>tbody:last-child>tr:last-child>td]:border-b-0"
-	>
-		<Table.Header>
-			<Table.Row>
-				<Table.Head class="w-9"><span class="sr-only">Batches</span></Table.Head>
-				<SortHeader key="item_name" {sort} onsort={toggleSort}>Item</SortHeader>
-				<SortHeader key="supplier" {sort} onsort={toggleSort}>Supplier</SortHeader>
-				<SortHeader key="quantity" {sort} onsort={toggleSort}>In stock</SortHeader>
-				<Table.Head>Reorder level</Table.Head>
-				<SortHeader key="nearest_expiry" {sort} onsort={toggleSort}>Nearest expiry</SortHeader>
-				<Table.Head>Order</Table.Head>
-				<Table.Head><span class="sr-only">Actions</span></Table.Head>
-			</Table.Row>
-		</Table.Header>
-		{#each list.visible as item (item.id)}
-			{@const status = stockStatus(item)}
-			{@const nearest = getNearestExpiry(item)}
-			{@const note = expiryNote(nearest)}
-			{@const open = expandedIds.has(item.id)}
-			<Table.Body
-				class={cn(
-					open &&
-						'[&_td]:bg-card outline-border-strong rounded-xl shadow-[0_8px_24px_-16px_rgba(21,32,40,0.35)] outline -outline-offset-1 [&>tr:first-child>td:first-child]:rounded-tl-xl [&>tr:first-child>td:last-child]:rounded-tr-xl [&>tr:last-child>td]:border-b-0 [&>tr:last-child>td:first-child]:rounded-bl-xl [&>tr:last-child>td:last-child]:rounded-br-xl',
-				)}
+			<Table.Root
+				class="border-separate border-spacing-0 [&_td]:border-b [&_th]:border-b [&_tr]:border-0 [&>tbody:last-child>tr:last-child>td]:border-b-0"
 			>
-				<Table.Row>
-					<Table.Cell class="w-9 ps-1 pe-0">
-						<Button
-							variant="ghost"
-							size="icon-sm"
-							aria-expanded={open}
-							aria-label={open
-								? `Hide batches for ${item.item_name}`
-								: `Show batches for ${item.item_name}`}
-							class={cn('[&>svg]:transition-transform', open && 'bg-muted [&>svg]:rotate-90')}
-							onclick={() => toggleBatches(item)}
-						>
-							<ChevronRightIcon />
-						</Button>
-					</Table.Cell>
-					<Table.Cell class="font-medium tracking-wide">
-						<span class="inline-flex items-center gap-2">
-							{item.item_name}
-							{#if status}
-								<ToneBadge tone={status.tone}>{status.text}</ToneBadge>
-							{/if}
-						</span>
-					</Table.Cell>
-					<Table.Cell class="tracking-wide">
-						{#if item.supplier}
-							{item.supplier}
-						{:else}
-							<span class="text-muted-foreground">—</span>
-						{/if}
-					</Table.Cell>
-					<Table.Cell><Quantity value={item.quantity} unit={item.unit_label} /></Table.Cell>
-					<Table.Cell>
-						{#if item.not_track}
-							<span class="text-muted-foreground">—</span>
-						{:else}
-							<Quantity value={item.reorder_level} unit={item.unit_label} pack={false} />
-						{/if}
-					</Table.Cell>
-					<Table.Cell class="tabular-nums">
-						{#if nearest}
-							{formatDate(nearest)}
-							{#if note}
-								<span
-									class={cn(
-										'ms-1 text-xs',
-										note.tone === 'danger' ? 'text-destructive' : 'text-warning',
-									)}
-								>
-									{note.text}
-								</span>
-							{/if}
-						{:else}
-							<span class="text-muted-foreground">—</span>
-						{/if}
-					</Table.Cell>
-					<Table.Cell>
-						<OrderStatusBadge {item} />
-					</Table.Cell>
-					<Table.Cell>
-						<div class="flex justify-end gap-1">
-							<Tooltip.Root>
-								<Tooltip.Trigger>
-									{#snippet child({ props })}
-										<Button
-											{...props}
-											variant="ghost"
-											size="icon-sm"
-											aria-label="Stock In…"
-											onclick={() => stockInDialog?.open(item)}
-										>
-											<ArrowDownToLineIcon />
-										</Button>
-									{/snippet}
-								</Tooltip.Trigger>
-								<Tooltip.Content>Stock in</Tooltip.Content>
-							</Tooltip.Root>
-							<!-- The span keeps the hint showing while the button is disabled -->
-							<Tooltip.Root>
-								<Tooltip.Trigger>
-									{#snippet child({ props })}
-										<span {...props}>
-											<Button
-												variant="ghost"
-												size="icon-sm"
-												aria-label="Stock Out…"
-												disabled={item.quantity === 0}
-												onclick={() => stockOutDialog?.open(item)}
-											>
-												<ArrowUpFromLineIcon />
-											</Button>
-										</span>
-									{/snippet}
-								</Tooltip.Trigger>
-								<Tooltip.Content>
-									{item.quantity === 0 ? 'Nothing in stock' : 'Stock out'}
-								</Tooltip.Content>
-							</Tooltip.Root>
-							<DropdownMenu.Root>
-								<MoreMenuTrigger size="icon-sm" />
-								<DropdownMenu.Content align="end">
-									<DropdownMenu.Group>
-										<DropdownMenu.Item onclick={() => openEdit(item)}>
-											<PencilIcon />
-											Edit…
-										</DropdownMenu.Item>
-									</DropdownMenu.Group>
-									<DropdownMenu.Separator />
-									<DropdownMenu.Group>
-										<DropdownMenu.Item variant="destructive" onclick={() => openDelete(item)}>
-											<Trash2Icon />
-											Delete…
-										</DropdownMenu.Item>
-									</DropdownMenu.Group>
-								</DropdownMenu.Content>
-							</DropdownMenu.Root>
-						</div>
-					</Table.Cell>
-				</Table.Row>
-				{#if open}
-					{@const itemBatches = stockBatchesStore.getBatchesForItem(item.id)}
-					{#if itemBatches.length === 0}
+				<Table.Header>
+					<Table.Row>
+						<Table.Head class="w-9"><span class="sr-only">Batches</span></Table.Head>
+						<SortHeader key="item_name" {sort} onsort={toggleSort}>Item</SortHeader>
+						<SortHeader key="supplier" {sort} onsort={toggleSort}>Supplier</SortHeader>
+						<SortHeader key="quantity" {sort} onsort={toggleSort}>In stock</SortHeader>
+						<Table.Head>Reorder level</Table.Head>
+						<SortHeader key="nearest_expiry" {sort} onsort={toggleSort}>Nearest expiry</SortHeader>
+						<Table.Head>Order</Table.Head>
+						<Table.Head><span class="sr-only">Actions</span></Table.Head>
+					</Table.Row>
+				</Table.Header>
+				{#each list.visible as item (item.id)}
+					{@const status = stockStatus(item)}
+					{@const nearest = getNearestExpiry(item)}
+					{@const note = expiryNote(nearest)}
+					{@const open = expandedIds.has(item.id)}
+					<Table.Body
+						class={cn(
+							open &&
+								'[&_td]:bg-card outline-border-strong rounded-xl shadow-[0_8px_24px_-16px_rgba(21,32,40,0.35)] outline -outline-offset-1 [&>tr:first-child>td:first-child]:rounded-tl-xl [&>tr:first-child>td:last-child]:rounded-tr-xl [&>tr:last-child>td]:border-b-0 [&>tr:last-child>td:first-child]:rounded-bl-xl [&>tr:last-child>td:last-child]:rounded-br-xl',
+						)}
+					>
 						<Table.Row>
-							<Table.Cell></Table.Cell>
-							<Table.Cell colspan={7}>
-								<div class="flex items-center justify-between gap-3">
-									<span class="text-muted-foreground">Nothing in stock</span>
-									<Button variant="outline" size="sm" onclick={() => stockInDialog?.open(item)}>
-										<ArrowDownToLineIcon data-icon="inline-start" />
-										Stock In…
-									</Button>
+							<Table.Cell class="w-9 ps-1 pe-0">
+								<Button
+									variant="ghost"
+									size="icon-sm"
+									aria-expanded={open}
+									aria-label={open
+										? `Hide batches for ${item.item_name}`
+										: `Show batches for ${item.item_name}`}
+									class={cn('[&>svg]:transition-transform', open && 'bg-muted [&>svg]:rotate-90')}
+									onclick={() => toggleBatches(item)}
+								>
+									<ChevronRightIcon />
+								</Button>
+							</Table.Cell>
+							<Table.Cell class="font-medium tracking-wide">
+								<span class="inline-flex items-center gap-2">
+									{item.item_name}
+									{#if status}
+										<ToneBadge tone={status.tone}>{status.text}</ToneBadge>
+									{/if}
+								</span>
+							</Table.Cell>
+							<Table.Cell class="tracking-wide">
+								{#if item.supplier}
+									{item.supplier}
+								{:else}
+									<span class="text-muted-foreground">—</span>
+								{/if}
+							</Table.Cell>
+							<Table.Cell><Quantity value={item.quantity} unit={item.unit_label} /></Table.Cell>
+							<Table.Cell>
+								{#if item.not_track}
+									<span class="text-muted-foreground">—</span>
+								{:else}
+									<Quantity value={item.reorder_level} unit={item.unit_label} pack={false} />
+								{/if}
+							</Table.Cell>
+							<Table.Cell class="tabular-nums">
+								{#if nearest}
+									{formatDate(nearest)}
+									{#if note}
+										<span
+											class={cn(
+												'ms-1 text-xs',
+												note.tone === 'danger' ? 'text-destructive' : 'text-warning',
+											)}
+										>
+											{note.text}
+										</span>
+									{/if}
+								{:else}
+									<span class="text-muted-foreground">—</span>
+								{/if}
+							</Table.Cell>
+							<Table.Cell>
+								<OrderStatusBadge {item} />
+							</Table.Cell>
+							<Table.Cell>
+								<div class="flex justify-end gap-1">
+									<Tooltip.Root>
+										<Tooltip.Trigger>
+											{#snippet child({ props })}
+												<Button
+													{...props}
+													variant="ghost"
+													size="icon-sm"
+													aria-label="Stock In…"
+													onclick={() => stockInDialog?.open(item)}
+												>
+													<ArrowDownToLineIcon />
+												</Button>
+											{/snippet}
+										</Tooltip.Trigger>
+										<Tooltip.Content>Stock in</Tooltip.Content>
+									</Tooltip.Root>
+									<!-- The span keeps the hint showing while the button is disabled -->
+									<Tooltip.Root>
+										<Tooltip.Trigger>
+											{#snippet child({ props })}
+												<span {...props}>
+													<Button
+														variant="ghost"
+														size="icon-sm"
+														aria-label="Stock Out…"
+														disabled={item.quantity === 0}
+														onclick={() => stockOutDialog?.open(item)}
+													>
+														<ArrowUpFromLineIcon />
+													</Button>
+												</span>
+											{/snippet}
+										</Tooltip.Trigger>
+										<Tooltip.Content>
+											{item.quantity === 0 ? 'Nothing in stock' : 'Stock out'}
+										</Tooltip.Content>
+									</Tooltip.Root>
+									<DropdownMenu.Root>
+										<MoreMenuTrigger size="icon-sm" />
+										<DropdownMenu.Content align="end">
+											<DropdownMenu.Group>
+												<DropdownMenu.Item onclick={() => openEdit(item)}>
+													<PencilIcon />
+													Edit…
+												</DropdownMenu.Item>
+											</DropdownMenu.Group>
+											<DropdownMenu.Separator />
+											<DropdownMenu.Group>
+												<DropdownMenu.Item variant="destructive" onclick={() => openDelete(item)}>
+													<Trash2Icon />
+													Delete…
+												</DropdownMenu.Item>
+											</DropdownMenu.Group>
+										</DropdownMenu.Content>
+									</DropdownMenu.Root>
 								</div>
 							</Table.Cell>
 						</Table.Row>
-					{:else}
-						<!-- One lighter row per batch, in stock-out (FEFO) order, using the item's own columns. -->
-						{#each itemBatches as batch, index (batch.id)}
-							{@const editing = editingBatch?.id === batch.id}
-							{@const batchNote = expiryNote(batch.expiry_date)}
-							<Table.Row class={cn('text-foreground/85', editing && '[&>td]:bg-muted/60!')}>
-								<Table.Cell></Table.Cell>
-								<Table.Cell>
-									<span class="inline-flex items-center gap-2">
-										<span
-											class="bg-muted text-muted-foreground flex size-5 shrink-0 items-center justify-center rounded-md text-[11px] font-semibold tabular-nums"
-										>
-											{index + 1}
-										</span>
-										<span class="text-foreground font-medium">Batch {index + 1}</span>
-										<span class="text-muted-foreground text-xs">
-											received {formatDate(batch._creationTime)}
-										</span>
-									</span>
-								</Table.Cell>
-								<Table.Cell></Table.Cell>
-								<Table.Cell class="tabular-nums">
-									{#if editing}
-										<Input
-											id="batch-quantity"
-											type="number"
-											min={0}
-											step={1}
-											bind:value={batchForm.quantity}
-											class="h-8 w-28"
-											aria-label="Quantity ({item.unit_label})"
-											onkeydown={onBatchKeydown}
-											{@attach selectOnFocus()}
-										/>
-									{:else}
-										<Quantity value={batch.quantity} unit={item.unit_label} pack={false} />
-									{/if}
-								</Table.Cell>
-								<Table.Cell></Table.Cell>
-								<Table.Cell class="tabular-nums">
-									{#if editing}
-										<DateInput
-											label="Expiry date"
-											bind:value={batchForm.expiry_date}
-											bind:invalid={batchExpiryInvalid}
-											class="h-8 w-44"
-											onkeydown={onBatchKeydown}
-										/>
-									{:else if batch.expiry_date}
-										{formatDate(batch.expiry_date)}
-										{#if batchNote}
-											<span
-												class={cn(
-													'ms-1 text-xs',
-													batchNote.tone === 'danger' ? 'text-destructive' : 'text-warning',
-												)}
-											>
-												{batchNote.text}
+						{#if open}
+							{@const itemBatches = stockBatchesStore.getBatchesForItem(item.id)}
+							{#if itemBatches.length === 0}
+								<Table.Row>
+									<Table.Cell></Table.Cell>
+									<Table.Cell colspan={7}>
+										<div class="flex items-center justify-between gap-3">
+											<span class="text-muted-foreground">Nothing in stock</span>
+											<Button variant="outline" size="sm" onclick={() => stockInDialog?.open(item)}>
+												<ArrowDownToLineIcon data-icon="inline-start" />
+												Stock In…
+											</Button>
+										</div>
+									</Table.Cell>
+								</Table.Row>
+							{:else}
+								<!-- One lighter row per batch, in stock-out (FEFO) order, using the item's own columns. -->
+								{#each itemBatches as batch, index (batch.id)}
+									{@const editing = editingBatch?.id === batch.id}
+									{@const batchNote = expiryNote(batch.expiry_date)}
+									<Table.Row class={cn('text-foreground/85', editing && '[&>td]:bg-muted/60!')}>
+										<Table.Cell></Table.Cell>
+										<Table.Cell>
+											<span class="inline-flex items-center gap-2">
+												<span
+													class="bg-muted text-muted-foreground flex size-5 shrink-0 items-center justify-center rounded-md text-[11px] font-semibold tabular-nums"
+												>
+													{index + 1}
+												</span>
+												<span class="text-foreground font-medium">Batch {index + 1}</span>
+												<span class="text-muted-foreground text-xs">
+													received {formatDate(batch._creationTime)}
+												</span>
 											</span>
-										{/if}
-									{:else}
-										<span class="text-muted-foreground">No expiry</span>
-									{/if}
-								</Table.Cell>
-								<Table.Cell></Table.Cell>
-								<Table.Cell>
-									<div class="flex justify-end gap-1">
-										{#if editing}
-											<Button
-												variant="ghost"
-												size="sm"
-												disabled={stockBatchesStore.loading}
-												onclick={requestCancelBatch}
-											>
-												Cancel
-											</Button>
-											<Button
-												size="sm"
-												disabled={!isBatchChanged ||
-													batchExpiryInvalid ||
-													stockBatchesStore.loading}
-												onclick={confirmSaveBatch}
-											>
-												{#if stockBatchesStore.loading}
-													<Spinner data-icon="inline-start" />
+										</Table.Cell>
+										<Table.Cell></Table.Cell>
+										<Table.Cell class="tabular-nums">
+											{#if editing}
+												<Input
+													id="batch-quantity"
+													type="number"
+													min={0}
+													step={1}
+													bind:value={batchForm.quantity}
+													class="h-8 w-28"
+													aria-label="Quantity ({item.unit_label})"
+													onkeydown={onBatchKeydown}
+													{@attach selectOnFocus()}
+												/>
+											{:else}
+												<Quantity value={batch.quantity} unit={item.unit_label} pack={false} />
+											{/if}
+										</Table.Cell>
+										<Table.Cell></Table.Cell>
+										<Table.Cell class="tabular-nums">
+											{#if editing}
+												<DateInput
+													label="Expiry date"
+													bind:value={batchForm.expiry_date}
+													bind:invalid={batchExpiryInvalid}
+													class="h-8 w-44"
+													onkeydown={onBatchKeydown}
+												/>
+											{:else if batch.expiry_date}
+												{formatDate(batch.expiry_date)}
+												{#if batchNote}
+													<span
+														class={cn(
+															'ms-1 text-xs',
+															batchNote.tone === 'danger' ? 'text-destructive' : 'text-warning',
+														)}
+													>
+														{batchNote.text}
+													</span>
 												{/if}
-												Save
-											</Button>
-										{:else}
-											<Tooltip.Root>
-												<Tooltip.Trigger>
-													{#snippet child({ props })}
-														<Button
-															{...props}
-															variant="ghost"
-															size="icon-sm"
-															aria-label="Edit batch {index + 1}"
-															disabled={editingBatch !== null || stockBatchesStore.loading}
-															onclick={() => startEditBatch(batch)}
-														>
-															<PencilIcon />
-														</Button>
-													{/snippet}
-												</Tooltip.Trigger>
-												<Tooltip.Content>Edit batch</Tooltip.Content>
-											</Tooltip.Root>
-										{/if}
-									</div>
-								</Table.Cell>
-							</Table.Row>
-						{/each}
-					{/if}
+											{:else}
+												<span class="text-muted-foreground">No expiry</span>
+											{/if}
+										</Table.Cell>
+										<Table.Cell></Table.Cell>
+										<Table.Cell>
+											<div class="flex justify-end gap-1">
+												{#if editing}
+													<Button
+														variant="ghost"
+														size="sm"
+														disabled={stockBatchesStore.loading}
+														onclick={requestCancelBatch}
+													>
+														Cancel
+													</Button>
+													<Button
+														size="sm"
+														disabled={!isBatchChanged ||
+															batchExpiryInvalid ||
+															stockBatchesStore.loading}
+														onclick={confirmSaveBatch}
+													>
+														{#if stockBatchesStore.loading}
+															<Spinner data-icon="inline-start" />
+														{/if}
+														Save
+													</Button>
+												{:else}
+													<Tooltip.Root>
+														<Tooltip.Trigger>
+															{#snippet child({ props })}
+																<Button
+																	{...props}
+																	variant="ghost"
+																	size="icon-sm"
+																	aria-label="Edit batch {index + 1}"
+																	disabled={editingBatch !== null || stockBatchesStore.loading}
+																	onclick={() => startEditBatch(batch)}
+																>
+																	<PencilIcon />
+																</Button>
+															{/snippet}
+														</Tooltip.Trigger>
+														<Tooltip.Content>Edit batch</Tooltip.Content>
+													</Tooltip.Root>
+												{/if}
+											</div>
+										</Table.Cell>
+									</Table.Row>
+								{/each}
+							{/if}
+						{/if}
+					</Table.Body>
+				{/each}
+			</Table.Root>
+			<div class="text-muted-foreground flex items-center justify-between gap-3 text-sm">
+				<span>Showing {list.shown} of {plural(list.total, 'item')}</span>
+				{#if list.hasMore}
+					<Button variant="outline" onclick={list.loadMore}>Load More</Button>
 				{/if}
-			</Table.Body>
-		{/each}
-	</Table.Root>
-	<div class="text-muted-foreground flex items-center justify-between gap-3 text-sm">
-		<span>Showing {list.shown} of {plural(list.total, 'item')}</span>
-		{#if list.hasMore}
-			<Button variant="outline" onclick={list.loadMore}>Load More</Button>
+			</div>
 		{/if}
-	</div>
-{/if}
+	</Tabs.Content>
+</Tabs.Root>
 
 <!-- Add Item -->
 <ActionModal
