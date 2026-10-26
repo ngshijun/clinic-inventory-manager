@@ -20,7 +20,7 @@
 	import { inventoryStore } from '$lib/stores/inventory.svelte'
 	import { unitsStore } from '$lib/stores/units.svelte'
 	import type { Unit } from '$lib/types/units'
-	import { UNIT_NAME_PATTERN } from '../../../../convex/lib/units'
+	import { UNIT_NAME_PATTERN } from '$convex/lib/units'
 
 	/*
 	 * The list the Unit field in Add Item and Edit Item picks from, opened from

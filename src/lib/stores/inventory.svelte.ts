@@ -1,8 +1,8 @@
 // stores/inventory.svelte.ts
-import { api } from '../../../convex/_generated/api'
-import type { Doc } from '../../../convex/_generated/dataModel'
-import type { Price } from '../../../convex/lib/price'
-import { unitLabel } from '../../../convex/lib/units'
+import { api } from '$convex/_generated/api'
+import type { Doc } from '$convex/_generated/dataModel'
+import type { Price } from '$convex/lib/price'
+import { unitLabel } from '$convex/lib/units'
 import { convex } from '$lib/convex'
 import type {
 	InventoryId,

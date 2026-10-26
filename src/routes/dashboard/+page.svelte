@@ -48,7 +48,7 @@
 		needsDecision,
 		needsStock,
 		wokeFromSnooze,
-	} from '../../../convex/lib/orders'
+	} from '$convex/lib/orders'
 
 	const QUEUE_PAGE = 8
 

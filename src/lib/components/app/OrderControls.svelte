@@ -8,7 +8,7 @@
 	import { inventoryStore } from '$lib/stores/inventory.svelte'
 	import type { InventoryItem } from '$lib/types/inventory'
 	import { todayIsoDate } from '$lib/types/stockBatches'
-	import { isSnoozing } from '../../../../convex/lib/orders'
+	import { isSnoozing } from '$convex/lib/orders'
 
 	/**
 	 * The purchaser's controls on a row. On order: Update Order… and Not

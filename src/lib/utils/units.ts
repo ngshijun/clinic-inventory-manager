@@ -1,4 +1,4 @@
-import type { UnitParts } from '../../../convex/lib/units'
+import type { UnitParts } from '$convex/lib/units'
 
 /** The Unit field as a form holds it: an empty number means the unit holds nothing countable */
 export interface UnitForm {

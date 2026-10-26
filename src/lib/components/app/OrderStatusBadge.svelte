@@ -8,7 +8,7 @@
 	import type { InventoryItem } from '$lib/types/inventory'
 	import { todayIsoDate } from '$lib/types/stockBatches'
 	import { formatDayMonth } from '$lib/utils/date'
-	import { isLate, wokeFromSnooze } from '../../../../convex/lib/orders'
+	import { isLate, wokeFromSnooze } from '$convex/lib/orders'
 
 	/**
 	 * An item's order status as one badge for the ledger tables (Inventory,

@@ -1,4 +1,4 @@
-import { api } from '../../../convex/_generated/api'
+import { api } from '$convex/_generated/api'
 import { convex } from '$lib/convex'
 import { errorMessage, withLegacy } from '$lib/types/legacy'
 import type { Unit, UnitId } from '$lib/types/units'

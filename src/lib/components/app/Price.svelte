@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Price } from '../../../../convex/lib/price'
+	import type { Price } from '$convex/lib/price'
 	import { formatRM } from '$lib/utils/money'
 
 	/*

@@ -1,4 +1,4 @@
-import { api } from '../../../convex/_generated/api'
+import { api } from '$convex/_generated/api'
 import { convex } from '$lib/convex'
 import type { User } from '$lib/types/auth'
 

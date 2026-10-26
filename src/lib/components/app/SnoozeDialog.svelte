@@ -11,7 +11,7 @@
 	import type { InventoryItem } from '$lib/types/inventory'
 	import { todayIsoDate } from '$lib/types/stockBatches'
 	import { formatDate } from '$lib/utils/date'
-	import { addDays } from '../../../../convex/lib/orders'
+	import { addDays } from '$convex/lib/orders'
 
 	/**
 	 * Puts an item aside until a date. The chips set the date in one click;

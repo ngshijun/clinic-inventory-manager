@@ -1,4 +1,4 @@
-import { api } from '../../../convex/_generated/api'
+import { api } from '$convex/_generated/api'
 import { convex } from '$lib/convex'
 import { fefoOrder, type StockBatch, type StockBatchId } from '$lib/types/stockBatches'
 import { errorMessage, withLegacy } from '$lib/types/legacy'

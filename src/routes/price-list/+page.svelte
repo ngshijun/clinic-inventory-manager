@@ -44,7 +44,7 @@
 		samePrice,
 		type PriceForm,
 	} from '$lib/utils/price'
-	import { pricePerUnit } from '../../../convex/lib/price'
+	import { pricePerUnit } from '$convex/lib/price'
 
 	// ---------- Toolbar state ----------
 	type SortKey = 'item_name' | 'supplier' | 'quantity' | 'price'

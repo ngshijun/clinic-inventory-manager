@@ -66,7 +66,7 @@
 	} from '$lib/utils/statusFilter'
 	import { ALL_SUPPLIERS, activeSupplier, matchesSupplier } from '$lib/utils/supplier'
 	import { emptyUnitForm, unitFormFrom, unitFormParts, type UnitForm } from '$lib/utils/units'
-	import { sameUnit } from '../../../convex/lib/units'
+	import { sameUnit } from '$convex/lib/units'
 
 	// ---------- Toolbar state ----------
 	type SortKey = 'item_name' | 'supplier' | 'quantity' | 'nearest_expiry'

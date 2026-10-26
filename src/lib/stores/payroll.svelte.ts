@@ -1,6 +1,6 @@
 // stores/payroll.svelte.ts
-import { api } from '../../../convex/_generated/api'
-import type { Doc, Id } from '../../../convex/_generated/dataModel'
+import { api } from '$convex/_generated/api'
+import type { Doc, Id } from '$convex/_generated/dataModel'
 import { convex } from '$lib/convex'
 import type { PayrollData } from '$lib/types/payroll'
 import { errorMessage, withLegacy, type WithLegacy } from '$lib/types/legacy'

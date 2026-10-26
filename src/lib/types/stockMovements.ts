@@ -1,4 +1,4 @@
-import type { Doc, Id } from '../../../convex/_generated/dataModel'
+import type { Doc, Id } from '$convex/_generated/dataModel'
 import type { WithLegacy } from '$lib/types/legacy'
 
 // The server joins the item's current unit onto each movement

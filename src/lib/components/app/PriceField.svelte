@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { pricePerUnit } from '../../../../convex/lib/price'
-	import type { UnitParts } from '../../../../convex/lib/units'
+	import { pricePerUnit } from '$convex/lib/price'
+	import type { UnitParts } from '$convex/lib/units'
 	import { selectOnFocus } from '$lib/attachments/focus'
 	import * as Field from '$lib/components/ui/field'
 	import * as InputGroup from '$lib/components/ui/input-group'

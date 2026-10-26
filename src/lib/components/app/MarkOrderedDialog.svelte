@@ -19,7 +19,7 @@
 		samePrice,
 		type PriceForm,
 	} from '$lib/utils/price'
-	import { LEAD_DAYS, addDays } from '../../../../convex/lib/orders'
+	import { LEAD_DAYS, addDays } from '$convex/lib/orders'
 
 	/**
 	 * Marks an item as ordered, or changes an order already placed. The
