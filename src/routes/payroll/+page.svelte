@@ -433,8 +433,8 @@
 			</div>
 		</Alert.Root>
 	{:else if payrollRecordsStore.runsLoaded}
-		<Alert.Root class="bg-warning-soft border-warning/40">
-			<TriangleAlertIcon class="text-warning" />
+		<Alert.Root variant="warning">
+			<TriangleAlertIcon />
 			<Alert.Description class="text-foreground">
 				Enter PCB and CP38, then save the record. Its payslips and Excel files are then downloaded
 				from Payroll History.

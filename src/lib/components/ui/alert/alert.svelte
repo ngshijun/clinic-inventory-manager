@@ -8,6 +8,9 @@
 				default: 'bg-card text-card-foreground',
 				destructive:
 					'text-destructive bg-card *:data-[slot=alert-description]:text-destructive/90 *:[svg]:text-current',
+				/* Status tone on the theme's warning tokens; the description and any action keep their own colours. */
+				warning:
+					'bg-warning-soft border-warning/35 text-card-foreground *:data-[slot=alert-title]:text-warning *:[svg]:text-warning',
 			},
 		},
 		defaultVariants: {
