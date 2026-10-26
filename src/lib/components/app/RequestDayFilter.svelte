@@ -3,6 +3,7 @@
 	import CalendarIcon from '@lucide/svelte/icons/calendar'
 	import { Button } from '$lib/components/ui/button'
 	import { Calendar } from '$lib/components/ui/calendar'
+	import CountBadge from '$lib/components/app/CountBadge.svelte'
 	import * as Popover from '$lib/components/ui/popover'
 	import * as ToggleGroup from '$lib/components/ui/toggle-group'
 	import { todayIsoDate } from '$lib/types/stockBatches'
@@ -47,13 +48,7 @@
 	<ToggleGroup.Item value="today">Today</ToggleGroup.Item>
 	<ToggleGroup.Item value="older">
 		Older Pending
-		{#if olderPendingCount > 0}
-			<span
-				class="bg-destructive text-destructive-foreground ms-1 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1.5 text-xs font-medium tabular-nums"
-			>
-				{olderPendingCount}
-			</span>
-		{/if}
+		{#if olderPendingCount > 0}<CountBadge count={olderPendingCount} />{/if}
 	</ToggleGroup.Item>
 	<ToggleGroup.Item value="date">By Date</ToggleGroup.Item>
 </ToggleGroup.Root>

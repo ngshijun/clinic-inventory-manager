@@ -117,11 +117,12 @@
 								{#if item.href === '/stock-approvals' && pendingCount > 0}
 									<!--
 										Pending approvals: a solid badge so the count reads against the brand
-										sidebar. It sits 8px inside the 18px-radius button on every side, so its
-										own radius is 10px (rounded-sm) to keep the corners concentric.
+										sidebar. It sits 8px inside the 18px-radius button on every side, and a
+										20px-tall capsule's 10px radius keeps the corners concentric. The capsule
+										is CountBadge's shape too, so the number reads the same here and on the page.
 									-->
 									<Sidebar.MenuBadge
-										class="bg-sidebar-primary text-sidebar-primary-foreground peer-hover/menu-button:text-sidebar-primary-foreground peer-data-active/menu-button:text-sidebar-primary-foreground right-2 rounded-sm px-1.5 font-semibold peer-data-[size=default]/menu-button:top-2"
+										class="bg-sidebar-primary text-sidebar-primary-foreground peer-hover/menu-button:text-sidebar-primary-foreground peer-data-active/menu-button:text-sidebar-primary-foreground right-2 rounded-full px-1.5 font-semibold peer-data-[size=default]/menu-button:top-2"
 										aria-label="{pendingCount} pending"
 									>
 										{pendingCount > 99 ? '99+' : pendingCount}
