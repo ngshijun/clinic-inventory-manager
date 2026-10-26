@@ -10,10 +10,13 @@
 	let { ...restProps }: SonnerProps = $props()
 </script>
 
+<!-- An open dialog or sheet sets pointer-events: none on the body and closes on a press outside it.
+     Toasts still take presses then (Reload, Undo, close), and a press on one leaves the dialog open. -->
 <Sonner
 	theme={mode.current}
 	class="toaster group"
-	style="--normal-bg: var(--color-popover); --normal-text: var(--color-popover-foreground); --normal-border: var(--color-border);"
+	style="pointer-events: auto; --normal-bg: var(--color-popover); --normal-text: var(--color-popover-foreground); --normal-border: var(--color-border);"
+	onpointerdown={(event) => event.stopPropagation()}
 	toastOptions={{
 		classes: {
 			toast: 'cn-toast',
