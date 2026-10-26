@@ -1,0 +1,114 @@
+diff --git a/node_modules/bits-ui/dist/bits/date-field/date-field.svelte.js b/node_modules/bits-ui/dist/bits/date-field/date-field.svelte.js
+index c80ebe7..6c1848b 100644
+--- a/node_modules/bits-ui/dist/bits/date-field/date-field.svelte.js
++++ b/node_modules/bits-ui/dist/bits/date-field/date-field.svelte.js
+@@ -15,16 +15,27 @@ export const dateFieldAttrs = createBitsAttrs({
+     component: "date-field",
+     parts: ["input", "label", "segment"],
+ });
++/**
++ * A day past the end of its month, such as 31/09, is not a date yet. It is
++ * held as typed rather than stored as the month's last day.
++ */
++function dayFitsMonth(segmentValues, dateRef) {
++    const { day, month, year } = segmentValues;
++    if (!day || !month || !year)
++        return true;
++    const firstOfMonth = dateRef.set({
++        year: Number.parseInt(year),
++        month: Number.parseInt(month),
++        day: 1,
++    });
++    return Number.parseInt(day) <= getDaysInMonth(toDate(firstOfMonth));
++}
+ const SEGMENT_CONFIGS = {
+     day: {
+         min: 1,
+-        max: (root) => {
+-            const segmentMonthValue = root.segmentValues.month;
+-            const placeholder = root.value.current ?? root.placeholder.current;
+-            return segmentMonthValue
+-                ? getDaysInMonth(placeholder.set({ month: Number.parseInt(segmentMonthValue) }))
+-                : getDaysInMonth(placeholder);
+-        },
++        // Any day of any month can be typed: in a day-first field the month is
++        // typed after the day, or is still the old one while the day is retyped.
++        max: 31,
+         cycle: 1,
+         padZero: true,
+     },
+@@ -443,14 +454,6 @@ export class DateFieldRootState {
+             if (part === "month") {
+                 const next = castCb(pVal);
+                 this.states.month.updating = next;
+-                if (next !== null && prev.day !== null) {
+-                    const date = dateRef.set({ month: Number.parseInt(next) });
+-                    const daysInMonth = getDaysInMonth(toDate(date));
+-                    const prevDay = Number.parseInt(prev.day);
+-                    if (prevDay > daysInMonth) {
+-                        prev.day = `${daysInMonth}`;
+-                    }
+-                }
+                 newSegmentValues = { ...prev, [part]: next };
+             }
+             else if (part === "dayPeriod") {
+@@ -514,11 +517,6 @@ export class DateFieldRootState {
+             const next = castCb(pVal);
+             if (part === "month" && next !== null && prev.day !== null) {
+                 this.states.month.updating = next;
+-                const date = dateRef.set({ month: Number.parseInt(next) });
+-                const daysInMonth = getDaysInMonth(toDate(date));
+-                if (Number.parseInt(prev.day) > daysInMonth) {
+-                    prev.day = `${daysInMonth}`;
+-                }
+                 newSegmentValues = { ...prev, [part]: next };
+             }
+             else if (part === "year") {
+@@ -536,7 +534,8 @@ export class DateFieldRootState {
+             }
+         }
+         this.segmentValues = newSegmentValues;
+-        if (areAllSegmentsFilled(newSegmentValues, this.#fieldNode)) {
++        if (areAllSegmentsFilled(newSegmentValues, this.#fieldNode) &&
++            dayFitsMonth(newSegmentValues, this.placeholder.current)) {
+             this.setValue(getValueFromSegments({
+                 segmentObj: newSegmentValues,
+                 fieldNode: this.#fieldNode,
+diff --git a/node_modules/bits-ui/dist/internal/date-time/field/helpers.js b/node_modules/bits-ui/dist/internal/date-time/field/helpers.js
+index b1f4c6d..4baac37 100644
+--- a/node_modules/bits-ui/dist/internal/date-time/field/helpers.js
++++ b/node_modules/bits-ui/dist/internal/date-time/field/helpers.js
+@@ -25,6 +25,15 @@ export function initializeSegmentValues(granularity) {
+     });
+     return Object.fromEntries(initialParts);
+ }
++/**
++ * The date a part is shown from. A typed day is shown as typed, even past the
++ * end of the month the field holds, so it is set on January, which has them all.
++ */
++function withPart(dateRef, part, value) {
++    return part === "day"
++        ? dateRef.set({ month: 1, day: Number.parseInt(value) })
++        : dateRef.set({ [part]: value });
++}
+ function createContentObj(props) {
+     const { segmentValues, formatter, locale, dateRef } = props;
+     const content = Object.keys(segmentValues).reduce((obj, part) => {
+@@ -53,7 +62,7 @@ function createContentObj(props) {
+                 return "0";
+             }
+             else if (!isNull(value) && !isNull(intValue)) {
+-                const formatted = formatter.part(dateRef.set({ [part]: value }), part, {
++                const formatted = formatter.part(withPart(dateRef, part, value), part, {
+                     hourCycle: props.hourCycle === 24 ? "h23" : undefined,
+                 });
+                 /**
+@@ -116,7 +125,7 @@ function createContentObj(props) {
+                     return "0";
+                 }
+                 else if (!isNull(value)) {
+-                    const formatted = formatter.part(dateRef.set({ [part]: value }), part);
++                    const formatted = formatter.part(withPart(dateRef, part, value), part);
+                     if (part === "year") {
+                         return `${value}`;
+                     }

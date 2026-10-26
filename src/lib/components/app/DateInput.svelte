@@ -63,9 +63,20 @@
 		!yearUnfinished && value !== '' && min !== undefined && min !== '' && value < min,
 	)
 
+	// A whole date past its month's end, such as 31/09/2027, which the field holds back
+	let pastMonthEnd = $state<{ month: number; year: number; days: number } | null>(null)
+
+	const typedPart = (part: 'day' | 'month' | 'year'): number | null => {
+		const text = root?.querySelector(`[data-segment="${part}"][data-filled]`)?.textContent
+		return text ? Number(text) : null
+	}
+
 	// Some parts typed but not all: the value is still empty, yet the field is not
 	const scan = (): void => {
 		halfTyped = value === '' && root?.querySelector('[data-filled]') != null
+		const [day, month, year] = [typedPart('day'), typedPart('month'), typedPart('year')]
+		const days = month && year && year >= 1900 ? new Date(year, month, 0).getDate() : 0
+		pastMonthEnd = halfTyped && day && month && year && day > days ? { month, year, days } : null
 	}
 
 	$effect(() => {
@@ -173,6 +184,11 @@
 	</DateField.Root>
 	{#if !disabled && tooEarly}
 		<p class="text-destructive text-sm" role="alert">Cannot be before {formatDate(min)}.</p>
+	{:else if !disabled && pastMonthEnd}
+		<p class="text-destructive text-sm" role="alert">
+			{MONTHS[pastMonthEnd.month - 1]}
+			{pastMonthEnd.year} has only {pastMonthEnd.days} days.
+		</p>
 	{:else if !disabled && (halfTyped || yearUnfinished)}
 		<p class="text-muted-foreground text-sm">Finish the date, or clear it.</p>
 	{/if}
