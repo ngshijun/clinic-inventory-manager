@@ -1,6 +1,6 @@
 {
-  "enabledPlugins": {
-    "svelte@svelte": true,
-    "convex@claude-plugins-official": true
-  }
+	"enabledPlugins": {
+		"svelte@svelte": true,
+		"convex@claude-plugins-official": true
+	}
 }

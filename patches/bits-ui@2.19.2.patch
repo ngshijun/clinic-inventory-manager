@@ -1,7 +1,7 @@
-diff --git a/node_modules/bits-ui/dist/bits/date-field/date-field.svelte.js b/node_modules/bits-ui/dist/bits/date-field/date-field.svelte.js
-index c80ebe7..6c1848b 100644
---- a/node_modules/bits-ui/dist/bits/date-field/date-field.svelte.js
-+++ b/node_modules/bits-ui/dist/bits/date-field/date-field.svelte.js
+diff --git a/dist/bits/date-field/date-field.svelte.js b/dist/bits/date-field/date-field.svelte.js
+index c80ebe7ed09e3774f33daf7ed56b3ddf0678dbc2..6c1848b3533fd413771b9ab7e81259e5bb20d551 100644
+--- a/dist/bits/date-field/date-field.svelte.js
++++ b/dist/bits/date-field/date-field.svelte.js
 @@ -15,16 +15,27 @@ export const dateFieldAttrs = createBitsAttrs({
      component: "date-field",
      parts: ["input", "label", "segment"],
@@ -74,10 +74,10 @@ index c80ebe7..6c1848b 100644
              this.setValue(getValueFromSegments({
                  segmentObj: newSegmentValues,
                  fieldNode: this.#fieldNode,
-diff --git a/node_modules/bits-ui/dist/internal/date-time/field/helpers.js b/node_modules/bits-ui/dist/internal/date-time/field/helpers.js
-index b1f4c6d..4baac37 100644
---- a/node_modules/bits-ui/dist/internal/date-time/field/helpers.js
-+++ b/node_modules/bits-ui/dist/internal/date-time/field/helpers.js
+diff --git a/dist/internal/date-time/field/helpers.js b/dist/internal/date-time/field/helpers.js
+index b1f4c6d48807a4ccffa8e1d1e326317d2231c7c9..4baac377bcf08536beca5683d785e196f2fe16c1 100644
+--- a/dist/internal/date-time/field/helpers.js
++++ b/dist/internal/date-time/field/helpers.js
 @@ -25,6 +25,15 @@ export function initializeSegmentValues(granularity) {
      });
      return Object.fromEntries(initialParts);

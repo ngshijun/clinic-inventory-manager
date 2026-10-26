@@ -2,5 +2,6 @@
 build
 .vercel
 node_modules
+convex/_generated
 .claude/worktrees
-package-lock.json
+pnpm-lock.yaml
