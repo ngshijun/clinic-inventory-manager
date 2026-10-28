@@ -27,7 +27,7 @@ import {
 	notify,
 	plural,
 	supplierLine,
-	weekdayDayMonth,
+	weekdayDate,
 	type Button,
 } from './lib/telegram'
 
@@ -183,11 +183,11 @@ export function morningSummary(queues: Queues): { text: string; buttons: Button[
 
 	if (woke.length > 0) {
 		also.push(`${ICON.snooze} ${plural(woke.length, 'snooze')} ended`)
-		buttons.push(button('snoozes', `${ICON.snooze} Snoozes Ended (${woke.length})`))
+		buttons.push(button('snoozes', `${ICON.snooze} Snoozes ended (${woke.length})`))
 	}
 
 	const next = Math.min(DETAIL_ROWS, inDemand.length - ORDER_FIRST)
-	if (next > 0) buttons.push(button('next', `${ICON.toOrder} Next ${next} to Order`))
+	if (next > 0) buttons.push(button('next', `${ICON.toOrder} Next ${next} to order`))
 
 	// A slow list, so it is told once a week, with how many joined it since the last time
 	if (isMonday(today) && notMoving.length > 0) {
@@ -198,7 +198,7 @@ export function morningSummary(queues: Queues): { text: string; buttons: Button[
 				...(joined > 0 ? [`${joined} new this week`] : []),
 			),
 		)
-		buttons.push(button('idle', `${ICON.notMoving} Not Moving (${notMoving.length})`))
+		buttons.push(button('idle', `${ICON.notMoving} Not moving (${notMoving.length})`))
 	}
 
 	const orderFirst = inDemand.slice(0, ORDER_FIRST).map(demandEntry)
@@ -208,7 +208,7 @@ export function morningSummary(queues: Queues): { text: string; buttons: Button[
 		blocks.push([...(orderFirst.length > 0 ? [bold('Also today')] : []), ...also].join('\n'))
 	}
 	if (blocks.length === 0) return null
-	const title = `${ICON.summary} ${bold(weekdayDayMonth(today))}`
+	const title = `${ICON.summary} ${bold(weekdayDate(today, today))}`
 	return {
 		text: [title, ...blocks].join('\n\n'),
 		// One to a row, so a label is never cut short on a phone
@@ -228,7 +228,7 @@ export function detailText(key: DetailKey, queues: Queues): string {
 			: listed(heading, [
 					...rows.slice(0, DETAIL_ROWS),
 					...(rows.length > DETAIL_ROWS
-						? [`And ${rows.length - DETAIL_ROWS} more on the Dashboard`]
+						? [`${rows.length - DETAIL_ROWS} more are on the Dashboard.`]
 						: []),
 				])
 
@@ -247,7 +247,7 @@ export function detailText(key: DetailKey, queues: Queues): string {
 						...supplierLine(item),
 					]),
 				),
-				'No delivery is late now',
+				'No delivery is late now.',
 			)
 		case 'expiring':
 			return list(
@@ -264,19 +264,19 @@ export function detailText(key: DetailKey, queues: Queues): string {
 						),
 					]),
 				),
-				'No batch is expiring now',
+				'No batch is expiring now.',
 			)
 		case 'snoozes':
 			return list(
 				`${ICON.snooze} ${bold('Snoozes ended today')} (${woke.length})`,
 				woke.map((item) => bullet(item.item_name, [left(item)])),
-				'No snooze ended today',
+				'No snooze ended today.',
 			)
 		case 'next':
 			return list(
 				`${ICON.toOrder} ${bold('Next to order')}`,
 				inDemand.slice(ORDER_FIRST).map(demandEntry),
-				'Nothing more to order is in use now',
+				'Nothing more to order is in use now.',
 			)
 		case 'idle':
 			return list(
@@ -289,7 +289,7 @@ export function detailText(key: DetailKey, queues: Queues): string {
 						),
 					]),
 				),
-				'Every item with stock has moved lately',
+				'Every item with stock has moved lately.',
 			)
 	}
 }
@@ -315,7 +315,8 @@ export const sendMorning = internalMutation({
 		if (!summary) return null
 		// A button is only worth showing where the webhook that answers it is set up; see telegram.ts
 		const answered = env.TELEGRAM_WEBHOOK_SECRET && summary.buttons.length > 0
-		await notify(ctx, summary.text, {
+		await notify(ctx, {
+			text: summary.text,
 			pin: true,
 			...(answered ? { buttons: summary.buttons } : {}),
 		})

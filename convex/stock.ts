@@ -8,6 +8,7 @@ import {
 	applyStockOut,
 	assertNonNegativeQuantity,
 	batchWithExpiry,
+	batchesOf,
 	insertMovement,
 	recomputeItemQuantity,
 	requireItem,
@@ -46,7 +47,7 @@ export const stockIn = mutation({
 			expiry_date: optionalText(args.expiry_date),
 			remark: args.remark ?? 'Stock in',
 		})
-		await notify(ctx, arrivedMessage(before, args.quantity))
+		await notify(ctx, arrivedMessage(before, args.quantity, optionalText(args.expiry_date)))
 		return item
 	},
 })
@@ -67,7 +68,7 @@ export const stockOut = mutation({
 			quantity: args.quantity,
 			remark: args.remark ?? 'Stock out',
 		})
-		await notify(ctx, stockDropMessage(before, item))
+		await notify(ctx, stockDropMessage(before, item, await batchesOf(ctx, item._id)))
 		return item
 	},
 })
@@ -115,7 +116,7 @@ export const updateBatch = mutation({
 			})
 		}
 		const adjusted = await recomputeItemQuantity(ctx, item._id)
-		await notify(ctx, stockDropMessage(item, adjusted))
+		await notify(ctx, stockDropMessage(item, adjusted, await batchesOf(ctx, item._id)))
 		return adjusted
 	},
 })

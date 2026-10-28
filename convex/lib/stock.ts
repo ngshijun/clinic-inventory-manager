@@ -50,16 +50,24 @@ export async function insertMovement(
 	return doc
 }
 
+/** Every batch of one item, those emptied included */
+export async function batchesOf(
+	ctx: MutationCtx,
+	item_id: Id<'inventory'>,
+): Promise<Doc<'stock_batches'>[]> {
+	// Bounded: one item has a handful of batches.
+	return await ctx.db
+		.query('stock_batches')
+		.withIndex('by_item', (q) => q.eq('item_id', item_id))
+		.collect()
+}
+
 /** Sets item.quantity = sum of its batches and returns the updated item. */
 export async function recomputeItemQuantity(
 	ctx: MutationCtx,
 	item_id: Id<'inventory'>,
 ): Promise<Doc<'inventory'>> {
-	// Bounded: one item has a handful of batches.
-	const batches = await ctx.db
-		.query('stock_batches')
-		.withIndex('by_item', (q) => q.eq('item_id', item_id))
-		.collect()
+	const batches = await batchesOf(ctx, item_id)
 	const quantity = batches.reduce((sum, b) => sum + Math.max(0, b.quantity), 0)
 	await ctx.db.patch(item_id, { quantity, updated_at: Date.now() })
 	return await requireItem(ctx, item_id)
@@ -76,11 +84,7 @@ export async function batchWithExpiry(
 	expiry_date: string | undefined,
 	except?: Id<'stock_batches'>,
 ): Promise<Doc<'stock_batches'> | undefined> {
-	// Bounded: one item has a handful of batches.
-	const batches = await ctx.db
-		.query('stock_batches')
-		.withIndex('by_item', (q) => q.eq('item_id', item_id))
-		.collect()
+	const batches = await batchesOf(ctx, item_id)
 	return batches.find((b) => b.quantity > 0 && b.expiry_date === expiry_date && b._id !== except)
 }
 

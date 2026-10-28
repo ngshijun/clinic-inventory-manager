@@ -6,7 +6,7 @@ import type { Doc, Id } from './_generated/dataModel'
 import { requireRole } from './lib/auth'
 import { capitalName } from './lib/names'
 import { toIsoDate } from './lib/orders'
-import { applyStockIn, assertNonNegativeQuantity, requireItem } from './lib/stock'
+import { applyStockIn, assertNonNegativeQuantity, batchesOf, requireItem } from './lib/stock'
 import { roundAmount, type Price } from './lib/price'
 import { notify, orderedMessage, snoozedMessage } from './lib/telegram'
 import type { UnitParts } from './lib/units'
@@ -303,7 +303,10 @@ export const snooze = mutation({
 			reason,
 		}
 		await ctx.db.patch(item._id, { order_status, updated_at: Date.now() })
-		await notify(ctx, snoozedMessage(item, { ...item, order_status }))
+		await notify(
+			ctx,
+			snoozedMessage(item, { ...item, order_status }, await batchesOf(ctx, item._id)),
+		)
 		return null
 	},
 })
