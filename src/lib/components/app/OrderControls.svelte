@@ -88,7 +88,7 @@
 					<AlarmClockIcon />
 					{isSnoozing(item, todayIsoDate()) ? 'Change Snooze…' : 'Snooze Until a Date…'}
 				</DropdownMenu.Item>
-				{#if item.order_status?.kind === 'snoozed'}
+				{#if isSnoozing(item, todayIsoDate())}
 					<DropdownMenu.Item
 						onclick={() =>
 							undoable(`${item.item_name} is back in To Order`, `Snoozed ${item.item_name} again`)}

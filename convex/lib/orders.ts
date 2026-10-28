@@ -23,6 +23,24 @@ export const EXPIRY_WARNING_DAYS = 30
 /** Days an item with stock goes untouched before the Dashboard lists it as not moving */
 export const NOT_MOVING_DAYS = 30
 
+/**
+ * Why an item is snoozed, in menu order; the stored value is the label. The
+ * first is the usual one, and the one a press in Telegram gives: stock moved
+ * to the counter leaves the warehouse low while the clinic still has enough.
+ */
+export const SNOOZE_REASONS = [
+	'Counter still has enough',
+	'Will order later',
+	'Supplier has no stock',
+] as const
+
+/** The snooze lengths offered in one press, on the website and under a Telegram stock alert */
+export const SNOOZE_LENGTHS = [
+	{ days: 7, label: '1 week' },
+	{ days: 14, label: '2 weeks' },
+	{ days: 30, label: '1 month' },
+] as const
+
 /** What Mark Ordered proposes: enough to reach twice the reorder level, at least one. */
 export function suggestedOrderQuantity(quantity: number, reorder_level: number): number {
 	return Math.max(1, reorder_level * 2 - quantity)
@@ -53,9 +71,9 @@ export const clinicToday = (now: number): string =>
 
 /*
  * The purchaser's queues. An item the clinic still orders, at or below its reorder level needs
- * stock; it needs a decision until it is ordered or snoozed. Snoozes end on
- * their own: once the date passes the item is back in To Order, still
- * carrying the snooze so the row can say it was snoozed.
+ * stock; it needs a decision until it is ordered or snoozed. A snooze ends
+ * on its date: from then it counts as gone, and the morning summary clears
+ * it from the item and tells the group of an item still low.
  */
 
 export const needsStock = (item: Item): boolean =>
@@ -65,9 +83,6 @@ export const isOnOrder = (item: Item): boolean => item.order_status?.kind === 'o
 
 export const isSnoozing = (item: Item, today: string): boolean =>
 	item.order_status?.kind === 'snoozed' && item.order_status.until > today
-
-export const wokeFromSnooze = (item: Item, today: string): boolean =>
-	item.order_status?.kind === 'snoozed' && item.order_status.until <= today
 
 export const needsDecision = (item: Item, today: string): boolean =>
 	needsStock(item) && !isOnOrder(item) && !isSnoozing(item, today)

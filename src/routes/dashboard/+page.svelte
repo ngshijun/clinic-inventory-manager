@@ -47,7 +47,6 @@
 		isSnoozing,
 		needsDecision,
 		needsStock,
-		wokeFromSnooze,
 	} from '$convex/lib/orders'
 
 	const QUEUE_PAGE = 8
@@ -294,18 +293,11 @@
 										{out ? 'Out of stock' : 'Low stock'}
 									</ToneBadge>
 									<!-- A snooze is the exception, so it follows the stock badge only where there is one -->
-									{#if item.order_status?.kind === 'snoozed'}
-										{#if wokeFromSnooze(item, today)}
-											<ToneBadge tone="warning" class="ms-1">
-												<AlarmClockIcon />
-												Snooze ended {formatDayMonth(item.order_status.until)}
-											</ToneBadge>
-										{:else}
-											<ToneBadge tone="neutral" class="ms-1">
-												<AlarmClockIcon />
-												Snoozed until {formatDayMonth(item.order_status.until)}
-											</ToneBadge>
-										{/if}
+									{#if snoozing && item.order_status?.kind === 'snoozed'}
+										<ToneBadge tone="neutral" class="ms-1">
+											<AlarmClockIcon />
+											Snoozed until {formatDayMonth(item.order_status.until)}
+										</ToneBadge>
 										<span class="text-muted-foreground ms-1 text-xs"
 											>{item.order_status.reason}</span
 										>

@@ -8,7 +8,7 @@
 	import type { InventoryItem } from '$lib/types/inventory'
 	import { todayIsoDate } from '$lib/types/stockBatches'
 	import { formatDayMonth } from '$lib/utils/date'
-	import { isLate, wokeFromSnooze } from '$convex/lib/orders'
+	import { isLate, isSnoozing } from '$convex/lib/orders'
 
 	/**
 	 * An item's order status as one badge for the ledger tables (Inventory,
@@ -16,7 +16,12 @@
 	 * dash when nothing has been decided. The Dashboard lays the same facts out in columns.
 	 */
 	let { item }: { item: InventoryItem } = $props()
-	const status = $derived(item.order_status)
+	// A snooze whose day has come is gone, even before the morning summary clears it
+	const status = $derived(
+		item.order_status?.kind === 'snoozed' && !isSnoozing(item, todayIsoDate())
+			? undefined
+			: item.order_status,
+	)
 </script>
 
 {#if !status}
@@ -43,11 +48,6 @@
 			Back-ordered {formatDayMonth(status.ordered_on)}
 		</ToneBadge>
 	{/if}
-{:else if wokeFromSnooze(item, todayIsoDate())}
-	<ToneBadge tone="warning">
-		<AlarmClockIcon />
-		Snooze ended {formatDayMonth(status.until)}
-	</ToneBadge>
 {:else}
 	<ToneBadge tone="neutral">
 		<AlarmClockIcon />

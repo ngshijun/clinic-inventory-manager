@@ -1,7 +1,13 @@
 import { v, type Infer } from 'convex/values'
-import { env, internalMutation, internalQuery, type QueryCtx } from './_generated/server'
+import {
+	internalMutation,
+	internalQuery,
+	type MutationCtx,
+	type QueryCtx,
+} from './_generated/server'
 import type { Doc, Id } from './_generated/dataModel'
 import { demandOf, demandSince, type Demand } from './lib/demand'
+import { batchesOf } from './lib/stock'
 import {
 	BACK_ORDER_LATE_DAYS,
 	EXPIRY_WARNING_DAYS,
@@ -13,12 +19,12 @@ import {
 	isLate,
 	isNotMoving,
 	needsDecision,
-	needsStock,
 	toIsoDate,
 } from './lib/orders'
 import {
 	ICON,
 	bold,
+	buttonsAnswered,
 	dayMonth,
 	entry,
 	facts,
@@ -26,9 +32,11 @@ import {
 	listed,
 	notify,
 	plural,
+	snoozeEndedMessage,
 	supplierLine,
 	weekdayDate,
 	type Button,
+	type Notice,
 } from './lib/telegram'
 
 type Item = Doc<'inventory'>
@@ -46,7 +54,6 @@ const isMonday = (date: string): boolean => new Date(`${date}T00:00:00Z`).getUTC
 export const detailKey = v.union(
 	v.literal('late'),
 	v.literal('expiring'),
-	v.literal('snoozes'),
 	v.literal('next'),
 	v.literal('idle'),
 )
@@ -66,8 +73,6 @@ export interface Queues {
 	late: { item: Item; status: OrderedStatus }[]
 	/** The soonest first, so the batches already expired lead */
 	expiring: { item: Item; quantity: number; expiry: string }[]
-	/** Snoozes that end today on an item still low */
-	woke: Item[]
 	/** The latest to stop moving first */
 	notMoving: Item[]
 }
@@ -123,20 +128,11 @@ export function queuesAt(
 		})
 		.sort((a, b) => a.expiry.localeCompare(b.expiry) || byName(a.item, b.item))
 
-	const woke = items
-		.filter(
-			(item) =>
-				needsStock(item) &&
-				item.order_status?.kind === 'snoozed' &&
-				item.order_status.until === today,
-		)
-		.sort(byName)
-
 	const notMoving = items
 		.filter((item) => isNotMoving(item, now))
 		.sort((a, b) => b.updated_at - a.updated_at || byName(a, b))
 
-	return { now, today, toOrder, inDemand, late, expiring, woke, notMoving }
+	return { now, today, toOrder, inDemand, late, expiring, notMoving }
 }
 
 /** One item of a list, led by a bullet where no icon says its state */
@@ -161,7 +157,7 @@ const button = (key: DetailKey, text: string): Button => ({ text, callback_data:
  * Each of those lines has a button that asks for its list; see `detailText`.
  */
 export function morningSummary(queues: Queues): { text: string; buttons: Button[][] } | null {
-	const { now, today, inDemand, late, expiring, woke, notMoving } = queues
+	const { now, today, inDemand, late, expiring, notMoving } = queues
 	const also: string[] = []
 	const buttons: Button[] = []
 
@@ -179,11 +175,6 @@ export function morningSummary(queues: Queues): { text: string; buttons: Button[
 			),
 		)
 		buttons.push(button('expiring', `${ICON.expiring} Expiring (${expiring.length})`))
-	}
-
-	if (woke.length > 0) {
-		also.push(`${ICON.snooze} ${plural(woke.length, 'snooze')} ended`)
-		buttons.push(button('snoozes', `${ICON.snooze} Snoozes ended (${woke.length})`))
 	}
 
 	const next = Math.min(DETAIL_ROWS, inDemand.length - ORDER_FIRST)
@@ -221,7 +212,7 @@ export function morningSummary(queues: Queues): { text: string; buttons: Button[
  * for, which may be hours after the summary was posted.
  */
 export function detailText(key: DetailKey, queues: Queues): string {
-	const { now, today, inDemand, late, expiring, woke, notMoving } = queues
+	const { now, today, inDemand, late, expiring, notMoving } = queues
 	const list = (heading: string, rows: string[], none: string): string =>
 		rows.length === 0
 			? none
@@ -266,12 +257,6 @@ export function detailText(key: DetailKey, queues: Queues): string {
 				),
 				'No batch is expiring now.',
 			)
-		case 'snoozes':
-			return list(
-				`${ICON.snooze} ${bold('Snoozes ended today')} (${woke.length})`,
-				woke.map((item) => bullet(item.item_name, [left(item)])),
-				'No snooze ended today.',
-			)
 		case 'next':
 			return list(
 				`${ICON.toOrder} ${bold('Next to order')}`,
@@ -306,20 +291,41 @@ async function queuesNow(ctx: QueryCtx, now: number): Promise<Queues> {
 	return queuesAt(items, batches, movements, now)
 }
 
-/** Run by the cron in crons.ts. */
+/**
+ * Clears every snooze whose date has come, a day the cron missed included,
+ * and returns the alert for each item still low. The item is not marked
+ * updated: nobody touched it, and Not Moving counts from the last touch.
+ */
+async function clearEndedSnoozes(ctx: MutationCtx, today: string): Promise<Notice[]> {
+	const alerts: Notice[] = []
+	// Bounded by product count, as inventory.list is
+	for (const item of (await ctx.db.query('inventory').collect()).sort(byName)) {
+		const snooze = item.order_status
+		if (snooze?.kind !== 'snoozed' || snooze.until > today) continue
+		await ctx.db.patch(item._id, { order_status: undefined })
+		const alert = snoozeEndedMessage(item, snooze, await batchesOf(ctx, item._id))
+		if (alert) alerts.push(alert)
+	}
+	return alerts
+}
+
+/** Run by the cron in crons.ts: the summary, then an alert for each snooze that ended. */
 export const sendMorning = internalMutation({
 	args: {},
 	returns: v.null(),
 	handler: async (ctx) => {
-		const summary = morningSummary(await queuesNow(ctx, Date.now()))
-		if (!summary) return null
-		// A button is only worth showing where the webhook that answers it is set up; see telegram.ts
-		const answered = env.TELEGRAM_WEBHOOK_SECRET && summary.buttons.length > 0
-		await notify(ctx, {
-			text: summary.text,
-			pin: true,
-			...(answered ? { buttons: summary.buttons } : {}),
-		})
+		const now = Date.now()
+		const alerts = await clearEndedSnoozes(ctx, clinicToday(now))
+		const summary = morningSummary(await queuesNow(ctx, now))
+		await notify(
+			ctx,
+			summary && {
+				text: summary.text,
+				pin: true,
+				...(buttonsAnswered() && summary.buttons.length > 0 ? { buttons: summary.buttons } : {}),
+			},
+			...alerts,
+		)
 		return null
 	},
 })

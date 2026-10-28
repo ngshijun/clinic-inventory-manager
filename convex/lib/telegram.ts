@@ -14,11 +14,12 @@
  */
 import { internal } from '../_generated/api'
 import type { Doc } from '../_generated/dataModel'
-import type { MutationCtx } from '../_generated/server'
-import { clinicToday, daysBetween, toIsoDate } from './orders'
+import { env, type MutationCtx } from '../_generated/server'
+import { clinicToday, daysBetween, needsStock, SNOOZE_LENGTHS, toIsoDate } from './orders'
 
 type Item = Doc<'inventory'>
 type Batch = Doc<'stock_batches'>
+type SnoozedStatus = Extract<NonNullable<Item['order_status']>, { kind: 'snoozed' }>
 
 const MONTHS = [
 	'January',
@@ -71,13 +72,18 @@ export interface Notice {
 	silent?: boolean
 }
 
+/** A button is only worth showing where the webhook that answers it is set up; see telegram.ts */
+export const buttonsAnswered = (): boolean => Boolean(env.TELEGRAM_WEBHOOK_SECRET)
+
 /**
  * Posts to the group once the mutation has committed, so a mutation that
- * fails says nothing. A null notice is an event not worth telling.
+ * fails says nothing. Several notices are posted in the order given. A null
+ * notice is an event not worth telling.
  */
-export async function notify(ctx: MutationCtx, notice: Notice | null): Promise<void> {
-	if (notice === null) return
-	await ctx.scheduler.runAfter(0, internal.telegram.send, notice)
+export async function notify(ctx: MutationCtx, ...notices: (Notice | null)[]): Promise<void> {
+	const told = notices.filter((notice) => notice !== null)
+	if (told.length === 0) return
+	await ctx.scheduler.runAfter(0, internal.telegram.send, { notices: told })
 }
 
 export const plain = (text: string): string =>
@@ -184,6 +190,46 @@ function leftSentence(item: Item, batches: Batch[], today: string, until?: strin
 }
 
 /**
+ * Only the warehouse is counted, so stock moved to the counter can leave an
+ * item low or out while the clinic still has plenty. A stock alert ends with
+ * a row of buttons that snooze the item for as long as the counter lasts;
+ * each tells the webhook the item and the days: "counter:<id>:14".
+ */
+const COUNTER_PRESS = /^counter:([^:]+):(\d+)$/
+
+const counterButtons = (item: Item): Button[][] => [
+	SNOOZE_LENGTHS.map(({ days, label }) => ({
+		text: label,
+		callback_data: `counter:${item._id}:${days}`,
+	})),
+]
+
+/** The item and days a press of one of `counterButtons` carries, or null for any other button */
+export function counterPress(data: string | undefined): { id: string; days: number } | null {
+	const match = data ? COUNTER_PRESS.exec(data) : null
+	if (!match) return null
+	const days = Number(match[2])
+	return SNOOZE_LENGTHS.some((length) => length.days === days) ? { id: match[1], days } : null
+}
+
+/** A stock alert, ending in the question its buttons answer */
+function stockAlert(
+	icon: string,
+	item: Item,
+	headline: string,
+	details: string[],
+	silent = false,
+): Notice {
+	const alert = message(icon, headline, details, silent)
+	if (!buttonsAnswered()) return alert
+	return {
+		...alert,
+		text: `${alert.text}\n\nCounter has enough for:`,
+		buttons: counterButtons(item),
+	}
+}
+
+/**
  * A fall in stock worth telling: the item ran out, or dropped to its reorder
  * level. One the purchaser has already ordered or put aside needs nothing
  * done, so nothing is said. `batches` are the item's after the fall.
@@ -196,10 +242,10 @@ export function stockDropMessage(before: Item, after: Item, batches: Batch[]): N
 	if (status?.kind === 'snoozed' && status.until > today) return null
 
 	if (after.quantity === 0) {
-		return message(ICON.out, `${name(after)} is out of stock.`, suppliedBy(after))
+		return stockAlert(ICON.out, after, `${name(after)} is out of stock.`, suppliedBy(after))
 	}
 	if (after.quantity <= after.reorder_level && before.quantity > before.reorder_level) {
-		return message(ICON.low, `${name(after)} is running low.`, [
+		return stockAlert(ICON.low, after, `${name(after)} is running low.`, [
 			leftSentence(after, batches, today),
 			...suppliedBy(after),
 		])
@@ -286,3 +332,61 @@ export function snoozedMessage(before: Item, after: Item, batches: Batch[]): Not
 		previous?.kind === 'snoozed',
 	)
 }
+
+/**
+ * A snooze the morning summary cleared from an item still low, told again
+ * with the buttons of a stock alert: the counter may still have enough. It
+ * follows the summary, which has already rung everyone's phone, so it is
+ * posted silently. `batches` are the item's.
+ */
+export function snoozeEndedMessage(
+	item: Item,
+	snooze: SnoozedStatus,
+	batches: Batch[],
+): Notice | null {
+	if (!needsStock(item)) return null
+	const today = clinicToday(Date.now())
+	const ended =
+		snooze.until === today
+			? 'Its snooze ended today.'
+			: `Its snooze ended on ${weekdayDate(snooze.until, today)}.`
+	const reason = `Reason: ${plain(snooze.reason)}`
+	return item.quantity === 0
+		? stockAlert(
+				ICON.out,
+				item,
+				`${name(item)} is still out of stock. ${ended}`,
+				[reason, ...suppliedBy(item)],
+				true,
+			)
+		: stockAlert(
+				ICON.low,
+				item,
+				`${name(item)} is still running low. ${ended}`,
+				[reason, leftSentence(item, batches, today), ...suppliedBy(item)],
+				true,
+			)
+}
+
+/** The reply to a press of "Counter has enough for" on an item deleted since the alert */
+export const COUNTER_ITEM_GONE = 'This item has been deleted, so nothing was changed.'
+
+/**
+ * Why a press of "Counter has enough for" changes nothing: the item was
+ * ordered or snoozed since the alert. Null when the press snoozes it.
+ */
+export function counterUnchanged(item: Item, today: string): string | null {
+	const status = item.order_status
+	if (status?.kind === 'ordered') return 'Already ordered, so nothing was changed.'
+	if (status?.kind === 'snoozed' && status.until > today) {
+		return `Already snoozed until ${weekdayDate(status.until, today)}, so nothing was changed.`
+	}
+	return null
+}
+
+/**
+ * The quiet reply to a press of "Counter has enough for", in place of
+ * `snoozedMessage`. It names who pressed, since anyone in the group can.
+ */
+export const counterSnoozed = (by: string, until: string, today: string): string =>
+	`${ICON.snooze} ${plain(by)} snoozed this until ${weekdayDate(until, today)}: counter still has enough.`

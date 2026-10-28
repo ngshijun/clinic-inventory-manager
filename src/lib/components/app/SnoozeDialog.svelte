@@ -6,12 +6,11 @@
 	import * as Select from '$lib/components/ui/select'
 	import * as ToggleGroup from '$lib/components/ui/toggle-group'
 	import DateInput from '$lib/components/app/DateInput.svelte'
-	import { SNOOZE_CHIPS, SNOOZE_REASONS } from '$lib/constants/snoozeReasons'
 	import { inventoryStore } from '$lib/stores/inventory.svelte'
 	import type { InventoryItem } from '$lib/types/inventory'
 	import { todayIsoDate } from '$lib/types/stockBatches'
 	import { formatDate } from '$lib/utils/date'
-	import { addDays } from '$convex/lib/orders'
+	import { addDays, isSnoozing, SNOOZE_LENGTHS, SNOOZE_REASONS } from '$convex/lib/orders'
 
 	/**
 	 * Puts an item aside until a date. The chips set the date in one click;
@@ -28,18 +27,18 @@
 
 	const today = $derived(todayIsoDate())
 	const chip = $derived(
-		String(SNOOZE_CHIPS.find((option) => addDays(today, option.days) === until)?.days ?? ''),
+		String(SNOOZE_LENGTHS.find((option) => addDays(today, option.days) === until)?.days ?? ''),
 	)
 	const dirty = $derived(until !== openedWith.until || reason !== openedWith.reason)
 	const isValid = $derived(until > today && reason.length > 0)
 
 	export function open(target: InventoryItem): void {
 		item = target
-		const current = target.order_status?.kind === 'snoozed' ? target.order_status : null
-		until =
-			current && current.until > todayIsoDate()
-				? current.until
-				: addDays(todayIsoDate(), DEFAULT_DAYS)
+		const current =
+			target.order_status?.kind === 'snoozed' && isSnoozing(target, todayIsoDate())
+				? target.order_status
+				: null
+		until = current?.until ?? addDays(todayIsoDate(), DEFAULT_DAYS)
 		reason = current?.reason ?? SNOOZE_REASONS[0]
 		openedWith = { until, reason }
 		isOpen = true
@@ -102,8 +101,8 @@
 					}
 					aria-label="How long to snooze"
 				>
-					{#each SNOOZE_CHIPS as option (option.days)}
-						<ToggleGroup.Item value={String(option.days)}>{option.label}</ToggleGroup.Item>
+					{#each SNOOZE_LENGTHS as option (option.days)}
+						<ToggleGroup.Item value={String(option.days)}>In {option.label}</ToggleGroup.Item>
 					{/each}
 				</ToggleGroup.Root>
 				<DateInput

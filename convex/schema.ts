@@ -19,7 +19,8 @@ export const role = v.union(v.literal('manager'), v.literal('requester'))
  * decided: a low item then sits in the Dashboard's To Order list. An ordered
  * item waits for delivery (a missing expected date is a back-order) until
  * stock in has received the whole quantity; a snoozed item stays out of To
- * Order until its date, or until stock comes in.
+ * Order until its date, when the morning summary clears it, or until stock
+ * comes in.
  */
 export const orderStatus = v.union(
 	v.object({

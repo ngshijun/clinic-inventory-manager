@@ -1,14 +1,21 @@
 import { ConvexError, v, type Infer } from 'convex/values'
-import { mutation, query } from './_generated/server'
+import { internalMutation, mutation, query } from './_generated/server'
 import { internal } from './_generated/api'
 import type { MutationCtx } from './_generated/server'
 import type { Doc, Id } from './_generated/dataModel'
 import { requireRole } from './lib/auth'
 import { capitalName } from './lib/names'
-import { toIsoDate } from './lib/orders'
+import { addDays, clinicToday, SNOOZE_REASONS, toIsoDate } from './lib/orders'
 import { applyStockIn, assertNonNegativeQuantity, batchesOf, requireItem } from './lib/stock'
 import { roundAmount, type Price } from './lib/price'
-import { notify, orderedMessage, snoozedMessage } from './lib/telegram'
+import {
+	COUNTER_ITEM_GONE,
+	counterSnoozed,
+	counterUnchanged,
+	notify,
+	orderedMessage,
+	snoozedMessage,
+} from './lib/telegram'
 import type { UnitParts } from './lib/units'
 import { inventoryDoc, orderStatus, price, unitParts } from './schema'
 import { supplierResolver } from './suppliers'
@@ -308,6 +315,32 @@ export const snooze = mutation({
 			snoozedMessage(item, { ...item, order_status }, await batchesOf(ctx, item._id)),
 		)
 		return null
+	},
+})
+
+/**
+ * A press of "Counter has enough for" under a stock alert in Telegram: the
+ * counter still holds what the warehouse count no longer shows. Returns the
+ * reply for the group, which is all it is told; an item ordered or snoozed
+ * since the alert is left as it is. `id` is as the button carried it.
+ */
+export const snoozeForCounter = internalMutation({
+	args: { id: v.string(), days: v.number(), by: v.string() },
+	returns: v.string(),
+	handler: async (ctx, args) => {
+		const today = clinicToday(Date.now())
+		const id = ctx.db.normalizeId('inventory', args.id)
+		const item = id ? await ctx.db.get(id) : null
+		if (!item) return COUNTER_ITEM_GONE
+		const unchanged = counterUnchanged(item, today)
+		if (unchanged !== null) return unchanged
+
+		const until = addDays(today, args.days)
+		await ctx.db.patch(item._id, {
+			order_status: { kind: 'snoozed', until, reason: SNOOZE_REASONS[0] },
+			updated_at: Date.now(),
+		})
+		return counterSnoozed(args.by, until, today)
 	},
 })
 
