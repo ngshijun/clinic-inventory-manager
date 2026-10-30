@@ -114,6 +114,45 @@ export const stockRequestFields = {
 	...commonFields,
 }
 
+/** The other clinics medicine is borrowed from or lent to. */
+export const clinicFields = {
+	name: v.string(),
+	...commonFields,
+}
+
+/** Which way the medicine went: borrowed is what the clinic owes, lent is what it is owed. */
+export const loanDirection = v.union(v.literal('borrowed'), v.literal('lent'))
+
+export const loanReturn = v.object({
+	quantity: v.number(),
+	returned_on: v.string(),
+})
+
+/**
+ * Medicine borrowed from or lent to another clinic. A record only: it never
+ * moves stock. The unit is copied from the item when the entry is made, so
+ * the quantity keeps its meaning if the item's unit changes. An entry is
+ * settled once its returns reach the quantity, or when it is settled another
+ * way, such as paid for, with a note saying how.
+ */
+export const loanFields = {
+	direction: loanDirection,
+	/** A name from the clinics table, kept as text like the supplier */
+	clinic: v.string(),
+	// May dangle after the item is deleted: the entry still reads from its own name and unit.
+	item_id: v.id('inventory'),
+	item_name: v.string(),
+	...unitParts,
+	quantity: v.number(),
+	loaned_on: v.string(),
+	returns: v.array(loanReturn),
+	settled_on: v.optional(v.string()),
+	/** How it was settled when it was not given back */
+	settled_note: v.optional(v.string()),
+	remark: v.string(),
+	...commonFields,
+}
+
 export const payrollFields = {
 	name: v.string(),
 	basic_salary: v.number(),
@@ -171,6 +210,8 @@ export const stockRequestDoc = v.object({
 	...systemFields('stock_requests'),
 	...stockRequestFields,
 })
+export const clinicDoc = v.object({ ...systemFields('clinics'), ...clinicFields })
+export const loanDoc = v.object({ ...systemFields('loans'), ...loanFields })
 export const payrollDoc = v.object({
 	...systemFields('payroll'),
 	...payrollFields,
@@ -204,6 +245,9 @@ export default defineSchema({
 	stock_requests: defineTable(stockRequestFields)
 		.index('by_status', ['status'])
 		.index('by_item', ['item_id']),
+
+	clinics: defineTable(clinicFields).index('by_name', ['name']),
+	loans: defineTable(loanFields).index('by_item', ['item_id']).index('by_clinic', ['clinic']),
 
 	payroll: defineTable(payrollFields).index('by_name', ['name']),
 

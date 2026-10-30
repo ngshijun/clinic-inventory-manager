@@ -7,6 +7,7 @@
 	import TagIcon from '@lucide/svelte/icons/tag'
 	import ArrowLeftRightIcon from '@lucide/svelte/icons/arrow-left-right'
 	import ClipboardCheckIcon from '@lucide/svelte/icons/clipboard-check'
+	import HandshakeIcon from '@lucide/svelte/icons/handshake'
 	import WalletIcon from '@lucide/svelte/icons/wallet'
 	import HistoryIcon from '@lucide/svelte/icons/history'
 	import ChevronsUpDownIcon from '@lucide/svelte/icons/chevrons-up-down'
@@ -39,6 +40,7 @@
 						items: [
 							{ title: 'Inventory', href: '/inventory', icon: PackageIcon },
 							{ title: 'Price List', href: '/price-list', icon: TagIcon },
+							{ title: 'Borrow & Lend', href: '/borrow-lend', icon: HandshakeIcon },
 							{ title: 'Stock Movements', href: '/stock-movements', icon: ArrowLeftRightIcon },
 							{ title: 'Stock Approvals', href: '/stock-approvals', icon: ClipboardCheckIcon },
 						],

@@ -227,6 +227,12 @@ export const update = mutation({
 			for (const request of requests) {
 				await ctx.db.patch(request._id, { item_name: patch.item_name })
 			}
+			// Borrowed and lent entries too. Bounded: a few per item.
+			const loans = await ctx.db
+				.query('loans')
+				.withIndex('by_item', (q) => q.eq('item_id', item._id))
+				.collect()
+			for (const loan of loans) await ctx.db.patch(loan._id, { item_name: patch.item_name })
 		}
 		return null
 	},
