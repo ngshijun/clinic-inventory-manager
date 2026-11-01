@@ -1,4 +1,4 @@
-import { convex } from '$lib/convex'
+import { convex } from '#lib/convex.js'
 
 /*
  * Whether the Convex WebSocket is up. The client reconnects and replays its

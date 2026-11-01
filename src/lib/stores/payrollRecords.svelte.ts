@@ -1,9 +1,9 @@
 // stores/payrollRecords.svelte.ts
-import { api } from '$convex/_generated/api'
-import type { Doc, Id } from '$convex/_generated/dataModel'
-import { convex } from '$lib/convex'
-import type { PayrollData } from '$lib/types/payroll'
-import { errorMessage, withLegacy, type WithLegacy } from '$lib/types/legacy'
+import { api } from '#convex/_generated/api.js'
+import type { Doc, Id } from '#convex/_generated/dataModel.js'
+import { convex } from '#lib/convex.js'
+import type { PayrollData } from '#lib/types/payroll.js'
+import { errorMessage, withLegacy, type WithLegacy } from '#lib/types/legacy.js'
 import { authStore } from './auth.svelte'
 
 type PayrollRun = WithLegacy<Doc<'payroll_runs'>>

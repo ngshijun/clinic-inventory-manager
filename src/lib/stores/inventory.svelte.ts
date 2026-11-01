@@ -1,17 +1,17 @@
 // stores/inventory.svelte.ts
-import { api } from '$convex/_generated/api'
-import type { Doc } from '$convex/_generated/dataModel'
-import type { Price } from '$convex/lib/price'
-import { unitLabel } from '$convex/lib/units'
-import { convex } from '$lib/convex'
+import { api } from '#convex/_generated/api.js'
+import type { Doc } from '#convex/_generated/dataModel.js'
+import type { Price } from '#convex/lib/price.js'
+import { unitLabel } from '#convex/lib/units.js'
+import { convex } from '#lib/convex.js'
 import type {
 	InventoryId,
 	InventoryItem,
 	InventoryItemUpdate,
 	NewInventoryItem,
 	OrderStatus,
-} from '$lib/types/inventory'
-import { errorMessage, withLegacy } from '$lib/types/legacy'
+} from '#lib/types/inventory.js'
+import { errorMessage, withLegacy } from '#lib/types/legacy.js'
 import { authStore } from './auth.svelte'
 
 const toItem = (doc: Doc<'inventory'>): InventoryItem => ({

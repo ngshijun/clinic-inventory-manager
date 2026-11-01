@@ -4,11 +4,11 @@
 	import ClockIcon from '@lucide/svelte/icons/clock'
 	import PackageIcon from '@lucide/svelte/icons/package'
 	import TriangleAlertIcon from '@lucide/svelte/icons/triangle-alert'
-	import ToneBadge from '$lib/components/app/ToneBadge.svelte'
-	import type { InventoryItem } from '$lib/types/inventory'
-	import { todayIsoDate } from '$lib/types/stockBatches'
-	import { formatDayMonth } from '$lib/utils/date'
-	import { isLate, isSnoozing } from '$convex/lib/orders'
+	import ToneBadge from '#lib/components/app/ToneBadge.svelte'
+	import type { InventoryItem } from '#lib/types/inventory.js'
+	import { todayIsoDate } from '#lib/types/stockBatches.js'
+	import { formatDayMonth } from '#lib/utils/date.js'
+	import { isLate, isSnoozing } from '#convex/lib/orders.js'
 
 	/**
 	 * An item's order status as one badge for the ledger tables (Inventory,

@@ -1,7 +1,7 @@
-import { api } from '$convex/_generated/api'
-import { convex } from '$lib/convex'
-import { errorMessage, withLegacy } from '$lib/types/legacy'
-import type { Unit, UnitId } from '$lib/types/units'
+import { api } from '#convex/_generated/api.js'
+import { convex } from '#lib/convex.js'
+import { errorMessage, withLegacy } from '#lib/types/legacy.js'
+import type { Unit, UnitId } from '#lib/types/units.js'
 import { authStore } from './auth.svelte'
 
 /** The preset units, in name order, as a live subscription. Managers only. */

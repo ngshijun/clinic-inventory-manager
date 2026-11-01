@@ -1,4 +1,4 @@
-import type { User } from '$lib/types/auth'
+import type { User } from '#lib/types/auth.js'
 
 type Role = User['role']
 

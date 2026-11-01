@@ -1,10 +1,15 @@
 <script lang="ts">
 	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down'
-	import * as Command from '$lib/components/ui/command'
-	import * as Popover from '$lib/components/ui/popover'
-	import type { InventoryItem } from '$lib/types/inventory'
-	import { cn } from '$lib/utils'
-	import { ALL_SUPPLIERS, NO_SUPPLIER, activeSupplier, supplierCounts } from '$lib/utils/supplier'
+	import * as Command from '#lib/components/ui/command/index.js'
+	import * as Popover from '#lib/components/ui/popover/index.js'
+	import type { InventoryItem } from '#lib/types/inventory.js'
+	import { cn } from '#lib/utils.js'
+	import {
+		ALL_SUPPLIERS,
+		NO_SUPPLIER,
+		activeSupplier,
+		supplierCounts,
+	} from '#lib/utils/supplier.js'
 
 	/*
 	 * One dropdown that narrows a list to a single supplier, so the purchaser

@@ -1,9 +1,9 @@
 // stores/payroll.svelte.ts
-import { api } from '$convex/_generated/api'
-import type { Doc, Id } from '$convex/_generated/dataModel'
-import { convex } from '$lib/convex'
-import type { PayrollData } from '$lib/types/payroll'
-import { errorMessage, withLegacy, type WithLegacy } from '$lib/types/legacy'
+import { api } from '#convex/_generated/api.js'
+import type { Doc, Id } from '#convex/_generated/dataModel.js'
+import { convex } from '#lib/convex.js'
+import type { PayrollData } from '#lib/types/payroll.js'
+import { errorMessage, withLegacy, type WithLegacy } from '#lib/types/legacy.js'
 import { authStore } from './auth.svelte'
 
 type Employee = WithLegacy<Doc<'payroll'> & { in_history: boolean }>
@@ -380,5 +380,5 @@ class PayrollStore {
 export const payrollStore = new PayrollStore()
 
 // Re-export types for convenience
-export type { PayrollData } from '$lib/types/payroll'
+export type { PayrollData } from '#lib/types/payroll.js'
 export type { Employee, EmployeeInsert, EmployeeUpdate }

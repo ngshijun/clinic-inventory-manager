@@ -4,11 +4,11 @@
 	import { DateField } from 'bits-ui'
 	import { tick, untrack } from 'svelte'
 	import type { HTMLAttributes } from 'svelte/elements'
-	import { Button } from '$lib/components/ui/button'
-	import { Calendar } from '$lib/components/ui/calendar'
-	import * as Popover from '$lib/components/ui/popover'
-	import { cn } from '$lib/utils'
-	import { MONTHS, formatDate } from '$lib/utils/date'
+	import { Button } from '#lib/components/ui/button/index.js'
+	import { Calendar } from '#lib/components/ui/calendar/index.js'
+	import * as Popover from '#lib/components/ui/popover/index.js'
+	import { cn } from '#lib/utils.js'
+	import { MONTHS, formatDate } from '#lib/utils/date.js'
 
 	/**
 	 * The one date entry field: day, month, year, in that order on every

@@ -1,5 +1,5 @@
-import { daysUntilExpiry, getExpiryStatus } from '$lib/types/stockBatches'
-import { formatDuration } from '$lib/utils/date'
+import { daysUntilExpiry, getExpiryStatus } from '#lib/types/stockBatches.js'
+import { formatDuration } from '#lib/utils/date.js'
 
 export interface ExpiryBadge {
 	tone: 'danger' | 'warning'

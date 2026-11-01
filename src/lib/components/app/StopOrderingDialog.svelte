@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { toast } from 'svelte-sonner'
-	import ActionModal from '$lib/components/app/ActionModal.svelte'
-	import DialogSubject from '$lib/components/app/DialogSubject.svelte'
-	import { inventoryStore } from '$lib/stores/inventory.svelte'
-	import type { InventoryItem } from '$lib/types/inventory'
+	import ActionModal from '#lib/components/app/ActionModal.svelte'
+	import DialogSubject from '#lib/components/app/DialogSubject.svelte'
+	import { inventoryStore } from '#lib/stores/inventory.svelte.js'
+	import type { InventoryItem } from '#lib/types/inventory.js'
 
 	/**
 	 * Takes an item off the purchaser's lists for good: it is marked not ordering,

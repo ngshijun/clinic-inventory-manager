@@ -1,6 +1,6 @@
 <script lang="ts">
-	import type { Price } from '$convex/lib/price'
-	import { formatRM } from '$lib/utils/money'
+	import type { Price } from '#convex/lib/price.js'
+	import { formatRM } from '#lib/utils/money.js'
 
 	/*
 	 * A price as the purchaser typed it, "RM 12.00 / BTL": the amount in the

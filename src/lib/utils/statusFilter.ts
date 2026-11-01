@@ -1,4 +1,4 @@
-import type { InventoryItem } from '$lib/types/inventory'
+import type { InventoryItem } from '#lib/types/inventory.js'
 
 /*
  * The status segments in the toolbar of Inventory and Price List. Low Stock

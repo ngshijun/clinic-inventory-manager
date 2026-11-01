@@ -1,16 +1,16 @@
 <script lang="ts">
 	import { toast } from 'svelte-sonner'
-	import ActionModal from '$lib/components/app/ActionModal.svelte'
-	import DialogSubject from '$lib/components/app/DialogSubject.svelte'
-	import * as Field from '$lib/components/ui/field'
-	import * as Select from '$lib/components/ui/select'
-	import * as ToggleGroup from '$lib/components/ui/toggle-group'
-	import DateInput from '$lib/components/app/DateInput.svelte'
-	import { inventoryStore } from '$lib/stores/inventory.svelte'
-	import type { InventoryItem } from '$lib/types/inventory'
-	import { todayIsoDate } from '$lib/types/stockBatches'
-	import { formatDate } from '$lib/utils/date'
-	import { addDays, isSnoozing, SNOOZE_LENGTHS, SNOOZE_REASONS } from '$convex/lib/orders'
+	import ActionModal from '#lib/components/app/ActionModal.svelte'
+	import DialogSubject from '#lib/components/app/DialogSubject.svelte'
+	import * as Field from '#lib/components/ui/field/index.js'
+	import * as Select from '#lib/components/ui/select/index.js'
+	import * as ToggleGroup from '#lib/components/ui/toggle-group/index.js'
+	import DateInput from '#lib/components/app/DateInput.svelte'
+	import { inventoryStore } from '#lib/stores/inventory.svelte.js'
+	import type { InventoryItem } from '#lib/types/inventory.js'
+	import { todayIsoDate } from '#lib/types/stockBatches.js'
+	import { formatDate } from '#lib/utils/date.js'
+	import { addDays, isSnoozing, SNOOZE_LENGTHS, SNOOZE_REASONS } from '#convex/lib/orders.js'
 
 	/**
 	 * Puts an item aside until a date. The chips set the date in one click;

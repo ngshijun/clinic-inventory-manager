@@ -1,10 +1,10 @@
 <script lang="ts">
-	import * as Field from '$lib/components/ui/field'
-	import { Input } from '$lib/components/ui/input'
-	import * as Select from '$lib/components/ui/select'
-	import { selectOnFocus } from '$lib/attachments/focus'
-	import { unitsStore } from '$lib/stores/units.svelte'
-	import type { UnitForm } from '$lib/utils/units'
+	import * as Field from '#lib/components/ui/field/index.js'
+	import { Input } from '#lib/components/ui/input/index.js'
+	import * as Select from '#lib/components/ui/select/index.js'
+	import { selectOnFocus } from '#lib/attachments/focus.js'
+	import { unitsStore } from '#lib/stores/units.svelte.js'
+	import type { UnitForm } from '#lib/utils/units.js'
 
 	/*
 	 * An item's unit, read left to right as a sentence: "BOX contains 30 TAB".

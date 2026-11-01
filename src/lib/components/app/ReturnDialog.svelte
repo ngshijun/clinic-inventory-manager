@@ -1,16 +1,16 @@
 <script lang="ts">
 	import { toast } from 'svelte-sonner'
-	import { selectOnFocus } from '$lib/attachments/focus'
-	import ActionModal from '$lib/components/app/ActionModal.svelte'
-	import DateInput from '$lib/components/app/DateInput.svelte'
-	import DialogSubject from '$lib/components/app/DialogSubject.svelte'
-	import Quantity from '$lib/components/app/Quantity.svelte'
-	import * as Field from '$lib/components/ui/field'
-	import * as InputGroup from '$lib/components/ui/input-group'
-	import { loansStore } from '$lib/stores/loans.svelte'
-	import type { Loan } from '$lib/types/loans'
-	import { todayIsoDate } from '$lib/types/stockBatches'
-	import { formatDate } from '$lib/utils/date'
+	import { selectOnFocus } from '#lib/attachments/focus.js'
+	import ActionModal from '#lib/components/app/ActionModal.svelte'
+	import DateInput from '#lib/components/app/DateInput.svelte'
+	import DialogSubject from '#lib/components/app/DialogSubject.svelte'
+	import Quantity from '#lib/components/app/Quantity.svelte'
+	import * as Field from '#lib/components/ui/field/index.js'
+	import * as InputGroup from '#lib/components/ui/input-group/index.js'
+	import { loansStore } from '#lib/stores/loans.svelte.js'
+	import type { Loan } from '#lib/types/loans.js'
+	import { todayIsoDate } from '#lib/types/stockBatches.js'
+	import { formatDate } from '#lib/utils/date.js'
 
 	/**
 	 * Some or all of a borrowed or lent entry came back. The quantity starts

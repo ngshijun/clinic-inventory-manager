@@ -1,6 +1,6 @@
-import { api } from '$convex/_generated/api'
-import { convex } from '$lib/convex'
-import type { User } from '$lib/types/auth'
+import { api } from '#convex/_generated/api.js'
+import { convex } from '#lib/convex.js'
+import type { User } from '#lib/types/auth.js'
 
 const PASSWORD_KEY = 'password'
 const ROLE_KEY = 'role'

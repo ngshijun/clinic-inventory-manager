@@ -3,12 +3,12 @@
 	import AlarmClockIcon from '@lucide/svelte/icons/alarm-clock'
 	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down'
 	import EyeOffIcon from '@lucide/svelte/icons/eye-off'
-	import { Button } from '$lib/components/ui/button'
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu'
-	import { inventoryStore } from '$lib/stores/inventory.svelte'
-	import type { InventoryItem } from '$lib/types/inventory'
-	import { todayIsoDate } from '$lib/types/stockBatches'
-	import { isSnoozing } from '$convex/lib/orders'
+	import { Button } from '#lib/components/ui/button/index.js'
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js'
+	import { inventoryStore } from '#lib/stores/inventory.svelte.js'
+	import type { InventoryItem } from '#lib/types/inventory.js'
+	import { todayIsoDate } from '#lib/types/stockBatches.js'
+	import { isSnoozing } from '#convex/lib/orders.js'
 
 	/**
 	 * The purchaser's controls on a row. On order: Update Order… and Not

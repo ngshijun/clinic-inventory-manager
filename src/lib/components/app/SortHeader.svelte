@@ -3,8 +3,8 @@
 	import ArrowDownIcon from '@lucide/svelte/icons/arrow-down'
 	import ArrowUpIcon from '@lucide/svelte/icons/arrow-up'
 	import ChevronsUpDownIcon from '@lucide/svelte/icons/chevrons-up-down'
-	import * as Table from '$lib/components/ui/table'
-	import { cn } from '$lib/utils'
+	import * as Table from '#lib/components/ui/table/index.js'
+	import { cn } from '#lib/utils.js'
 	import type { SortState } from './sort'
 
 	/**

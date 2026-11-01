@@ -1,7 +1,7 @@
-import { api } from '$convex/_generated/api'
-import { convex } from '$lib/convex'
-import type { MovementsQuery, StockMovement } from '$lib/types/stockMovements'
-import { errorMessage, withLegacy } from '$lib/types/legacy'
+import { api } from '#convex/_generated/api.js'
+import { convex } from '#lib/convex.js'
+import type { MovementsQuery, StockMovement } from '#lib/types/stockMovements.js'
+import { errorMessage, withLegacy } from '#lib/types/legacy.js'
 import { authStore } from './auth.svelte'
 
 /** Start of a local calendar day in ms */

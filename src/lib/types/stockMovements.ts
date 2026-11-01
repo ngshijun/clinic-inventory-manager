@@ -1,5 +1,5 @@
-import type { Doc, Id } from '$convex/_generated/dataModel'
-import type { WithLegacy } from '$lib/types/legacy'
+import type { Doc, Id } from '#convex/_generated/dataModel.js'
+import type { WithLegacy } from '#lib/types/legacy.js'
 
 // The server joins the item's current unit onto each movement
 export type StockMovement = WithLegacy<Doc<'stock_movements'> & { unit: string }>

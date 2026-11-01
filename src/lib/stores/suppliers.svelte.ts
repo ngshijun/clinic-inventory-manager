@@ -1,7 +1,7 @@
-import { api } from '$convex/_generated/api'
-import { convex } from '$lib/convex'
-import { errorMessage, withLegacy } from '$lib/types/legacy'
-import type { Supplier, SupplierId } from '$lib/types/suppliers'
+import { api } from '#convex/_generated/api.js'
+import { convex } from '#lib/convex.js'
+import { errorMessage, withLegacy } from '#lib/types/legacy.js'
+import type { Supplier, SupplierId } from '#lib/types/suppliers.js'
 import { authStore } from './auth.svelte'
 
 /** The Suppliers list, in name order, as a live subscription. Managers only. */

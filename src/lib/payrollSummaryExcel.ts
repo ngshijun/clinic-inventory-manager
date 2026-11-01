@@ -5,7 +5,7 @@ import {
 	formatPeriod,
 	type PayslipEmployee,
 	type PayslipPeriod,
-} from '$lib/payslip'
+} from '#lib/payslip.js'
 
 /*
  * The payroll summary: a month as a table, one row per employee and a total

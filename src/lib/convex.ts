@@ -1,5 +1,5 @@
 // lib/convex.ts
-import { PUBLIC_CONVEX_URL } from '$env/static/public'
+import { PUBLIC_CONVEX_URL } from '$app/env/public'
 import { ConvexClient } from 'convex/browser'
 
 if (!PUBLIC_CONVEX_URL) {

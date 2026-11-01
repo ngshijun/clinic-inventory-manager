@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Badge } from '$lib/components/ui/badge'
+	import { Badge } from '#lib/components/ui/badge/index.js'
 
 	/**
 	 * Pending work, counted where it waits on a page (a tab, a section heading), so a sidebar badge

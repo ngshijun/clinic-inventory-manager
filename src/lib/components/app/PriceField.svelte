@@ -1,13 +1,13 @@
 <script lang="ts">
-	import { pricePerUnit } from '$convex/lib/price'
-	import type { UnitParts } from '$convex/lib/units'
-	import { selectOnFocus } from '$lib/attachments/focus'
-	import * as Field from '$lib/components/ui/field'
-	import * as InputGroup from '$lib/components/ui/input-group'
-	import * as ToggleGroup from '$lib/components/ui/toggle-group'
-	import { unitsStore } from '$lib/stores/units.svelte'
-	import { formatRM } from '$lib/utils/money'
-	import { priceFormUnits, priceFormValue, type PriceForm } from '$lib/utils/price'
+	import { pricePerUnit } from '#convex/lib/price.js'
+	import type { UnitParts } from '#convex/lib/units.js'
+	import { selectOnFocus } from '#lib/attachments/focus.js'
+	import * as Field from '#lib/components/ui/field/index.js'
+	import * as InputGroup from '#lib/components/ui/input-group/index.js'
+	import * as ToggleGroup from '#lib/components/ui/toggle-group/index.js'
+	import { unitsStore } from '#lib/stores/units.svelte.js'
+	import { formatRM } from '#lib/utils/money.js'
+	import { priceFormUnits, priceFormValue, type PriceForm } from '#lib/utils/price.js'
 
 	/*
 	 * What the item costs. She types a number for the unit she orders in,

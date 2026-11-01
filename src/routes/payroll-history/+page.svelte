@@ -10,39 +10,39 @@
 	import SheetIcon from '@lucide/svelte/icons/sheet'
 	import Trash2Icon from '@lucide/svelte/icons/trash-2'
 	import UsersIcon from '@lucide/svelte/icons/users'
-	import ActionModal from '$lib/components/app/ActionModal.svelte'
-	import MoreMenuTrigger from '$lib/components/app/MoreMenuTrigger.svelte'
-	import PageHeader from '$lib/components/app/PageHeader.svelte'
-	import ToneBadge from '$lib/components/app/ToneBadge.svelte'
-	import { Button } from '$lib/components/ui/button'
-	import * as Card from '$lib/components/ui/card'
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu'
-	import * as Empty from '$lib/components/ui/empty'
-	import { Label } from '$lib/components/ui/label'
-	import { Skeleton } from '$lib/components/ui/skeleton'
-	import { Switch } from '$lib/components/ui/switch'
-	import * as Table from '$lib/components/ui/table'
-	import * as Tabs from '$lib/components/ui/tabs'
-	import * as Tooltip from '$lib/components/ui/tooltip'
-	import { useErrorToast } from '$lib/composables/errorToast.svelte'
-	import { exportPayrollJournal } from '$lib/payrollExcel'
-	import { exportPayrollSummary, exportPayrollYearSummary } from '$lib/payrollSummaryExcel'
+	import ActionModal from '#lib/components/app/ActionModal.svelte'
+	import MoreMenuTrigger from '#lib/components/app/MoreMenuTrigger.svelte'
+	import PageHeader from '#lib/components/app/PageHeader.svelte'
+	import ToneBadge from '#lib/components/app/ToneBadge.svelte'
+	import { Button } from '#lib/components/ui/button/index.js'
+	import * as Card from '#lib/components/ui/card/index.js'
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js'
+	import * as Empty from '#lib/components/ui/empty/index.js'
+	import { Label } from '#lib/components/ui/label/index.js'
+	import { Skeleton } from '#lib/components/ui/skeleton/index.js'
+	import { Switch } from '#lib/components/ui/switch/index.js'
+	import * as Table from '#lib/components/ui/table/index.js'
+	import * as Tabs from '#lib/components/ui/tabs/index.js'
+	import * as Tooltip from '#lib/components/ui/tooltip/index.js'
+	import { useErrorToast } from '#lib/composables/errorToast.svelte.js'
+	import { exportPayrollJournal } from '#lib/payrollExcel.js'
+	import { exportPayrollSummary, exportPayrollYearSummary } from '#lib/payrollSummaryExcel.js'
 	import {
 		allPayslipsFilename,
 		formatPeriod,
 		generatePayslipPdf,
 		payslipFilename,
 		type PayslipEmployee,
-	} from '$lib/payslip'
-	import { payrollStore } from '$lib/stores/payroll.svelte'
+	} from '#lib/payslip.js'
+	import { payrollStore } from '#lib/stores/payroll.svelte.js'
 	import {
 		payrollRecordsStore,
 		type PayrollRun,
 		type PayrollRunItem,
-	} from '$lib/stores/payrollRecords.svelte'
-	import { formatDateTime } from '$lib/utils/date'
-	import { formatAmount, formatRM } from '$lib/utils/money'
-	import { cn } from '$lib/utils'
+	} from '#lib/stores/payrollRecords.svelte.js'
+	import { formatDateTime } from '#lib/utils/date.js'
+	import { formatAmount, formatRM } from '#lib/utils/money.js'
+	import { cn } from '#lib/utils.js'
 
 	useErrorToast(payrollRecordsStore)
 

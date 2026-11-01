@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state'
-	import type { User } from '$lib/types/auth'
+	import type { User } from '#lib/types/auth.js'
 	import BoxesIcon from '@lucide/svelte/icons/boxes'
 	import LayoutDashboardIcon from '@lucide/svelte/icons/layout-dashboard'
 	import PackageIcon from '@lucide/svelte/icons/package'
@@ -12,9 +12,9 @@
 	import HistoryIcon from '@lucide/svelte/icons/history'
 	import ChevronsUpDownIcon from '@lucide/svelte/icons/chevrons-up-down'
 	import LogOutIcon from '@lucide/svelte/icons/log-out'
-	import * as Sidebar from '$lib/components/ui/sidebar'
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu'
-	import { useSidebar } from '$lib/components/ui/sidebar'
+	import * as Sidebar from '#lib/components/ui/sidebar/index.js'
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js'
+	import { useSidebar } from '#lib/components/ui/sidebar/index.js'
 
 	type NavItem = { title: string; href: string; icon: typeof PackageIcon }
 	type NavGroup = { label: string; items: NavItem[] }

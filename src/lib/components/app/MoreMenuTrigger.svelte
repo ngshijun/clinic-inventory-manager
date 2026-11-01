@@ -1,8 +1,8 @@
 <script lang="ts">
 	import EllipsisIcon from '@lucide/svelte/icons/ellipsis'
-	import { Button } from '$lib/components/ui/button'
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu'
-	import * as Tooltip from '$lib/components/ui/tooltip'
+	import { Button } from '#lib/components/ui/button/index.js'
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js'
+	import * as Tooltip from '#lib/components/ui/tooltip/index.js'
 
 	/**
 	 * The ⋯ button that opens a DropdownMenu of less-used actions, with a

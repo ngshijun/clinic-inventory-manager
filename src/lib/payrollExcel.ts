@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx'
-import type { PayslipEmployee } from '$lib/payslip'
+import type { PayslipEmployee } from '#lib/payslip.js'
 
 export interface PayrollPeriod {
 	month: number

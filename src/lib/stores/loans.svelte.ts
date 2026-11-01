@@ -1,9 +1,9 @@
-import { api } from '$convex/_generated/api'
-import { owedOf, returnedOf } from '$convex/lib/loans'
-import { unitLabel } from '$convex/lib/units'
-import { convex } from '$lib/convex'
-import { errorMessage, withLegacy } from '$lib/types/legacy'
-import type { Loan, LoanEntry, LoanId } from '$lib/types/loans'
+import { api } from '#convex/_generated/api.js'
+import { owedOf, returnedOf } from '#convex/lib/loans.js'
+import { unitLabel } from '#convex/lib/units.js'
+import { convex } from '#lib/convex.js'
+import { errorMessage, withLegacy } from '#lib/types/legacy.js'
+import type { Loan, LoanEntry, LoanId } from '#lib/types/loans.js'
 import { authStore } from './auth.svelte'
 
 /** Medicine borrowed from and lent to other clinics, newest first, as a live subscription. Managers only. */

@@ -1,4 +1,4 @@
-import type { InventoryItem } from '$lib/types/inventory'
+import type { InventoryItem } from '#lib/types/inventory.js'
 
 /*
  * The Supplier filter's two choices that are not a supplier. A supplier name is

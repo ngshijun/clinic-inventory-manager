@@ -2,11 +2,11 @@
 	import { tick } from 'svelte'
 	import SearchIcon from '@lucide/svelte/icons/search'
 	import XIcon from '@lucide/svelte/icons/x'
-	import Quantity from '$lib/components/app/Quantity.svelte'
-	import { Button } from '$lib/components/ui/button'
-	import { Input } from '$lib/components/ui/input'
-	import type { InventoryItem } from '$lib/types/inventory'
-	import { cn } from '$lib/utils'
+	import Quantity from '#lib/components/app/Quantity.svelte'
+	import { Button } from '#lib/components/ui/button/index.js'
+	import { Input } from '#lib/components/ui/input/index.js'
+	import type { InventoryItem } from '#lib/types/inventory.js'
+	import { cn } from '#lib/utils.js'
 
 	/*
 	 * One text field that finds and holds an item, after HealthOS's patient

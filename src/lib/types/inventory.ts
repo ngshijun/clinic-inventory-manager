@@ -1,7 +1,7 @@
-import type { Doc, Id } from '$convex/_generated/dataModel'
-import type { Price } from '$convex/lib/price'
-import type { UnitParts } from '$convex/lib/units'
-import type { WithLegacy } from '$lib/types/legacy'
+import type { Doc, Id } from '#convex/_generated/dataModel.js'
+import type { Price } from '#convex/lib/price.js'
+import type { UnitParts } from '#convex/lib/units.js'
+import type { WithLegacy } from '#lib/types/legacy.js'
 
 export type InventoryId = Id<'inventory'>
 

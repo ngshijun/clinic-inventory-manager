@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Separator } from '$lib/components/ui/separator'
+	import { Separator } from '#lib/components/ui/separator/index.js'
 
 	/*
 	 * The subject of a form dialog, so the title can name only the task

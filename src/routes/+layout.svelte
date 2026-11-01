@@ -3,28 +3,28 @@
 	import { goto, afterNavigate, beforeNavigate } from '$app/navigation'
 	import { updated } from '$app/state'
 	import { toast } from 'svelte-sonner'
-	import { authStore } from '$lib/stores/auth.svelte'
-	import { inventoryStore } from '$lib/stores/inventory.svelte'
-	import { stockMovementsStore } from '$lib/stores/stockMovements.svelte'
-	import { stockBatchesStore } from '$lib/stores/stockBatches.svelte'
-	import { stockRequestsStore } from '$lib/stores/stockRequests.svelte'
-	import { suppliersStore } from '$lib/stores/suppliers.svelte'
-	import { clinicsStore } from '$lib/stores/clinics.svelte'
-	import { loansStore } from '$lib/stores/loans.svelte'
-	import { unitsStore } from '$lib/stores/units.svelte'
-	import { payrollStore } from '$lib/stores/payroll.svelte'
-	import { payrollRecordsStore } from '$lib/stores/payrollRecords.svelte'
-	import { connection, useConnection } from '$lib/stores/connection.svelte'
+	import { authStore } from '#lib/stores/auth.svelte.js'
+	import { inventoryStore } from '#lib/stores/inventory.svelte.js'
+	import { stockMovementsStore } from '#lib/stores/stockMovements.svelte.js'
+	import { stockBatchesStore } from '#lib/stores/stockBatches.svelte.js'
+	import { stockRequestsStore } from '#lib/stores/stockRequests.svelte.js'
+	import { suppliersStore } from '#lib/stores/suppliers.svelte.js'
+	import { clinicsStore } from '#lib/stores/clinics.svelte.js'
+	import { loansStore } from '#lib/stores/loans.svelte.js'
+	import { unitsStore } from '#lib/stores/units.svelte.js'
+	import { payrollStore } from '#lib/stores/payroll.svelte.js'
+	import { payrollRecordsStore } from '#lib/stores/payrollRecords.svelte.js'
+	import { connection, useConnection } from '#lib/stores/connection.svelte.js'
 	import { setConvexClientContext } from 'convex-svelte'
-	import { convex } from '$lib/convex'
+	import { convex } from '#lib/convex.js'
 	import WifiOffIcon from '@lucide/svelte/icons/wifi-off'
-	import * as Sidebar from '$lib/components/ui/sidebar'
-	import * as Breadcrumb from '$lib/components/ui/breadcrumb'
-	import { Toaster } from '$lib/components/ui/sonner'
+	import * as Sidebar from '#lib/components/ui/sidebar/index.js'
+	import * as Breadcrumb from '#lib/components/ui/breadcrumb/index.js'
+	import { Toaster } from '#lib/components/ui/sonner/index.js'
 	import { ModeWatcher } from 'mode-watcher'
-	import AppSidebar from '$lib/components/app/AppSidebar.svelte'
-	import { breadcrumbs } from '$lib/components/app/breadcrumbs.svelte'
-	import { scrollRegion } from '$lib/components/app/scroll-region.svelte'
+	import AppSidebar from '#lib/components/app/AppSidebar.svelte'
+	import { breadcrumbs } from '#lib/components/app/breadcrumbs.svelte.js'
+	import { scrollRegion } from '#lib/components/app/scroll-region.svelte.js'
 
 	let { children } = $props()
 
@@ -86,9 +86,10 @@
 	let scroller = $state<HTMLDivElement | null>(null)
 	const edge = $derived(scrollRegion.scrolled && !scrollRegion.pinned)
 
-	afterNavigate(({ type, to }) => {
-		// A new page starts at the top; hash links and back/forward keep SvelteKit's own scrolling.
-		if (type !== 'popstate' && !to?.url.hash && scroller) {
+	afterNavigate(({ type, shallow, to }) => {
+		// A new page starts at the top; hash links, back/forward and shallow navigations (a queue
+		// written to the address bar) keep the scroll where it is.
+		if (type !== 'popstate' && !shallow && !to?.url.hash && scroller) {
 			scroller.scrollTop = 0
 			scrollRegion.scrolled = false
 		}
@@ -109,8 +110,8 @@
 		})
 	})
 
-	beforeNavigate(({ willUnload, to }) => {
-		if (updated.current && !willUnload && to?.url) location.href = to.url.href
+	beforeNavigate(({ willUnload, shallow, to }) => {
+		if (updated.current && !willUnload && !shallow && to?.url) location.href = to.url.href
 	})
 </script>
 

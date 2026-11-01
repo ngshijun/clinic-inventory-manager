@@ -1,6 +1,6 @@
 <script lang="ts">
-	import * as Tabs from '$lib/components/ui/tabs'
-	import { STATUS_FILTERS } from '$lib/utils/statusFilter'
+	import * as Tabs from '#lib/components/ui/tabs/index.js'
+	import { STATUS_FILTERS } from '#lib/utils/statusFilter.js'
 
 	/**
 	 * The status segments in a toolbar. They sit inside the page's Tabs.Root,

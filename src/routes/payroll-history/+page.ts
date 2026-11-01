@@ -1,4 +1,4 @@
-import { payrollRecordsStore } from '$lib/stores/payrollRecords.svelte'
+import { payrollRecordsStore } from '#lib/stores/payrollRecords.svelte.js'
 import type { PageLoad } from './$types'
 
 // SvelteKit runs this when the link is hovered. The layout's guard decides

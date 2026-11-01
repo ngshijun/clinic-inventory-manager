@@ -1,14 +1,14 @@
 <script lang="ts">
 	import { getLocalTimeZone, parseDate, today, type DateValue } from '@internationalized/date'
 	import CalendarIcon from '@lucide/svelte/icons/calendar'
-	import CountBadge from '$lib/components/app/CountBadge.svelte'
-	import { Button } from '$lib/components/ui/button'
-	import { Calendar } from '$lib/components/ui/calendar'
-	import * as Popover from '$lib/components/ui/popover'
-	import * as Tabs from '$lib/components/ui/tabs'
-	import { todayIsoDate } from '$lib/types/stockBatches'
-	import { formatDate } from '$lib/utils/date'
-	import type { DayMode } from '$lib/utils/requests'
+	import CountBadge from '#lib/components/app/CountBadge.svelte'
+	import { Button } from '#lib/components/ui/button/index.js'
+	import { Calendar } from '#lib/components/ui/calendar/index.js'
+	import * as Popover from '#lib/components/ui/popover/index.js'
+	import * as Tabs from '#lib/components/ui/tabs/index.js'
+	import { todayIsoDate } from '#lib/types/stockBatches.js'
+	import { formatDate } from '#lib/utils/date.js'
+	import type { DayMode } from '#lib/utils/requests.js'
 
 	/**
 	 * The day segments shared by Stock Approvals and Stock Requests: Today,

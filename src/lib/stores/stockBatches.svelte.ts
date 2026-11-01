@@ -1,7 +1,7 @@
-import { api } from '$convex/_generated/api'
-import { convex } from '$lib/convex'
-import { fefoOrder, type StockBatch, type StockBatchId } from '$lib/types/stockBatches'
-import { errorMessage, withLegacy } from '$lib/types/legacy'
+import { api } from '#convex/_generated/api.js'
+import { convex } from '#lib/convex.js'
+import { fefoOrder, type StockBatch, type StockBatchId } from '#lib/types/stockBatches.js'
+import { errorMessage, withLegacy } from '#lib/types/legacy.js'
 import { authStore } from './auth.svelte'
 
 /**

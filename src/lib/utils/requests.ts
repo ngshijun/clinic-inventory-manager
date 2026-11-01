@@ -1,6 +1,6 @@
-import type { Tone } from '$lib/components/app/ToneBadge.svelte'
-import type { StockRequest } from '$lib/types/stockRequests'
-import { todayIsoDate } from '$lib/types/stockBatches'
+import type { Tone } from '#lib/components/app/ToneBadge.svelte'
+import type { StockRequest } from '#lib/types/stockRequests.js'
+import { todayIsoDate } from '#lib/types/stockBatches.js'
 
 /** Which requests the day control shows */
 export type DayMode = 'today' | 'older' | 'date'

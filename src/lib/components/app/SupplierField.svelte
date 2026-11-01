@@ -1,9 +1,9 @@
 <script lang="ts">
 	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down'
-	import * as Command from '$lib/components/ui/command'
-	import * as Field from '$lib/components/ui/field'
-	import * as Popover from '$lib/components/ui/popover'
-	import { suppliersStore } from '$lib/stores/suppliers.svelte'
+	import * as Command from '#lib/components/ui/command/index.js'
+	import * as Field from '#lib/components/ui/field/index.js'
+	import * as Popover from '#lib/components/ui/popover/index.js'
+	import { suppliersStore } from '#lib/stores/suppliers.svelte.js'
 
 	/*
 	 * Who the item is bought from, picked from the Suppliers list. The same

@@ -1,8 +1,8 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte'
-	import * as Dialog from '$lib/components/ui/dialog'
-	import { Button } from '$lib/components/ui/button'
-	import { Spinner } from '$lib/components/ui/spinner'
+	import * as Dialog from '#lib/components/ui/dialog/index.js'
+	import { Button } from '#lib/components/ui/button/index.js'
+	import { Spinner } from '#lib/components/ui/spinner/index.js'
 	import DiscardDialog from './DiscardDialog.svelte'
 
 	/*

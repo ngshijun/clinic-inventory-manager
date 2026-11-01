@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Component } from 'svelte'
-	import { replaceState } from '$app/navigation'
+	import { goto } from '$app/navigation'
 	import { page } from '$app/state'
 	import AlarmClockIcon from '@lucide/svelte/icons/alarm-clock'
 	import ArchiveIcon from '@lucide/svelte/icons/archive'
@@ -11,33 +11,33 @@
 	import ClockIcon from '@lucide/svelte/icons/clock'
 	import TriangleAlertIcon from '@lucide/svelte/icons/triangle-alert'
 	import TruckIcon from '@lucide/svelte/icons/truck'
-	import SupplierFilter from '$lib/components/app/SupplierFilter.svelte'
-	import MarkOrderedDialog from '$lib/components/app/MarkOrderedDialog.svelte'
-	import OrderControls from '$lib/components/app/OrderControls.svelte'
-	import PageHeader from '$lib/components/app/PageHeader.svelte'
-	import Price from '$lib/components/app/Price.svelte'
-	import Quantity from '$lib/components/app/Quantity.svelte'
-	import SnoozeDialog from '$lib/components/app/SnoozeDialog.svelte'
-	import StopOrderingDialog from '$lib/components/app/StopOrderingDialog.svelte'
-	import ToneBadge from '$lib/components/app/ToneBadge.svelte'
-	import { Button } from '$lib/components/ui/button'
-	import * as Card from '$lib/components/ui/card'
-	import * as Empty from '$lib/components/ui/empty'
-	import { Label } from '$lib/components/ui/label'
-	import { Switch } from '$lib/components/ui/switch'
-	import { Skeleton } from '$lib/components/ui/skeleton'
-	import * as Table from '$lib/components/ui/table'
-	import * as Tabs from '$lib/components/ui/tabs'
-	import { useErrorToast } from '$lib/composables/errorToast.svelte'
-	import { createLoadMore } from '$lib/composables/loadMore.svelte'
-	import { inventoryStore } from '$lib/stores/inventory.svelte'
-	import { stockBatchesStore } from '$lib/stores/stockBatches.svelte'
-	import type { InventoryItem, OrderedStatus, SnoozedStatus } from '$lib/types/inventory'
-	import { daysUntilExpiry, todayIsoDate, type StockBatch } from '$lib/types/stockBatches'
-	import { daysSince, formatDate, formatDayMonth, formatDuration } from '$lib/utils/date'
-	import { expiryNote } from '$lib/utils/expiry'
-	import { cn } from '$lib/utils'
-	import { ALL_SUPPLIERS, activeSupplier, matchesSupplier } from '$lib/utils/supplier'
+	import SupplierFilter from '#lib/components/app/SupplierFilter.svelte'
+	import MarkOrderedDialog from '#lib/components/app/MarkOrderedDialog.svelte'
+	import OrderControls from '#lib/components/app/OrderControls.svelte'
+	import PageHeader from '#lib/components/app/PageHeader.svelte'
+	import Price from '#lib/components/app/Price.svelte'
+	import Quantity from '#lib/components/app/Quantity.svelte'
+	import SnoozeDialog from '#lib/components/app/SnoozeDialog.svelte'
+	import StopOrderingDialog from '#lib/components/app/StopOrderingDialog.svelte'
+	import ToneBadge from '#lib/components/app/ToneBadge.svelte'
+	import { Button } from '#lib/components/ui/button/index.js'
+	import * as Card from '#lib/components/ui/card/index.js'
+	import * as Empty from '#lib/components/ui/empty/index.js'
+	import { Label } from '#lib/components/ui/label/index.js'
+	import { Switch } from '#lib/components/ui/switch/index.js'
+	import { Skeleton } from '#lib/components/ui/skeleton/index.js'
+	import * as Table from '#lib/components/ui/table/index.js'
+	import * as Tabs from '#lib/components/ui/tabs/index.js'
+	import { useErrorToast } from '#lib/composables/errorToast.svelte.js'
+	import { createLoadMore } from '#lib/composables/loadMore.svelte.js'
+	import { inventoryStore } from '#lib/stores/inventory.svelte.js'
+	import { stockBatchesStore } from '#lib/stores/stockBatches.svelte.js'
+	import type { InventoryItem, OrderedStatus, SnoozedStatus } from '#lib/types/inventory.js'
+	import { daysUntilExpiry, todayIsoDate, type StockBatch } from '#lib/types/stockBatches.js'
+	import { daysSince, formatDate, formatDayMonth, formatDuration } from '#lib/utils/date.js'
+	import { expiryNote } from '#lib/utils/expiry.js'
+	import { cn } from '#lib/utils.js'
+	import { ALL_SUPPLIERS, activeSupplier, matchesSupplier } from '#lib/utils/supplier.js'
 	import {
 		EXPIRY_WARNING_DAYS,
 		NOT_MOVING_DAYS,
@@ -47,7 +47,7 @@
 		isSnoozing,
 		needsDecision,
 		needsStock,
-	} from '$convex/lib/orders'
+	} from '#convex/lib/orders.js'
 
 	const QUEUE_PAGE = 8
 
@@ -153,11 +153,12 @@
 	const initialQueue = page.url.searchParams.get('queue')
 	let queue = $state<Queue>(isQueue(initialQueue) ? initialQueue : 'toorder')
 
+	// Compared with the address bar, not page.url: a shallow goto leaves page.url at the loaded URL.
 	$effect(() => {
-		const url = new URL(page.url)
+		const url = new URL(location.href)
 		if (queue !== 'toorder') url.searchParams.set('queue', queue)
 		else url.searchParams.delete('queue')
-		if (url.search !== page.url.search) replaceState(url, {})
+		if (url.search !== location.search) goto(url, { shallow: true, replace: true })
 	})
 
 	// ---------- Dialogs ----------

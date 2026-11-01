@@ -1,6 +1,6 @@
-import type { Doc, Id } from '$convex/_generated/dataModel'
-import { EXPIRY_WARNING_DAYS } from '$convex/lib/orders'
-import type { WithLegacy } from '$lib/types/legacy'
+import type { Doc, Id } from '#convex/_generated/dataModel.js'
+import { EXPIRY_WARNING_DAYS } from '#convex/lib/orders.js'
+import type { WithLegacy } from '#lib/types/legacy.js'
 
 export type StockBatchId = Id<'stock_batches'>
 

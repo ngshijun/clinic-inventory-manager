@@ -1,25 +1,25 @@
 <script lang="ts">
 	import { toast } from 'svelte-sonner'
-	import { selectOnFocus } from '$lib/attachments/focus'
-	import ActionModal from '$lib/components/app/ActionModal.svelte'
-	import DialogSubject from '$lib/components/app/DialogSubject.svelte'
-	import PriceField from '$lib/components/app/PriceField.svelte'
-	import { Checkbox } from '$lib/components/ui/checkbox'
-	import DateInput from '$lib/components/app/DateInput.svelte'
-	import * as Field from '$lib/components/ui/field'
-	import { Input } from '$lib/components/ui/input'
-	import * as InputGroup from '$lib/components/ui/input-group'
-	import { inventoryStore } from '$lib/stores/inventory.svelte'
-	import type { InventoryItem, OrderedStatus } from '$lib/types/inventory'
-	import { todayIsoDate } from '$lib/types/stockBatches'
+	import { selectOnFocus } from '#lib/attachments/focus.js'
+	import ActionModal from '#lib/components/app/ActionModal.svelte'
+	import DialogSubject from '#lib/components/app/DialogSubject.svelte'
+	import PriceField from '#lib/components/app/PriceField.svelte'
+	import { Checkbox } from '#lib/components/ui/checkbox/index.js'
+	import DateInput from '#lib/components/app/DateInput.svelte'
+	import * as Field from '#lib/components/ui/field/index.js'
+	import { Input } from '#lib/components/ui/input/index.js'
+	import * as InputGroup from '#lib/components/ui/input-group/index.js'
+	import { inventoryStore } from '#lib/stores/inventory.svelte.js'
+	import type { InventoryItem, OrderedStatus } from '#lib/types/inventory.js'
+	import { todayIsoDate } from '#lib/types/stockBatches.js'
 	import {
 		priceFormFrom,
 		priceFormIsValid,
 		priceFormValue,
 		samePrice,
 		type PriceForm,
-	} from '$lib/utils/price'
-	import { LEAD_DAYS, addDays } from '$convex/lib/orders'
+	} from '#lib/utils/price.js'
+	import { LEAD_DAYS, addDays } from '#convex/lib/orders.js'
 
 	/**
 	 * Marks an item as ordered, or changes an order already placed. The

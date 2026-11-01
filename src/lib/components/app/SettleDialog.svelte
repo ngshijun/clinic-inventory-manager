@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { toast } from 'svelte-sonner'
-	import ActionModal from '$lib/components/app/ActionModal.svelte'
-	import DateInput from '$lib/components/app/DateInput.svelte'
-	import DialogSubject from '$lib/components/app/DialogSubject.svelte'
-	import * as Field from '$lib/components/ui/field'
-	import { Input } from '$lib/components/ui/input'
-	import { loansStore } from '$lib/stores/loans.svelte'
-	import type { Loan } from '$lib/types/loans'
-	import { todayIsoDate } from '$lib/types/stockBatches'
+	import ActionModal from '#lib/components/app/ActionModal.svelte'
+	import DateInput from '#lib/components/app/DateInput.svelte'
+	import DialogSubject from '#lib/components/app/DialogSubject.svelte'
+	import * as Field from '#lib/components/ui/field/index.js'
+	import { Input } from '#lib/components/ui/input/index.js'
+	import { loansStore } from '#lib/stores/loans.svelte.js'
+	import type { Loan } from '#lib/types/loans.js'
+	import { todayIsoDate } from '#lib/types/stockBatches.js'
 
 	/**
 	 * Closes a borrowed or lent entry that was paid for or swapped rather than

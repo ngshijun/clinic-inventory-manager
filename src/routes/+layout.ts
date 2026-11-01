@@ -1,6 +1,6 @@
 import { redirect } from '@sveltejs/kit'
-import { authStore } from '$lib/stores/auth.svelte'
-import { resolveRedirect } from '$lib/routes/access'
+import { authStore } from '#lib/stores/auth.svelte.js'
+import { resolveRedirect } from '#lib/routes/access.js'
 
 // The app is a Supabase-backed SPA: nothing is rendered or fetched on the server.
 export const ssr = false

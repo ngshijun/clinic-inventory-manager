@@ -1,7 +1,7 @@
-import { api } from '$convex/_generated/api'
-import { convex } from '$lib/convex'
-import type { NewStockRequest, StockRequest, StockRequestId } from '$lib/types/stockRequests'
-import { errorMessage, withLegacy } from '$lib/types/legacy'
+import { api } from '#convex/_generated/api.js'
+import { convex } from '#lib/convex.js'
+import type { NewStockRequest, StockRequest, StockRequestId } from '#lib/types/stockRequests.js'
+import { errorMessage, withLegacy } from '#lib/types/legacy.js'
 import { authStore } from './auth.svelte'
 
 /*

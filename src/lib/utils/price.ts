@@ -1,6 +1,6 @@
-import { priceUnits, roundAmount, type Price } from '$convex/lib/price'
-import type { UnitParts } from '$convex/lib/units'
-import { formatRM } from '$lib/utils/money'
+import { priceUnits, roundAmount, type Price } from '#convex/lib/price.js'
+import type { UnitParts } from '#convex/lib/units.js'
+import { formatRM } from '#lib/utils/money.js'
 
 /** The Price field as a form holds it: an empty amount means the price is not known */
 export interface PriceForm {

@@ -1,15 +1,15 @@
 <script lang="ts">
 	import { toast } from 'svelte-sonner'
-	import { selectOnFocus } from '$lib/attachments/focus'
-	import ActionModal from '$lib/components/app/ActionModal.svelte'
-	import DialogSubject from '$lib/components/app/DialogSubject.svelte'
-	import * as Field from '$lib/components/ui/field'
-	import * as InputGroup from '$lib/components/ui/input-group'
-	import { Textarea } from '$lib/components/ui/textarea'
-	import { inventoryStore } from '$lib/stores/inventory.svelte'
-	import { stockRequestsStore } from '$lib/stores/stockRequests.svelte'
-	import type { StockRequest } from '$lib/types/stockRequests'
-	import { withUnit } from '$lib/utils/requests'
+	import { selectOnFocus } from '#lib/attachments/focus.js'
+	import ActionModal from '#lib/components/app/ActionModal.svelte'
+	import DialogSubject from '#lib/components/app/DialogSubject.svelte'
+	import * as Field from '#lib/components/ui/field/index.js'
+	import * as InputGroup from '#lib/components/ui/input-group/index.js'
+	import { Textarea } from '#lib/components/ui/textarea/index.js'
+	import { inventoryStore } from '#lib/stores/inventory.svelte.js'
+	import { stockRequestsStore } from '#lib/stores/stockRequests.svelte.js'
+	import type { StockRequest } from '#lib/types/stockRequests.js'
+	import { withUnit } from '#lib/utils/requests.js'
 
 	/*
 	 * Edit Request, shared by Stock Approvals and Stock Requests. Opened with

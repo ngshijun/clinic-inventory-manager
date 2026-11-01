@@ -14,9 +14,6 @@ export default defineConfig({
 				runes: ({ filename }) =>
 					filename.split(/[/\\]/).includes('node_modules') ? undefined : true,
 			},
-			alias: {
-				$convex: './convex',
-			},
 			// Pinned: the adapter maps the *local* Node version to a Vercel runtime and
 			// only knows 20/22/24. Nothing runs server-side anyway (ssr = false).
 			adapter: adapter({ runtime: 'nodejs22.x' }),

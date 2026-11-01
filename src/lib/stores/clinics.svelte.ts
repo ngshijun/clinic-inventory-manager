@@ -1,7 +1,7 @@
-import { api } from '$convex/_generated/api'
-import { convex } from '$lib/convex'
-import { errorMessage, withLegacy } from '$lib/types/legacy'
-import type { Clinic, ClinicId } from '$lib/types/loans'
+import { api } from '#convex/_generated/api.js'
+import { convex } from '#lib/convex.js'
+import { errorMessage, withLegacy } from '#lib/types/legacy.js'
+import type { Clinic, ClinicId } from '#lib/types/loans.js'
 import { authStore } from './auth.svelte'
 
 /** The Clinics list, in name order, as a live subscription. Managers only. */

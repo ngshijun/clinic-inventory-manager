@@ -1,9 +1,9 @@
 <script lang="ts">
 	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down'
-	import * as Command from '$lib/components/ui/command'
-	import * as Field from '$lib/components/ui/field'
-	import * as Popover from '$lib/components/ui/popover'
-	import { clinicsStore } from '$lib/stores/clinics.svelte'
+	import * as Command from '#lib/components/ui/command/index.js'
+	import * as Field from '#lib/components/ui/field/index.js'
+	import * as Popover from '#lib/components/ui/popover/index.js'
+	import { clinicsStore } from '#lib/stores/clinics.svelte.js'
 
 	/*
 	 * Which clinic the medicine was borrowed from or lent to, picked from the

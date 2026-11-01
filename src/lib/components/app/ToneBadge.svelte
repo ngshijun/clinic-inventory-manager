@@ -5,7 +5,7 @@
 
 <script lang="ts">
 	import type { Snippet } from 'svelte'
-	import { Badge, type BadgeVariant } from '$lib/components/ui/badge'
+	import { Badge, type BadgeVariant } from '#lib/components/ui/badge/index.js'
 
 	let {
 		tone = 'neutral',

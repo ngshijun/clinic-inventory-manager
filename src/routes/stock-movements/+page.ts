@@ -1,4 +1,4 @@
-import { FIRST_VIEW, stockMovementsStore } from '$lib/stores/stockMovements.svelte'
+import { FIRST_VIEW, stockMovementsStore } from '#lib/stores/stockMovements.svelte.js'
 import type { PageLoad } from './$types'
 
 // SvelteKit runs this when the link is hovered, so the first page of movements
