@@ -5,3 +5,8 @@
 - Prefer established, well-maintained libraries when they reduce overall complexity or improve reliability. Do not reimplement common functionality without a clear reason.
 - Lean on the dependencies already in the project before writing your own implementation or adding packages. Do not assume a library lacks a capability without checking its documentation and types.
 - Make architectural decisions for the long term. Do not accept a stopgap that only works for now and is meant to be replaced later.
+
+# Design
+
+- The [Apple Human Interface Guidelines](https://developer.apple.com/design/human-interface-guidelines) are the main source of every design decision. Where a shadcn-svelte default and the HIG disagree, the HIG wins.
+- Read [docs/design-guidelines.md](docs/design-guidelines.md) before changing any UI: it records this app's rulings and defers to the HealthOS design guidelines for the rest. Record new rulings there.
