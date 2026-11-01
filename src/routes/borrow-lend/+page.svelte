@@ -1,8 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte'
-	import { goto } from '$app/navigation'
 	import { toast } from 'svelte-sonner'
-	import Building2Icon from '@lucide/svelte/icons/building-2'
 	import HandshakeIcon from '@lucide/svelte/icons/handshake'
 	import HandCoinsIcon from '@lucide/svelte/icons/hand-coins'
 	import PencilIcon from '@lucide/svelte/icons/pencil'
@@ -177,15 +175,6 @@
 				<Tabs.Trigger value="settled">Settled</Tabs.Trigger>
 			</Tabs.List>
 		</div>
-		<DropdownMenu.Root>
-			<MoreMenuTrigger />
-			<DropdownMenu.Content align="end">
-				<DropdownMenu.Item onclick={() => goto('/borrow-lend/clinics')}>
-					<Building2Icon />
-					Clinics
-				</DropdownMenu.Item>
-			</DropdownMenu.Content>
-		</DropdownMenu.Root>
 		<Button onclick={addEntry}>
 			<PlusIcon data-icon="inline-start" />
 			Add Entry…

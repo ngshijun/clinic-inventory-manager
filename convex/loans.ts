@@ -3,11 +3,11 @@ import { mutation, query } from './_generated/server'
 import type { MutationCtx } from './_generated/server'
 import type { Doc, Id } from './_generated/dataModel'
 import { requireRole } from './lib/auth'
+import { capitalName } from './lib/names'
 import { owedOf, returnedOf } from './lib/loans'
 import { toIsoDate } from './lib/orders'
 import { requireItem } from './lib/stock'
 import { unitLabel } from './lib/units'
-import { requireClinic } from './clinics'
 import { loanDirection, loanDoc } from './schema'
 
 /*
@@ -24,6 +24,14 @@ function requireCount(quantity: number): number {
 		})
 	}
 	return quantity
+}
+
+function requireClinic(value: string): string {
+	const name = capitalName(value)
+	if (name.length === 0) {
+		throw new ConvexError({ code: 'INVALID_STATE', message: 'Clinic name cannot be empty' })
+	}
+	return name
 }
 
 function requireDate(value: string, label: string): string {
@@ -70,7 +78,7 @@ async function entryFields(
 	const item = await requireItem(ctx, args.item_id)
 	return {
 		direction: args.direction,
-		clinic: await requireClinic(ctx, args.clinic),
+		clinic: requireClinic(args.clinic),
 		item_id: item._id,
 		item_name: item.item_name,
 		unit: item.unit,

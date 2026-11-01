@@ -9,7 +9,6 @@
  */
 
 import type * as auth from "../auth.js";
-import type * as clinics from "../clinics.js";
 import type * as crons from "../crons.js";
 import type * as http from "../http.js";
 import type * as inventory from "../inventory.js";
@@ -43,7 +42,6 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
-  clinics: typeof clinics;
   crons: typeof crons;
   http: typeof http;
   inventory: typeof inventory;

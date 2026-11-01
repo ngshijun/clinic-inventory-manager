@@ -4,13 +4,10 @@ import { MANAGER, REQUESTER, item, setup, type T } from './test.helpers'
 
 const CLINIC = 'KLINIK SETIA'
 
-async function clinicAndItem(t: T) {
-	await t.mutation(api.clinics.add, { auth: MANAGER, name: CLINIC })
-	return await item(t, { unit: 'BTL', pack_size: 60, pack_unit: 'ML' })
-}
+const bottle = (t: T) => item(t, { unit: 'BTL', pack_size: 60, pack_unit: 'ML' })
 
 async function borrow(t: T, quantity = 6) {
-	const item_id = await clinicAndItem(t)
+	const item_id = await bottle(t)
 	const id = await t.mutation(api.loans.add, {
 		auth: MANAGER,
 		direction: 'borrowed',
@@ -23,7 +20,7 @@ async function borrow(t: T, quantity = 6) {
 }
 
 describe('borrowed and lent entries', () => {
-	test('an entry keeps the clinic as listed and the item’s unit, and leaves stock alone', async () => {
+	test('an entry keeps the clinic in capitals and the item’s unit, and leaves stock alone', async () => {
 		const t = setup()
 		const { item_id, id } = await borrow(t)
 
@@ -107,9 +104,9 @@ describe('borrowed and lent entries', () => {
 		).rejects.toThrow(/already settled/)
 	})
 
-	test('a clinic not on the list and a part quantity are refused', async () => {
+	test('a blank clinic and a part quantity are refused', async () => {
 		const t = setup()
-		const item_id = await clinicAndItem(t)
+		const item_id = await bottle(t)
 		const entry = {
 			auth: MANAGER,
 			direction: 'lent' as const,
@@ -118,36 +115,21 @@ describe('borrowed and lent entries', () => {
 		}
 
 		await expect(
-			t.mutation(api.loans.add, { ...entry, clinic: 'KLINIK LAIN', quantity: 1 }),
-		).rejects.toThrow(/not on the Clinics list/)
+			t.mutation(api.loans.add, { ...entry, clinic: '  ', quantity: 1 }),
+		).rejects.toThrow(/cannot be empty/)
 		await expect(
 			t.mutation(api.loans.add, { ...entry, clinic: CLINIC, quantity: 1.5 }),
 		).rejects.toThrow(/whole number/)
 	})
 
-	test('renaming the clinic or the item renames the entry, and a clinic in use cannot be deleted', async () => {
+	test('renaming the item renames the entry', async () => {
 		const t = setup()
 		const { item_id, id } = await borrow(t)
-		const clinic = await t.run(
-			async (ctx) =>
-				await ctx.db
-					.query('clinics')
-					.withIndex('by_name', (q) => q.eq('name', CLINIC))
-					.unique(),
-		)
 
-		await t.mutation(api.clinics.rename, {
-			auth: MANAGER,
-			id: clinic!._id,
-			name: 'Klinik Setia Jaya',
-		})
 		await t.mutation(api.inventory.update, { auth: MANAGER, id: item_id, item_name: 'Amoxicillin' })
 
 		const loan = await t.run(async (ctx) => await ctx.db.get(id))
-		expect(loan).toMatchObject({ clinic: 'KLINIK SETIA JAYA', item_name: 'AMOXICILLIN' })
-		await expect(
-			t.mutation(api.clinics.remove, { auth: MANAGER, id: clinic!._id }),
-		).rejects.toThrow(/named on 1 entry/)
+		expect(loan).toMatchObject({ clinic: CLINIC, item_name: 'AMOXICILLIN' })
 	})
 
 	test('the requester password cannot see or add entries', async () => {

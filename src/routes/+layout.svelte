@@ -9,7 +9,6 @@
 	import { stockBatchesStore } from '#lib/stores/stockBatches.svelte.js'
 	import { stockRequestsStore } from '#lib/stores/stockRequests.svelte.js'
 	import { suppliersStore } from '#lib/stores/suppliers.svelte.js'
-	import { clinicsStore } from '#lib/stores/clinics.svelte.js'
 	import { loansStore } from '#lib/stores/loans.svelte.js'
 	import { unitsStore } from '#lib/stores/units.svelte.js'
 	import { payrollStore } from '#lib/stores/payroll.svelte.js'
@@ -45,7 +44,6 @@
 		if (authStore.user?.role === 'manager') {
 			unitsStore.initializeStore()
 			suppliersStore.initializeStore()
-			clinicsStore.initializeStore()
 			loansStore.initializeStore()
 			payrollStore.initializeStore()
 			payrollRecordsStore.initializeStore()
@@ -59,7 +57,6 @@
 		stockRequestsStore.cleanup()
 		unitsStore.cleanup()
 		suppliersStore.cleanup()
-		clinicsStore.cleanup()
 		loansStore.cleanup()
 		payrollStore.cleanup()
 		payrollRecordsStore.cleanup()

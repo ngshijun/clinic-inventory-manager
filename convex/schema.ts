@@ -114,12 +114,6 @@ export const stockRequestFields = {
 	...commonFields,
 }
 
-/** The other clinics medicine is borrowed from or lent to. */
-export const clinicFields = {
-	name: v.string(),
-	...commonFields,
-}
-
 /** Which way the medicine went: borrowed is what the clinic owes, lent is what it is owed. */
 export const loanDirection = v.union(v.literal('borrowed'), v.literal('lent'))
 
@@ -137,7 +131,7 @@ export const loanReturn = v.object({
  */
 export const loanFields = {
 	direction: loanDirection,
-	/** A name from the clinics table, kept as text like the supplier */
+	/** The other clinic, as typed */
 	clinic: v.string(),
 	// May dangle after the item is deleted: the entry still reads from its own name and unit.
 	item_id: v.id('inventory'),
@@ -210,7 +204,6 @@ export const stockRequestDoc = v.object({
 	...systemFields('stock_requests'),
 	...stockRequestFields,
 })
-export const clinicDoc = v.object({ ...systemFields('clinics'), ...clinicFields })
 export const loanDoc = v.object({ ...systemFields('loans'), ...loanFields })
 export const payrollDoc = v.object({
 	...systemFields('payroll'),
@@ -246,8 +239,7 @@ export default defineSchema({
 		.index('by_status', ['status'])
 		.index('by_item', ['item_id']),
 
-	clinics: defineTable(clinicFields).index('by_name', ['name']),
-	loans: defineTable(loanFields).index('by_item', ['item_id']).index('by_clinic', ['clinic']),
+	loans: defineTable(loanFields).index('by_item', ['item_id']),
 
 	payroll: defineTable(payrollFields).index('by_name', ['name']),
 

@@ -2,11 +2,6 @@ import type { Doc, Id } from '#convex/_generated/dataModel.js'
 import type { WithLegacy } from '#lib/types/legacy.js'
 
 export type LoanId = Id<'loans'>
-export type ClinicId = Id<'clinics'>
-
-/** One clinic on the Clinics list */
-export type Clinic = WithLegacy<Doc<'clinics'>>
-
 export type LoanDirection = Doc<'loans'>['direction']
 
 /**

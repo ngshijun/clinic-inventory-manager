@@ -2,10 +2,10 @@
 	import { toast } from 'svelte-sonner'
 	import { selectOnFocus } from '#lib/attachments/focus.js'
 	import ActionModal from '#lib/components/app/ActionModal.svelte'
-	import ClinicField from '#lib/components/app/ClinicField.svelte'
 	import DateInput from '#lib/components/app/DateInput.svelte'
 	import ItemPicker from '#lib/components/app/ItemPicker.svelte'
 	import * as Field from '#lib/components/ui/field/index.js'
+	import { Input } from '#lib/components/ui/input/index.js'
 	import * as InputGroup from '#lib/components/ui/input-group/index.js'
 	import { Textarea } from '#lib/components/ui/textarea/index.js'
 	import * as ToggleGroup from '#lib/components/ui/toggle-group/index.js'
@@ -91,7 +91,7 @@
 	}
 
 	const isValid = $derived(
-		clinic !== '' &&
+		clinic.trim() !== '' &&
 			item !== null &&
 			Number.isInteger(Number(quantity)) &&
 			Number(quantity) > 0 &&
@@ -104,7 +104,7 @@
 		if (!isValid || !item) return
 		const entry = {
 			direction,
-			clinic,
+			clinic: clinic.trim(),
 			item_id: item.id,
 			quantity: Number(quantity),
 			loaned_on: loanedOn,
@@ -117,8 +117,8 @@
 				editing
 					? `Saved ${item.item_name}`
 					: direction === 'borrowed'
-						? `Borrowed ${entry.quantity} ${unit} of ${item.item_name} from ${clinic}`
-						: `Lent ${entry.quantity} ${unit} of ${item.item_name} to ${clinic}`,
+						? `Borrowed ${entry.quantity} ${unit} of ${item.item_name} from ${entry.clinic}`
+						: `Lent ${entry.quantity} ${unit} of ${item.item_name} to ${entry.clinic}`,
 			)
 			close()
 		}
@@ -166,7 +166,16 @@
 					>We lent</ToggleGroup.Item
 				>
 			</ToggleGroup.Root>
-			<ClinicField id="loan-clinic" bind:value={clinic} />
+			<Field.Field>
+				<Field.Label for="loan-clinic">Clinic</Field.Label>
+				<Input
+					id="loan-clinic"
+					bind:value={() => clinic, (text) => (clinic = text.toUpperCase())}
+					placeholder="e.g. KLINIK SETIA"
+					autocomplete="off"
+					required
+				/>
+			</Field.Field>
 			<Field.Field>
 				<Field.Label for="loan-item">Item</Field.Label>
 				<ItemPicker id="loan-item" bind:value={itemId} items={inventoryStore.items} />
