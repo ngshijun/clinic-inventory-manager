@@ -3,7 +3,7 @@ import type { WithLegacy } from '#lib/types/legacy.js'
 
 export type StockRequestId = Id<'stock_requests'>
 
-// The server joins the item's current unit onto each request
+// The store joins the item's current unit onto each request
 export type StockRequest = WithLegacy<Doc<'stock_requests'> & { unit: string }>
 
 export interface NewStockRequest {

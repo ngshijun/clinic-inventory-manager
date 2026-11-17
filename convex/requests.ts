@@ -4,10 +4,7 @@ import type { Doc, Id } from './_generated/dataModel'
 import { requireRole } from './lib/auth'
 import { applyStockOut, assertPositiveQuantity, batchesOf, requireItem } from './lib/stock'
 import { notify, stockDropMessage } from './lib/telegram'
-import { unitLabel } from './lib/units'
 import { stockRequestDoc } from './schema'
-
-const requestRow = v.object({ ...stockRequestDoc.fields, unit: v.string() })
 
 async function requireRequest(
 	ctx: { db: { get: (id: Id<'stock_requests'>) => Promise<Doc<'stock_requests'> | null> } },
@@ -32,11 +29,12 @@ const HISTORY_LIMIT = 500
 /**
  * Every pending request plus the newest `HISTORY_LIMIT` decided ones, newest
  * first. The table holds years of history (10k+ rows), so the decided part is
- * capped; the pending part is small by nature.
+ * capped; the pending part is small by nature. Reads no items, so stock
+ * changes do not rerun it: the client takes each unit from its item list.
  */
 export const list = query({
 	args: { auth: v.string() },
-	returns: v.array(requestRow),
+	returns: v.array(stockRequestDoc),
 	handler: async (ctx, args) => {
 		requireRole(args.auth, ['manager', 'requester'])
 		const pending = await ctx.db
@@ -50,21 +48,9 @@ export const list = query({
 			.order('desc')
 			.take(HISTORY_LIMIT)
 		const seen = new Set<Id<'stock_requests'>>()
-		const requests = [...pending, ...recent]
+		return [...pending, ...recent]
 			.filter((request) => (seen.has(request._id) ? false : (seen.add(request._id), true)))
 			.sort((a, b) => b._creationTime - a._creationTime)
-		const units = new Map<Id<'inventory'>, string>()
-		const rows = []
-		for (const request of requests) {
-			let unit = units.get(request.item_id)
-			if (unit === undefined) {
-				const item = await ctx.db.get(request.item_id)
-				unit = item ? unitLabel(item) : ''
-				units.set(request.item_id, unit)
-			}
-			rows.push({ ...request, unit })
-		}
-		return rows
 	},
 })
 

@@ -1,18 +1,26 @@
 import { api } from '#convex/_generated/api.js'
+import type { Doc } from '#convex/_generated/dataModel.js'
 import { convex } from '#lib/convex.js'
 import type { NewStockRequest, StockRequest, StockRequestId } from '#lib/types/stockRequests.js'
 import { errorMessage, withLegacy } from '#lib/types/legacy.js'
 import { authStore } from './auth.svelte'
+import { inventoryStore } from './inventory.svelte'
 
 /*
  * Live subscription to every pending request plus the newest few hundred
  * decided ones (the server caps the history). Approving a request deducts
  * the stock in the same server transaction, so there is no separate stock
- * out call here any more.
+ * out call here any more. Each request's unit comes from the item list here,
+ * not the server, so a stock change does not resend every request.
  */
 class StockRequestsStore {
 	// State
-	requests = $state<StockRequest[]>([])
+	#docs = $state<Doc<'stock_requests'>[]>([])
+	/** Each with its item's current unit, or none once the item is deleted */
+	requests = $derived.by((): StockRequest[] => {
+		const units = new Map(inventoryStore.items.map((item) => [item.id, item.unit_label]))
+		return this.#docs.map((doc) => ({ ...withLegacy(doc), unit: units.get(doc.item_id) ?? '' }))
+	})
 	#loadingCount = $state(0)
 	error = $state<string | null>(null)
 	/** A failed load, which the user can do nothing about; `error` is a failed action */
@@ -132,7 +140,7 @@ class StockRequestsStore {
 			api.requests.list,
 			{ auth: authStore.token },
 			(docs) => {
-				this.requests = docs.map(withLegacy)
+				this.#docs = docs
 				this.loadError = null
 				settle()
 			},
@@ -155,7 +163,7 @@ class StockRequestsStore {
 		this.#settle = null
 		this.#unsubscribe?.()
 		this.#unsubscribe = null
-		this.requests = []
+		this.#docs = []
 		this.error = null
 		this.loadError = null
 		this.#isInitialized = false
